@@ -32,7 +32,7 @@ defmodule Citadel.MixProject do
 
   defp package do
     [
-      maintainers: ["First Last"],
+      maintainers: ["nshkrdotcom <ZeroTrust@NSHkr.com>"],
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/nshkrdotcom/Citadel"}
     ]
