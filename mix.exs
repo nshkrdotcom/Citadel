@@ -4,9 +4,11 @@ defmodule Citadel.MixProject do
   def project do
     [
       app: :citadel,
-      version: "0.1.0",
+      version: "0.0.0",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
+      description: "The command and control layer for the AI-powered enterprise.",
+      package: package(),
       deps: deps()
     ]
   end
@@ -24,6 +26,14 @@ defmodule Citadel.MixProject do
     [
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
+    ]
+  end
+
+  defp package do
+    [
+      maintainers: ["First Last"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/nshkrdotcom/Citadel"}
     ]
   end
 end
