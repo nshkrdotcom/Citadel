@@ -7,7 +7,7 @@ defmodule Citadel.MixProject do
     [
       app: :citadel,
       version: @version,
-      elixir: "~> 1.18",
+      elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       description: "The command and control layer for the AI-powered enterprise.",
       package: package(),
