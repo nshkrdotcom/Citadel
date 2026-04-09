@@ -141,3 +141,7 @@ end
 *   **Seamless Integration:** Designed with first-class support for Phoenix, providing real-time command and control of your Sentinel population.
 
 `Citadel` is the definitive answer for developers who are serious about moving beyond AI prototypes. It is the architectural foundation required to build, command, and conquer with large-scale, production-grade AI agent systems.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
