@@ -131,6 +131,7 @@ citadel/
     query_bridge/
     signal_bridge/
     boundary_bridge/
+    projection_bridge/
     trace_bridge/
     memory_bridge/
   apps/
@@ -139,6 +140,11 @@ citadel/
 ```
 
 For convenience there may eventually be one welded public artifact, but publication remains derivative of the workspace architecture rather than the other way around.
+
+In this context:
+
+- `Blitz` is applicable as root-only workspace tooling for compile, test, docs, and CI orchestration.
+- `Weld` is the intended graph-native publication system for projecting the public `citadel` artifact from the workspace.
 
 ## Delivery Order
 
