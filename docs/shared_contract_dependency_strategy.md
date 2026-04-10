@@ -1,10 +1,12 @@
 # Shared Contract Dependency Strategy
 
-Wave 1 makes the `:jido_integration_v2_contracts` dependency strategy explicit without freezing the final public versioning rule yet.
+Wave 2 freezes which shared seams are consumed directly and which remain
+Citadel-owned until later waves.
 
-## Packages Carrying The Placeholder Stub
+## Packages Carrying The Shared Contract Dependency
 
-The packages that will need the shared contracts early already declare the dependency explicitly in their `mix.exs` files:
+The packages that consume already-existing higher-order shared contracts declare
+the dependency explicitly in their `mix.exs` files:
 
 - `core/citadel_core`
 - `bridges/invocation_bridge`
@@ -20,14 +22,23 @@ The packages that will need the shared contracts early already declare the depen
 3. `/home/home/p/g/n/jido_integration/core/contracts`
 4. published placeholder requirement `~> 0.1.0`
 
-That keeps local cross-repo iteration easy while preserving an explicit fallback requirement for later public verification.
+That keeps local cross-repo iteration easy while preserving the published
+fallback requirement `~> 0.1.0` for release-facing compatibility verification.
 
-## Wave Boundary
+## Wave 2 Boundary
 
-Wave 1 intentionally stops at explicit placeholders and build surfaces. Wave 2 freezes:
+Wave 2 freezes:
 
-- which packages consume already-existing higher-order shared contracts directly
-- the supported published version range for `:jido_integration_v2_contracts`
-- where lower execution seams remain local Citadel definitions until Wave 5
+- `core/citadel_core` consumes higher-order lineage shapes such as
+  `SubjectRef`, `EvidenceRef`, `GovernanceRef`, `ReviewProjection`, and
+  `DerivedStateAttachment`
+- `core/authority_contract` keeps `AuthorityDecision.v1` local to Citadel while
+  matching the Brain baseline
+- `core/citadel_core` keeps `InvocationRequest`, `BoundaryIntent`, and
+  `TopologyIntent` local to Citadel until the later lower-envelope freeze
+- `bridges/invocation_bridge` consumes that Citadel-owned `InvocationRequest`
+  seam explicitly instead of assuming downstream `Jido.Integration.V2.InvocationRequest`
+  equivalence
 
-No package in Wave 1 should assume that the lower execution packet family already exists downstream.
+No Wave 2 package may assume the lower execution packet family already exists
+downstream as concrete modules.

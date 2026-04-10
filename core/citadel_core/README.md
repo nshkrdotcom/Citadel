@@ -1,12 +1,14 @@
 # Citadel Core
 
-Status: Wave 1 workspace skeleton.
+Status: Wave 2 seam freeze.
 
 ## Owns
 
 - pure values, compilers, reducers, and projectors
 - scope, service-admission, session-binding, and boundary-intent logic
 - deterministic wrappers that must remain runtime-owner-free
+- `Citadel.DecisionHash`
+- the Citadel-owned `InvocationRequest`, `BoundaryIntent`, and `TopologyIntent` seam
 
 ## Dependencies
 
@@ -14,8 +16,19 @@ Status: Wave 1 workspace skeleton.
 - `core/authority_contract`
 - `core/observability_contract`
 - `core/policy_packs`
-- explicit Wave 2 placeholder for `:jido_integration_v2_contracts`
+- `:jido_integration_v2_contracts` for higher-order lineage shapes only
 
-## Wave 1 Posture
+## Wave 2 Posture
 
-The package boundary and dependency posture are in place, but the kernel logic is intentionally not implemented yet. Wave 2 freezes the shared seam strategy; Waves 3 and 4 fill in the actual pure-core behavior.
+Wave 2 freezes the public carrier shapes before deeper runtime behavior:
+
+- `Citadel.DecisionHash` computes `decision_hash` from normalized shared
+  `AuthorityDecision.v1` packets through `core/contract_core`
+- `Citadel.InvocationRequest` is a Citadel seam, not an import of the current
+  downstream `Jido.Integration.V2.InvocationRequest`
+- `InvocationRequest.authority_packet` is explicitly the shared
+  `AuthorityDecision.v1` packet
+- structured ingress stays explicit through provenance refs or hashes; raw NL
+  is not the kernel contract
+- Waves 3 and 4 may tighten ingress mappings, but incompatible carrier-shape
+  changes now require an explicit `schema_version` step

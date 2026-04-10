@@ -7,5 +7,51 @@ defmodule Citadel.ContractCore.CanonicalJsonTest do
   test "tracks the packet-pinned JCS dependency boundary" do
     assert CanonicalJson.encoder_module() == Jcs
     assert ContractCore.manifest().external_dependencies == [:jcs]
+    assert ContractCore.manifest().status == :wave_2_seam_frozen
+  end
+
+  test "normalizes packet values into JSON-safe string-keyed objects" do
+    datetime = DateTime.from_naive!(~N[2026-04-10 08:30:00.123456], "Etc/UTC")
+
+    normalized =
+      CanonicalJson.normalize!(%{
+        "a" => true,
+        :b => 2,
+        :time => datetime,
+        :nested => [mode: :manual, flags: [nil, false]]
+      })
+
+    assert normalized == %{
+             "a" => true,
+             "b" => 2,
+             "nested" => %{"flags" => [nil, false], "mode" => "manual"},
+             "time" => "2026-04-10T08:30:00.123456Z"
+           }
+
+    assert CanonicalJson.encode!(%{b: 2, a: 1}) == "{\"a\":1,\"b\":2}"
+  end
+
+  test "rejects duplicate post-normalization object keys" do
+    assert_raise ArgumentError, ~r/duplicate map key after normalization/, fn ->
+      CanonicalJson.normalize!(%{:foo => 1, "foo" => 2})
+    end
+
+    assert_raise ArgumentError, ~r/duplicate keyword_list key after normalization/, fn ->
+      CanonicalJson.normalize!(foo: 1, foo: 2)
+    end
+  end
+
+  test "rejects unsupported non-json values and generic structs" do
+    assert_raise ArgumentError, ~r/unsupported non-JSON value/, fn ->
+      CanonicalJson.normalize!({:tuple, 1})
+    end
+
+    assert_raise ArgumentError, ~r/unsupported non-JSON value/, fn ->
+      CanonicalJson.normalize!(self())
+    end
+
+    assert_raise ArgumentError, ~r/unsupported struct/, fn ->
+      CanonicalJson.normalize!(%URI{scheme: "https", host: "example.com"})
+    end
   end
 end

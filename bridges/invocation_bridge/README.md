@@ -1,12 +1,13 @@
 # Citadel Invocation Bridge
 
-Status: Wave 1 workspace skeleton.
+Status: Wave 2 seam freeze.
 
 ## Owns
 
 - invocation handoff adapter placement
 - lower-seam request shaping boundaries
 - provider-facing packet projection seams
+- explicit supported `InvocationRequest.schema_version` entrypoint handling
 
 ## Dependencies
 
@@ -16,6 +17,13 @@ Status: Wave 1 workspace skeleton.
 - `core/observability_contract`
 - explicit Wave 2 placeholder for `:jido_integration_v2_contracts`
 
-## Wave 1 Posture
+## Wave 2 Posture
 
-Wave 1 establishes the package boundary and dependency posture only. The real lower-seam invocation adapter logic lands after the shared execution contracts are frozen.
+The bridge now freezes its entry posture:
+
+- it consumes the Citadel-owned `Citadel.InvocationRequest` seam
+- it treats `authority_packet` as the shared `AuthorityDecision.v1` packet
+- it exposes the supported `schema_version` set explicitly and rejects
+  unsupported versions before lower projection begins
+- it still does not assume the lower execution-envelope family already exists
+  downstream

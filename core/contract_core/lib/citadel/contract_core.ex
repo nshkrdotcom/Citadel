@@ -6,8 +6,8 @@ defmodule Citadel.ContractCore do
   @manifest %{
     package: :citadel_contract_core,
     layer: :core,
-    status: :wave_1_skeleton,
-    owns: [:neutral_identifiers, :host_local_refs, :canonical_json],
+    status: :wave_2_seam_frozen,
+    owns: [:neutral_identifiers, :host_local_refs, :canonical_json, :packet_attr_normalization],
     internal_dependencies: [],
     external_dependencies: [:jcs]
   }

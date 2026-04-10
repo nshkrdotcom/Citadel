@@ -1,17 +1,21 @@
 # Citadel Contract Core
 
-Status: Wave 1 workspace skeleton.
+Status: Wave 2 seam freeze.
 
 ## Owns
 
 - neutral identifiers and low-level host-local refs
-- correlation-envelope helper ownership
+- packet attribute normalization helpers
 - RFC 8785 / JCS canonicalization surface for shared packet hashing
+- explicit normalization failure for unsupported non-JSON values and duplicate post-normalization keys
 
 ## Dependencies
 
 - `{:jcs, "~> 0.2.0"}`
 
-## Wave 1 Posture
+## Wave 2 Posture
 
-This package is intentionally shallow. It establishes the package boundary and materializes the packet-pinned `:jcs` dependency without implementing deeper kernel logic ahead of the later contract waves.
+`Citadel.DecisionHash` stays in `core/citadel_core`, but all canonical JSON
+normalization and `Jcs.encode/1` ownership flows through this package. Shared
+packet hashing must not bypass this helper surface with ad hoc `Jason.encode!/1`
+or implicit struct enumeration.
