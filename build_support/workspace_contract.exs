@@ -1,0 +1,32 @@
+defmodule Citadel.Build.WorkspaceContract do
+  @moduledoc false
+
+  @package_paths [
+    "core/contract_core",
+    "core/authority_contract",
+    "core/observability_contract",
+    "core/policy_packs",
+    "core/citadel_core",
+    "core/citadel_runtime",
+    "core/conformance",
+    "bridges/invocation_bridge",
+    "bridges/query_bridge",
+    "bridges/signal_bridge",
+    "bridges/boundary_bridge",
+    "bridges/projection_bridge",
+    "bridges/trace_bridge",
+    "bridges/memory_bridge",
+    "apps/coding_assist",
+    "apps/operator_assist",
+    "apps/host_surface_harness"
+  ]
+
+  @active_project_globs ["."] ++
+                          (@package_paths
+                           |> Enum.map(&Path.dirname/1)
+                           |> Enum.uniq()
+                           |> Enum.map(&"#{&1}/*"))
+
+  def package_paths, do: @package_paths
+  def active_project_globs, do: @active_project_globs
+end
