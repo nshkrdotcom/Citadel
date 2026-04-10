@@ -160,3 +160,20 @@ The near-term build order is:
 8. trace hardening and publication finalization
 
 AITrace hardening and weld/publication are intentionally late. The kernel and contract freeze matter first.
+
+## Local Fault-Injection Harness
+
+The repo-local Docker harness for Toxiproxy lives at:
+
+- `/home/home/p/g/n/citadel/dev/docker/toxiproxy`
+
+Use it for the packet's fault-injection work instead of inventing a one-off local setup.
+
+Quick start:
+
+```bash
+docker compose -f dev/docker/toxiproxy/docker-compose.yml -p citadel-toxiproxy up -d
+dev/docker/toxiproxy/verify.sh
+```
+
+That verification script is the canonical check that the Docker-based Toxiproxy harness is actually working on the current machine.
