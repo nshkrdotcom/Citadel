@@ -51,45 +51,105 @@ defmodule Citadel.StalenessRequirements do
 
     requirements = %__MODULE__{
       snapshot_seq:
-        Value.optional(attrs, :snapshot_seq, "Citadel.StalenessRequirements", fn value ->
-          Value.non_neg_integer!(value, "Citadel.StalenessRequirements.snapshot_seq")
-        end, nil),
+        Value.optional(
+          attrs,
+          :snapshot_seq,
+          "Citadel.StalenessRequirements",
+          fn value ->
+            Value.non_neg_integer!(value, "Citadel.StalenessRequirements.snapshot_seq")
+          end,
+          nil
+        ),
       policy_epoch:
-        Value.optional(attrs, :policy_epoch, "Citadel.StalenessRequirements", fn value ->
-          Value.non_neg_integer!(value, "Citadel.StalenessRequirements.policy_epoch")
-        end, nil),
+        Value.optional(
+          attrs,
+          :policy_epoch,
+          "Citadel.StalenessRequirements",
+          fn value ->
+            Value.non_neg_integer!(value, "Citadel.StalenessRequirements.policy_epoch")
+          end,
+          nil
+        ),
       topology_epoch:
-        Value.optional(attrs, :topology_epoch, "Citadel.StalenessRequirements", fn value ->
-          Value.non_neg_integer!(value, "Citadel.StalenessRequirements.topology_epoch")
-        end, nil),
+        Value.optional(
+          attrs,
+          :topology_epoch,
+          "Citadel.StalenessRequirements",
+          fn value ->
+            Value.non_neg_integer!(value, "Citadel.StalenessRequirements.topology_epoch")
+          end,
+          nil
+        ),
       scope_catalog_epoch:
-        Value.optional(attrs, :scope_catalog_epoch, "Citadel.StalenessRequirements", fn value ->
-          Value.non_neg_integer!(value, "Citadel.StalenessRequirements.scope_catalog_epoch")
-        end, nil),
+        Value.optional(
+          attrs,
+          :scope_catalog_epoch,
+          "Citadel.StalenessRequirements",
+          fn value ->
+            Value.non_neg_integer!(value, "Citadel.StalenessRequirements.scope_catalog_epoch")
+          end,
+          nil
+        ),
       service_admission_epoch:
-        Value.optional(attrs, :service_admission_epoch, "Citadel.StalenessRequirements", fn value ->
-          Value.non_neg_integer!(value, "Citadel.StalenessRequirements.service_admission_epoch")
-        end, nil),
+        Value.optional(
+          attrs,
+          :service_admission_epoch,
+          "Citadel.StalenessRequirements",
+          fn value ->
+            Value.non_neg_integer!(value, "Citadel.StalenessRequirements.service_admission_epoch")
+          end,
+          nil
+        ),
       project_binding_epoch:
-        Value.optional(attrs, :project_binding_epoch, "Citadel.StalenessRequirements", fn value ->
-          Value.non_neg_integer!(value, "Citadel.StalenessRequirements.project_binding_epoch")
-        end, nil),
+        Value.optional(
+          attrs,
+          :project_binding_epoch,
+          "Citadel.StalenessRequirements",
+          fn value ->
+            Value.non_neg_integer!(value, "Citadel.StalenessRequirements.project_binding_epoch")
+          end,
+          nil
+        ),
       boundary_epoch:
-        Value.optional(attrs, :boundary_epoch, "Citadel.StalenessRequirements", fn value ->
-          Value.non_neg_integer!(value, "Citadel.StalenessRequirements.boundary_epoch")
-        end, nil),
+        Value.optional(
+          attrs,
+          :boundary_epoch,
+          "Citadel.StalenessRequirements",
+          fn value ->
+            Value.non_neg_integer!(value, "Citadel.StalenessRequirements.boundary_epoch")
+          end,
+          nil
+        ),
       required_binding_id:
-        Value.optional(attrs, :required_binding_id, "Citadel.StalenessRequirements", fn value ->
-          Value.string!(value, "Citadel.StalenessRequirements.required_binding_id")
-        end, nil),
+        Value.optional(
+          attrs,
+          :required_binding_id,
+          "Citadel.StalenessRequirements",
+          fn value ->
+            Value.string!(value, "Citadel.StalenessRequirements.required_binding_id")
+          end,
+          nil
+        ),
       required_boundary_ref:
-        Value.optional(attrs, :required_boundary_ref, "Citadel.StalenessRequirements", fn value ->
-          Value.string!(value, "Citadel.StalenessRequirements.required_boundary_ref")
-        end, nil),
+        Value.optional(
+          attrs,
+          :required_boundary_ref,
+          "Citadel.StalenessRequirements",
+          fn value ->
+            Value.string!(value, "Citadel.StalenessRequirements.required_boundary_ref")
+          end,
+          nil
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.StalenessRequirements", fn value ->
-          Value.json_object!(value, "Citadel.StalenessRequirements.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.StalenessRequirements",
+          fn value ->
+            Value.json_object!(value, "Citadel.StalenessRequirements.extensions")
+          end,
+          %{}
+        )
     }
 
     meaningful =
@@ -192,17 +252,35 @@ defmodule Citadel.BackoffPolicy do
           Value.non_neg_integer!(value, "Citadel.BackoffPolicy.base_delay_ms")
         end),
       max_delay_ms:
-        Value.optional(attrs, :max_delay_ms, "Citadel.BackoffPolicy", fn value ->
-          Value.non_neg_integer!(value, "Citadel.BackoffPolicy.max_delay_ms")
-        end, nil),
+        Value.optional(
+          attrs,
+          :max_delay_ms,
+          "Citadel.BackoffPolicy",
+          fn value ->
+            Value.non_neg_integer!(value, "Citadel.BackoffPolicy.max_delay_ms")
+          end,
+          nil
+        ),
       linear_step_ms:
-        Value.optional(attrs, :linear_step_ms, "Citadel.BackoffPolicy", fn value ->
-          Value.non_neg_integer!(value, "Citadel.BackoffPolicy.linear_step_ms")
-        end, nil),
+        Value.optional(
+          attrs,
+          :linear_step_ms,
+          "Citadel.BackoffPolicy",
+          fn value ->
+            Value.non_neg_integer!(value, "Citadel.BackoffPolicy.linear_step_ms")
+          end,
+          nil
+        ),
       multiplier:
-        Value.optional(attrs, :multiplier, "Citadel.BackoffPolicy", fn value ->
-          Value.positive_integer!(value, "Citadel.BackoffPolicy.multiplier")
-        end, nil),
+        Value.optional(
+          attrs,
+          :multiplier,
+          "Citadel.BackoffPolicy",
+          fn value ->
+            Value.positive_integer!(value, "Citadel.BackoffPolicy.multiplier")
+          end,
+          nil
+        ),
       jitter_mode:
         Value.required(attrs, :jitter_mode, "Citadel.BackoffPolicy", fn value ->
           Value.enum!(value, @allowed_jitter_modes, "Citadel.BackoffPolicy.jitter_mode")
@@ -212,9 +290,15 @@ defmodule Citadel.BackoffPolicy do
           Value.non_neg_integer!(value, "Citadel.BackoffPolicy.jitter_window_ms")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.BackoffPolicy", fn value ->
-          Value.json_object!(value, "Citadel.BackoffPolicy.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.BackoffPolicy",
+          fn value ->
+            Value.json_object!(value, "Citadel.BackoffPolicy.extensions")
+          end,
+          %{}
+        )
     }
 
     validate_strategy_specific_requirements!(policy)
@@ -268,16 +352,26 @@ defmodule Citadel.BackoffPolicy do
   defp cap_delay(delay, nil), do: delay
   defp cap_delay(delay, max_delay), do: min(delay, max_delay)
 
-  defp validate_strategy_specific_requirements!(%__MODULE__{strategy: :linear, linear_step_ms: nil}) do
+  defp validate_strategy_specific_requirements!(%__MODULE__{
+         strategy: :linear,
+         linear_step_ms: nil
+       }) do
     raise ArgumentError, "Citadel.BackoffPolicy.linear_step_ms is required for linear strategy"
   end
 
-  defp validate_strategy_specific_requirements!(%__MODULE__{strategy: :exponential, multiplier: nil}) do
+  defp validate_strategy_specific_requirements!(%__MODULE__{
+         strategy: :exponential,
+         multiplier: nil
+       }) do
     raise ArgumentError, "Citadel.BackoffPolicy.multiplier is required for exponential strategy"
   end
 
-  defp validate_strategy_specific_requirements!(%__MODULE__{strategy: :exponential, multiplier: 1}) do
-    raise ArgumentError, "Citadel.BackoffPolicy.multiplier must be greater than 1 for exponential strategy"
+  defp validate_strategy_specific_requirements!(%__MODULE__{
+         strategy: :exponential,
+         multiplier: 1
+       }) do
+    raise ArgumentError,
+          "Citadel.BackoffPolicy.multiplier must be greater than 1 for exponential strategy"
   end
 
   defp validate_strategy_specific_requirements!(policy), do: policy
@@ -321,9 +415,15 @@ defmodule Citadel.LocalAction do
           Value.json_object!(value, "Citadel.LocalAction.payload")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.LocalAction", fn value ->
-          Value.json_object!(value, "Citadel.LocalAction.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.LocalAction",
+          fn value ->
+            Value.json_object!(value, "Citadel.LocalAction.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -432,6 +532,12 @@ defmodule Citadel.ActionOutboxEntry do
   def allowed_ordering_modes, do: @allowed_ordering_modes
   def allowed_staleness_modes, do: @allowed_staleness_modes
 
+  def new!(%__MODULE__{} = entry) do
+    entry
+    |> dump()
+    |> new!()
+  end
+
   def new!(attrs) do
     attrs = Value.normalize_attrs!(attrs, "Citadel.ActionOutboxEntry", @fields)
 
@@ -466,9 +572,15 @@ defmodule Citadel.ActionOutboxEntry do
           Value.enum!(value, @allowed_replay_status, "Citadel.ActionOutboxEntry.replay_status")
         end),
       durable_receipt_ref:
-        Value.optional(attrs, :durable_receipt_ref, "Citadel.ActionOutboxEntry", fn value ->
-          Value.string!(value, "Citadel.ActionOutboxEntry.durable_receipt_ref")
-        end, nil),
+        Value.optional(
+          attrs,
+          :durable_receipt_ref,
+          "Citadel.ActionOutboxEntry",
+          fn value ->
+            Value.string!(value, "Citadel.ActionOutboxEntry.durable_receipt_ref")
+          end,
+          nil
+        ),
       attempt_count:
         Value.required(attrs, :attempt_count, "Citadel.ActionOutboxEntry", fn value ->
           Value.non_neg_integer!(value, "Citadel.ActionOutboxEntry.attempt_count")
@@ -482,17 +594,35 @@ defmodule Citadel.ActionOutboxEntry do
           Value.module!(value, BackoffPolicy, "Citadel.ActionOutboxEntry.backoff_policy")
         end),
       next_attempt_at:
-        Value.optional(attrs, :next_attempt_at, "Citadel.ActionOutboxEntry", fn value ->
-          Value.datetime!(value, "Citadel.ActionOutboxEntry.next_attempt_at")
-        end, nil),
+        Value.optional(
+          attrs,
+          :next_attempt_at,
+          "Citadel.ActionOutboxEntry",
+          fn value ->
+            Value.datetime!(value, "Citadel.ActionOutboxEntry.next_attempt_at")
+          end,
+          nil
+        ),
       last_error_code:
-        Value.optional(attrs, :last_error_code, "Citadel.ActionOutboxEntry", fn value ->
-          Value.string!(value, "Citadel.ActionOutboxEntry.last_error_code")
-        end, nil),
+        Value.optional(
+          attrs,
+          :last_error_code,
+          "Citadel.ActionOutboxEntry",
+          fn value ->
+            Value.string!(value, "Citadel.ActionOutboxEntry.last_error_code")
+          end,
+          nil
+        ),
       dead_letter_reason:
-        Value.optional(attrs, :dead_letter_reason, "Citadel.ActionOutboxEntry", fn value ->
-          Value.string!(value, "Citadel.ActionOutboxEntry.dead_letter_reason")
-        end, nil),
+        Value.optional(
+          attrs,
+          :dead_letter_reason,
+          "Citadel.ActionOutboxEntry",
+          fn value ->
+            Value.string!(value, "Citadel.ActionOutboxEntry.dead_letter_reason")
+          end,
+          nil
+        ),
       ordering_mode:
         Value.required(attrs, :ordering_mode, "Citadel.ActionOutboxEntry", fn value ->
           Value.enum!(value, @allowed_ordering_modes, "Citadel.ActionOutboxEntry.ordering_mode")
@@ -502,13 +632,29 @@ defmodule Citadel.ActionOutboxEntry do
           Value.enum!(value, @allowed_staleness_modes, "Citadel.ActionOutboxEntry.staleness_mode")
         end),
       staleness_requirements:
-        Value.optional(attrs, :staleness_requirements, "Citadel.ActionOutboxEntry", fn value ->
-          Value.module!(value, StalenessRequirements, "Citadel.ActionOutboxEntry.staleness_requirements")
-        end, nil),
+        Value.optional(
+          attrs,
+          :staleness_requirements,
+          "Citadel.ActionOutboxEntry",
+          fn value ->
+            Value.module!(
+              value,
+              StalenessRequirements,
+              "Citadel.ActionOutboxEntry.staleness_requirements"
+            )
+          end,
+          nil
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.ActionOutboxEntry", fn value ->
-          Value.json_object!(value, "Citadel.ActionOutboxEntry.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.ActionOutboxEntry",
+          fn value ->
+            Value.json_object!(value, "Citadel.ActionOutboxEntry.extensions")
+          end,
+          %{}
+        )
     }
 
     validate_staleness_mode!(entry)
@@ -539,15 +685,23 @@ defmodule Citadel.ActionOutboxEntry do
     }
   end
 
-  def replayable?(%__MODULE__{replay_status: status}) when status in [:pending, :dispatched], do: true
+  def replayable?(%__MODULE__{replay_status: status}) when status in [:pending, :dispatched],
+    do: true
+
   def replayable?(%__MODULE__{}), do: false
 
-  defp validate_staleness_mode!(%__MODULE__{staleness_mode: :requires_check, staleness_requirements: nil}) do
+  defp validate_staleness_mode!(%__MODULE__{
+         staleness_mode: :requires_check,
+         staleness_requirements: nil
+       }) do
     raise ArgumentError,
           "Citadel.ActionOutboxEntry requires explicit staleness_requirements when staleness_mode is :requires_check"
   end
 
-  defp validate_staleness_mode!(%__MODULE__{staleness_mode: :stale_exempt, staleness_requirements: %StalenessRequirements{}}) do
+  defp validate_staleness_mode!(%__MODULE__{
+         staleness_mode: :stale_exempt,
+         staleness_requirements: %StalenessRequirements{}
+       }) do
     raise ArgumentError,
           "Citadel.ActionOutboxEntry stale-exempt entries must not also carry staleness_requirements"
   end
@@ -616,7 +770,12 @@ defmodule Citadel.SessionOutbox do
       entries_by_id:
         Value.required(attrs, :entries_by_id, "Citadel.SessionOutbox", fn value ->
           Value.map_of!(value, "Citadel.SessionOutbox.entries_by_id", fn key, entry_value ->
-            entry = Value.module!(entry_value, ActionOutboxEntry, "Citadel.SessionOutbox.entries_by_id[#{key}]")
+            entry =
+              Value.module!(
+                entry_value,
+                ActionOutboxEntry,
+                "Citadel.SessionOutbox.entries_by_id[#{key}]"
+              )
 
             if entry.entry_id != key do
               raise ArgumentError,
@@ -627,9 +786,15 @@ defmodule Citadel.SessionOutbox do
           end)
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.SessionOutbox", fn value ->
-          Value.json_object!(value, "Citadel.SessionOutbox.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.SessionOutbox",
+          fn value ->
+            Value.json_object!(value, "Citadel.SessionOutbox.extensions")
+          end,
+          %{}
+        )
     }
 
     ensure_invariant!(outbox)
@@ -638,7 +803,8 @@ defmodule Citadel.SessionOutbox do
   def dump(%__MODULE__{} = outbox) do
     %{
       entry_order: outbox.entry_order,
-      entries_by_id: Map.new(outbox.entries_by_id, fn {id, entry} -> {id, ActionOutboxEntry.dump(entry)} end),
+      entries_by_id:
+        Map.new(outbox.entries_by_id, fn {id, entry} -> {id, ActionOutboxEntry.dump(entry)} end),
       extensions: outbox.extensions
     }
   end
@@ -790,7 +956,13 @@ defmodule Citadel.SessionState do
           extensions: map()
         }
 
-  @enforce_keys [:session_id, :continuity_revision, :owner_incarnation, :lifecycle_status, :outbox]
+  @enforce_keys [
+    :session_id,
+    :continuity_revision,
+    :owner_incarnation,
+    :lifecycle_status,
+    :outbox
+  ]
   defstruct session_id: nil,
             continuity_revision: 0,
             owner_incarnation: 1,
@@ -829,63 +1001,139 @@ defmodule Citadel.SessionState do
           Value.positive_integer!(value, "Citadel.SessionState.owner_incarnation")
         end),
       project_binding:
-        Value.optional(attrs, :project_binding, "Citadel.SessionState", fn value ->
-          Value.module!(value, ProjectBinding, "Citadel.SessionState.project_binding")
-        end, nil),
+        Value.optional(
+          attrs,
+          :project_binding,
+          "Citadel.SessionState",
+          fn value ->
+            Value.module!(value, ProjectBinding, "Citadel.SessionState.project_binding")
+          end,
+          nil
+        ),
       scope_ref:
-        Value.optional(attrs, :scope_ref, "Citadel.SessionState", fn value ->
-          Value.module!(value, ScopeRef, "Citadel.SessionState.scope_ref")
-        end, nil),
+        Value.optional(
+          attrs,
+          :scope_ref,
+          "Citadel.SessionState",
+          fn value ->
+            Value.module!(value, ScopeRef, "Citadel.SessionState.scope_ref")
+          end,
+          nil
+        ),
       signal_cursor:
-        Value.optional(attrs, :signal_cursor, "Citadel.SessionState", fn value ->
-          Value.string!(value, "Citadel.SessionState.signal_cursor")
-        end, nil),
+        Value.optional(
+          attrs,
+          :signal_cursor,
+          "Citadel.SessionState",
+          fn value ->
+            Value.string!(value, "Citadel.SessionState.signal_cursor")
+          end,
+          nil
+        ),
       recent_signal_hashes:
-        Value.optional(attrs, :recent_signal_hashes, "Citadel.SessionState", fn value ->
-          Value.unique_strings!(value, "Citadel.SessionState.recent_signal_hashes")
-        end, []),
+        Value.optional(
+          attrs,
+          :recent_signal_hashes,
+          "Citadel.SessionState",
+          fn value ->
+            Value.unique_strings!(value, "Citadel.SessionState.recent_signal_hashes")
+          end,
+          []
+        ),
       last_active_at:
-        Value.optional(attrs, :last_active_at, "Citadel.SessionState", fn value ->
-          Value.datetime!(value, "Citadel.SessionState.last_active_at")
-        end, nil),
+        Value.optional(
+          attrs,
+          :last_active_at,
+          "Citadel.SessionState",
+          fn value ->
+            Value.datetime!(value, "Citadel.SessionState.last_active_at")
+          end,
+          nil
+        ),
       lifecycle_status:
         Value.required(attrs, :lifecycle_status, "Citadel.SessionState", fn value ->
           Value.enum!(value, @allowed_lifecycle_statuses, "Citadel.SessionState.lifecycle_status")
         end),
       active_plan:
-        Value.optional(attrs, :active_plan, "Citadel.SessionState", fn value ->
-          Value.module!(value, Plan, "Citadel.SessionState.active_plan")
-        end, nil),
+        Value.optional(
+          attrs,
+          :active_plan,
+          "Citadel.SessionState",
+          fn value ->
+            Value.module!(value, Plan, "Citadel.SessionState.active_plan")
+          end,
+          nil
+        ),
       active_authority_decision:
-        Value.optional(attrs, :active_authority_decision, "Citadel.SessionState", fn value ->
-          Value.module!(value, AuthorityDecision, "Citadel.SessionState.active_authority_decision")
-        end, nil),
+        Value.optional(
+          attrs,
+          :active_authority_decision,
+          "Citadel.SessionState",
+          fn value ->
+            Value.module!(
+              value,
+              AuthorityDecision,
+              "Citadel.SessionState.active_authority_decision"
+            )
+          end,
+          nil
+        ),
       last_rejection:
-        Value.optional(attrs, :last_rejection, "Citadel.SessionState", fn value ->
-          Value.module!(value, DecisionRejection, "Citadel.SessionState.last_rejection")
-        end, nil),
+        Value.optional(
+          attrs,
+          :last_rejection,
+          "Citadel.SessionState",
+          fn value ->
+            Value.module!(value, DecisionRejection, "Citadel.SessionState.last_rejection")
+          end,
+          nil
+        ),
       visible_services:
-        Value.optional(attrs, :visible_services, "Citadel.SessionState", fn value ->
-          Value.list!(value, "Citadel.SessionState.visible_services", fn item ->
-            Value.module!(item, ServiceDescriptor, "Citadel.SessionState.visible_services")
-          end)
-        end, []),
+        Value.optional(
+          attrs,
+          :visible_services,
+          "Citadel.SessionState",
+          fn value ->
+            Value.list!(value, "Citadel.SessionState.visible_services", fn item ->
+              Value.module!(item, ServiceDescriptor, "Citadel.SessionState.visible_services")
+            end)
+          end,
+          []
+        ),
       boundary_lease_view:
-        Value.optional(attrs, :boundary_lease_view, "Citadel.SessionState", fn value ->
-          Value.module!(value, BoundaryLeaseView, "Citadel.SessionState.boundary_lease_view")
-        end, nil),
+        Value.optional(
+          attrs,
+          :boundary_lease_view,
+          "Citadel.SessionState",
+          fn value ->
+            Value.module!(value, BoundaryLeaseView, "Citadel.SessionState.boundary_lease_view")
+          end,
+          nil
+        ),
       outbox:
         Value.required(attrs, :outbox, "Citadel.SessionState", fn value ->
           Value.module!(value, SessionOutbox, "Citadel.SessionState.outbox")
         end),
       external_refs:
-        Value.optional(attrs, :external_refs, "Citadel.SessionState", fn value ->
-          Value.json_object!(value, "Citadel.SessionState.external_refs")
-        end, %{}),
+        Value.optional(
+          attrs,
+          :external_refs,
+          "Citadel.SessionState",
+          fn value ->
+            Value.json_object!(value, "Citadel.SessionState.external_refs")
+          end,
+          %{}
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.SessionState", fn value ->
-          Value.json_object!(value, "Citadel.SessionState.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.SessionState",
+          fn value ->
+            Value.json_object!(value, "Citadel.SessionState.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -1015,65 +1263,152 @@ defmodule Citadel.PersistedSessionEnvelope do
           Value.string!(value, "Citadel.PersistedSessionEnvelope.session_id")
         end),
       continuity_revision:
-        Value.required(attrs, :continuity_revision, "Citadel.PersistedSessionEnvelope", fn value ->
-          Value.non_neg_integer!(value, "Citadel.PersistedSessionEnvelope.continuity_revision")
-        end),
+        Value.required(
+          attrs,
+          :continuity_revision,
+          "Citadel.PersistedSessionEnvelope",
+          fn value ->
+            Value.non_neg_integer!(value, "Citadel.PersistedSessionEnvelope.continuity_revision")
+          end
+        ),
       owner_incarnation:
         Value.required(attrs, :owner_incarnation, "Citadel.PersistedSessionEnvelope", fn value ->
           Value.positive_integer!(value, "Citadel.PersistedSessionEnvelope.owner_incarnation")
         end),
       project_binding:
-        Value.optional(attrs, :project_binding, "Citadel.PersistedSessionEnvelope", fn value ->
-          Value.module!(value, ProjectBinding, "Citadel.PersistedSessionEnvelope.project_binding")
-        end, nil),
+        Value.optional(
+          attrs,
+          :project_binding,
+          "Citadel.PersistedSessionEnvelope",
+          fn value ->
+            Value.module!(
+              value,
+              ProjectBinding,
+              "Citadel.PersistedSessionEnvelope.project_binding"
+            )
+          end,
+          nil
+        ),
       scope_ref:
-        Value.optional(attrs, :scope_ref, "Citadel.PersistedSessionEnvelope", fn value ->
-          Value.module!(value, ScopeRef, "Citadel.PersistedSessionEnvelope.scope_ref")
-        end, nil),
+        Value.optional(
+          attrs,
+          :scope_ref,
+          "Citadel.PersistedSessionEnvelope",
+          fn value ->
+            Value.module!(value, ScopeRef, "Citadel.PersistedSessionEnvelope.scope_ref")
+          end,
+          nil
+        ),
       signal_cursor:
-        Value.optional(attrs, :signal_cursor, "Citadel.PersistedSessionEnvelope", fn value ->
-          Value.string!(value, "Citadel.PersistedSessionEnvelope.signal_cursor")
-        end, nil),
+        Value.optional(
+          attrs,
+          :signal_cursor,
+          "Citadel.PersistedSessionEnvelope",
+          fn value ->
+            Value.string!(value, "Citadel.PersistedSessionEnvelope.signal_cursor")
+          end,
+          nil
+        ),
       recent_signal_hashes:
-        Value.optional(attrs, :recent_signal_hashes, "Citadel.PersistedSessionEnvelope", fn value ->
-          Value.unique_strings!(value, "Citadel.PersistedSessionEnvelope.recent_signal_hashes")
-        end, []),
+        Value.optional(
+          attrs,
+          :recent_signal_hashes,
+          "Citadel.PersistedSessionEnvelope",
+          fn value ->
+            Value.unique_strings!(value, "Citadel.PersistedSessionEnvelope.recent_signal_hashes")
+          end,
+          []
+        ),
       lifecycle_status:
         Value.required(attrs, :lifecycle_status, "Citadel.PersistedSessionEnvelope", fn value ->
-          Value.enum!(value, SessionState.allowed_lifecycle_statuses(), "Citadel.PersistedSessionEnvelope.lifecycle_status")
+          Value.enum!(
+            value,
+            SessionState.allowed_lifecycle_statuses(),
+            "Citadel.PersistedSessionEnvelope.lifecycle_status"
+          )
         end),
       last_active_at:
-        Value.optional(attrs, :last_active_at, "Citadel.PersistedSessionEnvelope", fn value ->
-          Value.datetime!(value, "Citadel.PersistedSessionEnvelope.last_active_at")
-        end, nil),
+        Value.optional(
+          attrs,
+          :last_active_at,
+          "Citadel.PersistedSessionEnvelope",
+          fn value ->
+            Value.datetime!(value, "Citadel.PersistedSessionEnvelope.last_active_at")
+          end,
+          nil
+        ),
       active_plan:
-        Value.optional(attrs, :active_plan, "Citadel.PersistedSessionEnvelope", fn value ->
-          Value.module!(value, Plan, "Citadel.PersistedSessionEnvelope.active_plan")
-        end, nil),
+        Value.optional(
+          attrs,
+          :active_plan,
+          "Citadel.PersistedSessionEnvelope",
+          fn value ->
+            Value.module!(value, Plan, "Citadel.PersistedSessionEnvelope.active_plan")
+          end,
+          nil
+        ),
       active_authority_decision:
-        Value.optional(attrs, :active_authority_decision, "Citadel.PersistedSessionEnvelope", fn value ->
-          Value.module!(value, AuthorityDecision, "Citadel.PersistedSessionEnvelope.active_authority_decision")
-        end, nil),
+        Value.optional(
+          attrs,
+          :active_authority_decision,
+          "Citadel.PersistedSessionEnvelope",
+          fn value ->
+            Value.module!(
+              value,
+              AuthorityDecision,
+              "Citadel.PersistedSessionEnvelope.active_authority_decision"
+            )
+          end,
+          nil
+        ),
       last_rejection:
-        Value.optional(attrs, :last_rejection, "Citadel.PersistedSessionEnvelope", fn value ->
-          Value.module!(value, DecisionRejection, "Citadel.PersistedSessionEnvelope.last_rejection")
-        end, nil),
+        Value.optional(
+          attrs,
+          :last_rejection,
+          "Citadel.PersistedSessionEnvelope",
+          fn value ->
+            Value.module!(
+              value,
+              DecisionRejection,
+              "Citadel.PersistedSessionEnvelope.last_rejection"
+            )
+          end,
+          nil
+        ),
       boundary_ref:
-        Value.optional(attrs, :boundary_ref, "Citadel.PersistedSessionEnvelope", fn value ->
-          Value.string!(value, "Citadel.PersistedSessionEnvelope.boundary_ref")
-        end, nil),
+        Value.optional(
+          attrs,
+          :boundary_ref,
+          "Citadel.PersistedSessionEnvelope",
+          fn value ->
+            Value.string!(value, "Citadel.PersistedSessionEnvelope.boundary_ref")
+          end,
+          nil
+        ),
       outbox_entry_ids:
         Value.required(attrs, :outbox_entry_ids, "Citadel.PersistedSessionEnvelope", fn value ->
           Value.unique_strings!(value, "Citadel.PersistedSessionEnvelope.outbox_entry_ids")
         end),
       external_refs:
-        Value.optional(attrs, :external_refs, "Citadel.PersistedSessionEnvelope", fn value ->
-          Value.json_object!(value, "Citadel.PersistedSessionEnvelope.external_refs")
-        end, %{}),
+        Value.optional(
+          attrs,
+          :external_refs,
+          "Citadel.PersistedSessionEnvelope",
+          fn value ->
+            Value.json_object!(value, "Citadel.PersistedSessionEnvelope.external_refs")
+          end,
+          %{}
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.PersistedSessionEnvelope", fn value ->
-          Value.json_object!(value, "Citadel.PersistedSessionEnvelope.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.PersistedSessionEnvelope",
+          fn value ->
+            Value.json_object!(value, "Citadel.PersistedSessionEnvelope.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -1152,8 +1487,14 @@ defmodule Citadel.PersistedSessionBlob do
         end),
       outbox_entries:
         Value.required(attrs, :outbox_entries, "Citadel.PersistedSessionBlob", fn value ->
-          Value.map_of!(value, "Citadel.PersistedSessionBlob.outbox_entries", fn key, entry_value ->
-            entry = Value.module!(entry_value, ActionOutboxEntry, "Citadel.PersistedSessionBlob.outbox_entries[#{key}]")
+          Value.map_of!(value, "Citadel.PersistedSessionBlob.outbox_entries", fn key,
+                                                                                 entry_value ->
+            entry =
+              Value.module!(
+                entry_value,
+                ActionOutboxEntry,
+                "Citadel.PersistedSessionBlob.outbox_entries[#{key}]"
+              )
 
             if entry.entry_id != key do
               raise ArgumentError,
@@ -1164,9 +1505,15 @@ defmodule Citadel.PersistedSessionBlob do
           end)
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.PersistedSessionBlob", fn value ->
-          Value.json_object!(value, "Citadel.PersistedSessionBlob.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.PersistedSessionBlob",
+          fn value ->
+            Value.json_object!(value, "Citadel.PersistedSessionBlob.extensions")
+          end,
+          %{}
+        )
     }
 
     validate_blob_invariants!(blob)
@@ -1187,8 +1534,12 @@ defmodule Citadel.PersistedSessionBlob do
     ordered_entries =
       Enum.map(blob.envelope.outbox_entry_ids, fn entry_id ->
         case Map.fetch(blob.outbox_entries, entry_id) do
-          {:ok, entry} -> entry
-          :error -> raise ArgumentError, "missing outbox entry #{inspect(entry_id)} in persisted session blob"
+          {:ok, entry} ->
+            entry
+
+          :error ->
+            raise ArgumentError,
+                  "missing outbox entry #{inspect(entry_id)} in persisted session blob"
         end
       end)
 
@@ -1250,21 +1601,47 @@ defmodule Citadel.SessionContinuityCommit do
           Value.string!(value, "Citadel.SessionContinuityCommit.session_id")
         end),
       expected_continuity_revision:
-        Value.required(attrs, :expected_continuity_revision, "Citadel.SessionContinuityCommit", fn value ->
-          Value.non_neg_integer!(value, "Citadel.SessionContinuityCommit.expected_continuity_revision")
-        end),
+        Value.required(
+          attrs,
+          :expected_continuity_revision,
+          "Citadel.SessionContinuityCommit",
+          fn value ->
+            Value.non_neg_integer!(
+              value,
+              "Citadel.SessionContinuityCommit.expected_continuity_revision"
+            )
+          end
+        ),
       expected_owner_incarnation:
-        Value.required(attrs, :expected_owner_incarnation, "Citadel.SessionContinuityCommit", fn value ->
-          Value.positive_integer!(value, "Citadel.SessionContinuityCommit.expected_owner_incarnation")
-        end),
+        Value.required(
+          attrs,
+          :expected_owner_incarnation,
+          "Citadel.SessionContinuityCommit",
+          fn value ->
+            Value.positive_integer!(
+              value,
+              "Citadel.SessionContinuityCommit.expected_owner_incarnation"
+            )
+          end
+        ),
       persisted_blob:
         Value.required(attrs, :persisted_blob, "Citadel.SessionContinuityCommit", fn value ->
-          Value.module!(value, PersistedSessionBlob, "Citadel.SessionContinuityCommit.persisted_blob")
+          Value.module!(
+            value,
+            PersistedSessionBlob,
+            "Citadel.SessionContinuityCommit.persisted_blob"
+          )
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.SessionContinuityCommit", fn value ->
-          Value.json_object!(value, "Citadel.SessionContinuityCommit.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.SessionContinuityCommit",
+          fn value ->
+            Value.json_object!(value, "Citadel.SessionContinuityCommit.extensions")
+          end,
+          %{}
+        )
     }
 
     validate_commit_semantics!(commit)

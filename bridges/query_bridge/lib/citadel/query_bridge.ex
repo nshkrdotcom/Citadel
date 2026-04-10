@@ -1,20 +1,126 @@
 defmodule Citadel.QueryBridge do
   @moduledoc """
-  Packet-aligned ownership surface for `bridges/query_bridge`.
+  Rehydrates durable lower truth into normalized Citadel read models.
   """
+
+  alias Citadel.BoundarySessionDescriptor.V1, as: BoundarySessionDescriptorV1
+  alias Citadel.BridgeCircuit
+  alias Citadel.BridgeCircuitPolicy
+  alias Citadel.RuntimeObservation
+
+  @behaviour Citadel.Ports.RuntimeQuery
+
+  defmodule Downstream do
+    @moduledoc false
+
+    @callback fetch_runtime_observation(map()) :: {:ok, map()} | {:error, atom()}
+    @callback fetch_boundary_session(map()) :: {:ok, map()} | {:error, atom()}
+  end
 
   @manifest %{
     package: :citadel_query_bridge,
     layer: :bridge,
-    status: :wave_1_skeleton,
-    owns: [:rehydration_adapters, :query_normalization, :external_snapshot_lookup],
+    status: :wave_5_contract_frozen,
+    owns: [:rehydration_adapters, :runtime_observation_normalization, :boundary_truth_rehydration],
     internal_dependencies: [:citadel_core, :citadel_runtime],
     external_dependencies: []
   }
 
-  @spec rehydration_sources() :: [atom()]
-  def rehydration_sources, do: [:session_snapshot, :boundary_projection, :external_query_result]
+  @type t :: %__MODULE__{
+          downstream: module(),
+          circuit: BridgeCircuit.t()
+        }
+
+  defstruct downstream: nil, circuit: nil
+
+  @spec new!(keyword()) :: t()
+  def new!(opts) do
+    downstream = Keyword.fetch!(opts, :downstream)
+
+    unless is_atom(downstream) and
+             function_exported?(downstream, :fetch_runtime_observation, 1) and
+             function_exported?(downstream, :fetch_boundary_session, 1) do
+      raise ArgumentError,
+            "Citadel.QueryBridge.downstream must export fetch_runtime_observation/1 and fetch_boundary_session/1"
+    end
+
+    %__MODULE__{
+      downstream: downstream,
+      circuit:
+        BridgeCircuit.new!(
+          policy: Keyword.get(opts, :circuit_policy, default_circuit_policy()),
+          now_ms_fun: Keyword.get(opts, :now_ms_fun)
+        )
+    }
+  end
+
+  @impl true
+  def fetch_runtime_observation(_query) do
+    raise ArgumentError,
+          "Citadel.QueryBridge.fetch_runtime_observation/1 requires an initialized bridge instance; use fetch_runtime_observation/2"
+  end
+
+  @impl true
+  def fetch_boundary_session(_query) do
+    raise ArgumentError,
+          "Citadel.QueryBridge.fetch_boundary_session/1 requires an initialized bridge instance; use fetch_boundary_session/2"
+  end
+
+  @spec fetch_runtime_observation(t(), map()) ::
+          {:ok, RuntimeObservation.t(), t()} | {:error, atom(), t()}
+  def fetch_runtime_observation(%__MODULE__{} = bridge, query) when is_map(query) do
+    with_scope(bridge, query, fn downstream, normalized_query ->
+      case downstream.fetch_runtime_observation(normalized_query) do
+        {:ok, raw_observation} -> {:ok, RuntimeObservation.new!(raw_observation)}
+        {:error, reason} -> {:error, reason}
+      end
+    end)
+  end
+
+  @spec fetch_boundary_session(t(), map()) ::
+          {:ok, BoundarySessionDescriptorV1.t(), t()} | {:error, atom(), t()}
+  def fetch_boundary_session(%__MODULE__{} = bridge, query) when is_map(query) do
+    with_scope(bridge, query, fn downstream, normalized_query ->
+      case downstream.fetch_boundary_session(normalized_query) do
+        {:ok, raw_descriptor} -> {:ok, BoundarySessionDescriptorV1.new!(raw_descriptor)}
+        {:error, reason} -> {:error, reason}
+      end
+    end)
+  end
 
   @spec manifest() :: map()
   def manifest, do: @manifest
+
+  @spec default_circuit_policy() :: BridgeCircuitPolicy.t()
+  def default_circuit_policy do
+    BridgeCircuitPolicy.new!(%{
+      failure_threshold: 3,
+      window_ms: 5_000,
+      cooldown_ms: 10_000,
+      half_open_max_inflight: 1,
+      scope_key_mode: "downstream_scope",
+      extensions: %{}
+    })
+  end
+
+  defp with_scope(%__MODULE__{} = bridge, query, fun) when is_function(fun, 2) do
+    scope_key = Map.get(query, "downstream_scope", Map.get(query, :downstream_scope, "runtime_query"))
+    normalized_query = Map.new(query)
+
+    case BridgeCircuit.allow(bridge.circuit, scope_key) do
+      {:ok, updated_circuit} ->
+        bridge = %{bridge | circuit: updated_circuit}
+
+        case fun.(bridge.downstream, normalized_query) do
+          {:ok, result} ->
+            {:ok, result, %{bridge | circuit: BridgeCircuit.record_success(bridge.circuit, scope_key)}}
+
+          {:error, reason} ->
+            {:error, reason, %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
+        end
+
+      {{:error, :circuit_open}, updated_circuit} ->
+        {:error, :circuit_open, %{bridge | circuit: updated_circuit}}
+    end
+  end
 end

@@ -23,7 +23,8 @@ defmodule Citadel.Runtime.MixProject do
     [
       {:citadel_core, path: "../citadel_core"},
       {:citadel_authority_contract, path: "../authority_contract"},
-      {:citadel_observability_contract, path: "../observability_contract"}
+      {:citadel_observability_contract, path: "../observability_contract"},
+      {:telemetry, "~> 1.3"}
     ]
   end
 end

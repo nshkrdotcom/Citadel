@@ -3,6 +3,8 @@ defmodule Citadel.Build.DependencyResolver do
 
   @default_jido_integration_contracts_path "/home/home/p/g/n/jido_integration/core/contracts"
   @published_jido_integration_contracts_requirement "~> 0.1.0"
+  @default_aitrace_path "/home/home/p/g/n/AITrace"
+  @published_aitrace_requirement "~> 0.1.0"
 
   def jido_integration_v2_contracts(opts \\ []) do
     case jido_integration_v2_contracts_source() do
@@ -25,11 +27,36 @@ defmodule Citadel.Build.DependencyResolver do
     @published_jido_integration_contracts_requirement
   end
 
+  def aitrace(opts \\ []) do
+    case aitrace_source() do
+      {:path, path} ->
+        {:aitrace, Keyword.merge([path: path, override: true], opts)}
+
+      {:hex, requirement} ->
+        {:aitrace, requirement, opts}
+    end
+  end
+
+  def aitrace_source do
+    case resolve_aitrace_path() do
+      nil -> {:hex, @published_aitrace_requirement}
+      path -> {:path, path}
+    end
+  end
+
   defp resolve_contracts_path do
     [
       explicit_contracts_path(),
       jido_integration_root_path(),
       @default_jido_integration_contracts_path
+    ]
+    |> Enum.find_value(&existing_path/1)
+  end
+
+  defp resolve_aitrace_path do
+    [
+      explicit_aitrace_path(),
+      @default_aitrace_path
     ]
     |> Enum.find_value(&existing_path/1)
   end
@@ -47,6 +74,14 @@ defmodule Citadel.Build.DependencyResolver do
       nil -> nil
       value when value in ["", "0", "false", "disabled"] -> nil
       value -> Path.join(value, "core/contracts")
+    end
+  end
+
+  defp explicit_aitrace_path do
+    case System.get_env("AITRACE_PATH") do
+      nil -> nil
+      value when value in ["", "0", "false", "disabled"] -> nil
+      value -> value
     end
   end
 
