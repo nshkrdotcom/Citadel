@@ -24,6 +24,8 @@ defmodule Citadel.TopologyIntent do
           topology_epoch: non_neg_integer(),
           extensions: %{required(String.t()) => CanonicalJson.value()}
         }
+  @allowed_session_modes ["attached", "detached", "stateless"]
+  @allowed_coordination_modes ["single_target", "parallel_fanout", "local_only"]
 
   @enforce_keys @required_fields
   defstruct @required_fields
@@ -36,6 +38,12 @@ defmodule Citadel.TopologyIntent do
 
   @spec versioning_rule() :: atom()
   def versioning_rule, do: :schema_version_bump_required_for_carrier_shape_change
+
+  @spec allowed_session_modes() :: [String.t()]
+  def allowed_session_modes, do: @allowed_session_modes
+
+  @spec allowed_coordination_modes() :: [String.t()]
+  def allowed_coordination_modes, do: @allowed_coordination_modes
 
   @spec new(t() | map() | keyword()) :: {:ok, t()} | {:error, Exception.t()}
   def new(%__MODULE__{} = intent), do: normalize(intent)
@@ -79,7 +87,7 @@ defmodule Citadel.TopologyIntent do
       session_mode:
         attrs
         |> AttrMap.fetch!(:session_mode, "Citadel.TopologyIntent")
-        |> validate_non_empty_string!(:session_mode),
+        |> validate_session_mode!(),
       routing_hints:
         attrs
         |> AttrMap.fetch!(:routing_hints, "Citadel.TopologyIntent")
@@ -87,7 +95,7 @@ defmodule Citadel.TopologyIntent do
       coordination_mode:
         attrs
         |> AttrMap.fetch!(:coordination_mode, "Citadel.TopologyIntent")
-        |> validate_non_empty_string!(:coordination_mode),
+        |> validate_coordination_mode!(),
       topology_epoch:
         attrs
         |> AttrMap.fetch!(:topology_epoch, "Citadel.TopologyIntent")
@@ -104,11 +112,10 @@ defmodule Citadel.TopologyIntent do
      %__MODULE__{
        topology_intent_id:
          validate_non_empty_string!(intent.topology_intent_id, :topology_intent_id),
-       session_mode: validate_non_empty_string!(intent.session_mode, :session_mode),
+       session_mode: validate_session_mode!(intent.session_mode),
        routing_hints:
          validate_json_object!(intent.routing_hints, "Citadel.TopologyIntent.routing_hints"),
-       coordination_mode:
-         validate_non_empty_string!(intent.coordination_mode, :coordination_mode),
+       coordination_mode: validate_coordination_mode!(intent.coordination_mode),
        topology_epoch: validate_non_neg_integer!(intent.topology_epoch, :topology_epoch),
        extensions: validate_json_object!(intent.extensions, "Citadel.TopologyIntent.extensions")
      }}
@@ -134,6 +141,28 @@ defmodule Citadel.TopologyIntent do
   defp validate_non_neg_integer!(value, field) do
     raise ArgumentError,
           "Citadel.TopologyIntent.#{field} must be a non-negative integer, got: #{inspect(value)}"
+  end
+
+  defp validate_session_mode!(value) do
+    normalized = validate_non_empty_string!(value, :session_mode)
+
+    if normalized in @allowed_session_modes do
+      normalized
+    else
+      raise ArgumentError,
+            "Citadel.TopologyIntent.session_mode must be one of #{inspect(@allowed_session_modes)}, got: #{inspect(value)}"
+    end
+  end
+
+  defp validate_coordination_mode!(value) do
+    normalized = validate_non_empty_string!(value, :coordination_mode)
+
+    if normalized in @allowed_coordination_modes do
+      normalized
+    else
+      raise ArgumentError,
+            "Citadel.TopologyIntent.coordination_mode must be one of #{inspect(@allowed_coordination_modes)}, got: #{inspect(value)}"
+    end
   end
 
   defp validate_json_object!(value, field) do

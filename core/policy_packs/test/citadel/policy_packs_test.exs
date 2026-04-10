@@ -1,0 +1,132 @@
+defmodule Citadel.PolicyPacksTest do
+  use ExUnit.Case, async: true
+  use ExUnitProperties
+
+  alias Citadel.PolicyPacks
+  alias Citadel.PolicyPacks.PolicyPack
+  alias Citadel.PolicyPacks.Selection
+
+  test "selects the highest-priority matching pack" do
+    selection =
+      PolicyPacks.select_profile!(
+        [
+          default_pack(),
+          org_pack(priority: 20),
+          org_pack(priority: 50, policy_version: "policy-2026-04-10")
+        ],
+        %{tenant_id: "tenant-1", scope_kind: "project", environment: "prod"}
+      )
+
+    assert %Selection{} = selection
+    assert selection.pack_id == "tenant-prod-50"
+    assert selection.policy_version == "policy-2026-04-10"
+    assert selection.profiles.boundary_class == "workspace_session"
+  end
+
+  test "falls back to the explicit default pack when nothing else matches" do
+    selection =
+      PolicyPacks.select_profile!(
+        [
+          org_pack(),
+          default_pack()
+        ],
+        %{tenant_id: "other-tenant", scope_kind: "workspace", environment: "dev"}
+      )
+
+    assert selection.pack_id == "default"
+    assert selection.profiles.trust_profile == "baseline"
+  end
+
+  property "selection is deterministic regardless of pack order" do
+    packs = [
+      default_pack(),
+      org_pack(priority: 10, pack_id: "tenant-prod-10"),
+      org_pack(priority: 30, pack_id: "tenant-prod-30")
+    ]
+    orders = [
+      [0, 1, 2],
+      [0, 2, 1],
+      [1, 0, 2],
+      [1, 2, 0],
+      [2, 0, 1],
+      [2, 1, 0]
+    ]
+
+    check all order <- StreamData.member_of(orders) do
+      ordered_packs = Enum.map(order, &Enum.at(packs, &1))
+
+      selection =
+        PolicyPacks.select_profile!(
+          ordered_packs,
+          %{tenant_id: "tenant-1", scope_kind: "project", environment: "prod"}
+        )
+
+      assert selection.pack_id == "tenant-prod-30"
+    end
+  end
+
+  test "normalizes packs into explicit values" do
+    pack = default_pack() |> PolicyPack.new!()
+
+    assert pack.selector.default?
+    assert pack.rejection_policy.denial_audit_reason_codes == ["policy_denied", "approval_missing"]
+  end
+
+  defp default_pack do
+    %{
+      pack_id: "default",
+      policy_version: "policy-2026-04-09",
+      policy_epoch: 7,
+      priority: 0,
+      selector: %{
+        tenant_ids: [],
+        scope_kinds: [],
+        environments: [],
+        default?: true,
+        extensions: %{}
+      },
+      profiles: %{
+        trust_profile: "baseline",
+        approval_profile: "standard_approval",
+        egress_profile: "restricted",
+        workspace_profile: "default_workspace",
+        resource_profile: "standard",
+        boundary_class: "workspace_session",
+        extensions: %{}
+      },
+      rejection_policy: %{
+        denial_audit_reason_codes: ["policy_denied", "approval_missing"],
+        derived_state_reason_codes: ["planning_failed"],
+        runtime_change_reason_codes: ["scope_unavailable", "service_hidden", "boundary_stale"],
+        governance_change_reason_codes: ["approval_missing"],
+        extensions: %{}
+      },
+      extensions: %{}
+    }
+  end
+
+  defp org_pack(overrides \\ []) do
+    default_pack()
+    |> Map.merge(%{
+      pack_id: Keyword.get(overrides, :pack_id, "tenant-prod-#{Keyword.get(overrides, :priority, 30)}"),
+      policy_version: Keyword.get(overrides, :policy_version, "policy-2026-04-09"),
+      priority: Keyword.get(overrides, :priority, 30),
+      selector: %{
+        tenant_ids: ["tenant-1"],
+        scope_kinds: ["project"],
+        environments: ["prod"],
+        default?: false,
+        extensions: %{}
+      },
+      profiles: %{
+        trust_profile: "trusted_operator",
+        approval_profile: "approval_required",
+        egress_profile: "restricted",
+        workspace_profile: "project_workspace",
+        resource_profile: "standard",
+        boundary_class: "workspace_session",
+        extensions: %{}
+      }
+    })
+  end
+end

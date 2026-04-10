@@ -37,7 +37,7 @@
     "extensions": {
       "boundary_ref_hint": "boundary-ref-12"
     },
-    "requested_attach_mode": "reuse_or_create",
+    "requested_attach_mode": "fresh_or_reuse",
     "requested_ttl_ms": 900000,
     "resource_profile": "standard",
     "trust_profile": "trusted_operator",

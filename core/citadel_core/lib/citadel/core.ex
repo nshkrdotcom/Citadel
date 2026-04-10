@@ -8,9 +8,13 @@ defmodule Citadel.Core do
   @manifest %{
     package: :citadel_core,
     layer: :core,
-    status: :wave_2_seam_frozen,
+    status: :wave_3_kernel_values_frozen,
     owns: [
       :pure_values,
+      :intent_envelope_subschemas,
+      :kernel_waist_values,
+      :replay_safe_continuity_values,
+      :pure_rejection_classification,
       :decision_hash,
       :invocation_request_seam,
       :compilers,

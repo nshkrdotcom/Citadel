@@ -44,6 +44,8 @@ defmodule Citadel.ContractCore.CanonicalJson do
        when is_binary(value) or is_integer(value) or is_boolean(value) or is_nil(value),
        do: value
 
+  defp normalize_value!([], _path), do: []
+
   defp normalize_value!(value, path) when is_float(value) do
     if value == value and abs(value) <= Float.max_finite() do
       value

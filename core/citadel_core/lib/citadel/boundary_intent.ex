@@ -26,6 +26,7 @@ defmodule Citadel.BoundaryIntent do
           requested_ttl_ms: non_neg_integer(),
           extensions: %{required(String.t()) => CanonicalJson.value()}
         }
+  @allowed_attach_modes ["reuse_existing", "fresh_or_reuse", "fresh_only", "not_applicable"]
 
   @enforce_keys @required_fields
   defstruct @required_fields
@@ -38,6 +39,9 @@ defmodule Citadel.BoundaryIntent do
 
   @spec versioning_rule() :: atom()
   def versioning_rule, do: :schema_version_bump_required_for_carrier_shape_change
+
+  @spec allowed_attach_modes() :: [String.t()]
+  def allowed_attach_modes, do: @allowed_attach_modes
 
   @spec new(t() | map() | keyword()) :: {:ok, t()} | {:error, Exception.t()}
   def new(%__MODULE__{} = intent), do: normalize(intent)
@@ -94,7 +98,7 @@ defmodule Citadel.BoundaryIntent do
       requested_attach_mode:
         attrs
         |> AttrMap.fetch!(:requested_attach_mode, "Citadel.BoundaryIntent")
-        |> validate_non_empty_string!(:requested_attach_mode),
+        |> validate_attach_mode!(),
       requested_ttl_ms:
         attrs
         |> AttrMap.fetch!(:requested_ttl_ms, "Citadel.BoundaryIntent")
@@ -115,7 +119,7 @@ defmodule Citadel.BoundaryIntent do
          validate_non_empty_string!(intent.workspace_profile, :workspace_profile),
        resource_profile: validate_non_empty_string!(intent.resource_profile, :resource_profile),
        requested_attach_mode:
-         validate_non_empty_string!(intent.requested_attach_mode, :requested_attach_mode),
+         validate_attach_mode!(intent.requested_attach_mode),
        requested_ttl_ms: validate_non_neg_integer!(intent.requested_ttl_ms, :requested_ttl_ms),
        extensions: validate_json_object!(intent.extensions, "Citadel.BoundaryIntent.extensions")
      }}
@@ -141,6 +145,17 @@ defmodule Citadel.BoundaryIntent do
   defp validate_non_neg_integer!(value, field) do
     raise ArgumentError,
           "Citadel.BoundaryIntent.#{field} must be a non-negative integer, got: #{inspect(value)}"
+  end
+
+  defp validate_attach_mode!(value) do
+    normalized = validate_non_empty_string!(value, :requested_attach_mode)
+
+    if normalized in @allowed_attach_modes do
+      normalized
+    else
+      raise ArgumentError,
+            "Citadel.BoundaryIntent.requested_attach_mode must be one of #{inspect(@allowed_attach_modes)}, got: #{inspect(value)}"
+    end
   end
 
   defp validate_json_object!(value, field) do

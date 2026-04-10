@@ -30,7 +30,8 @@ defmodule Citadel.Core.MixProject do
       {:citadel_authority_contract, path: "../authority_contract"},
       {:citadel_observability_contract, path: "../observability_contract"},
       {:citadel_policy_packs, path: "../policy_packs"},
-      DependencyResolver.jido_integration_v2_contracts()
+      DependencyResolver.jido_integration_v2_contracts(),
+      {:stream_data, "~> 1.1", only: :test}
     ]
   end
 end

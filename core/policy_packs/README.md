@@ -1,18 +1,19 @@
 # Citadel Policy Packs
 
-Status: Wave 1 workspace skeleton.
+Status: Wave 3 policy-pack values and selection are frozen.
 
 ## Owns
 
-- policy pack definitions
-- profile selection rule ownership
-- policy epoch input ownership
-- pure policy normalization helper placement
+- explicit `PolicyPack`, `Selector`, `Profiles`, `RejectionPolicy`, and `Selection` values
+- deterministic profile selection precedence
+- pure policy inputs for rejection retryability and publication classification
+- policy epoch inputs consumed by the kernel context builder
 
 ## Dependencies
 
 - `core/contract_core`
 
-## Wave 1 Posture
+## Posture
 
-Wave 1 establishes the package seam and packet ownership. The actual policy packs and normalization logic arrive in the later kernel-waist wave.
+`core/policy_packs` is values and pure selection logic only. It does not own runtime
+policy cache mutation, epoch publication, or any bridge behavior.

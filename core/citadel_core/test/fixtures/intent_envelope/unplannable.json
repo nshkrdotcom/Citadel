@@ -1,0 +1,81 @@
+{
+  "intent_envelope_id": "intent-002",
+  "scope_selectors": [
+    {
+      "scope_kind": "project",
+      "scope_id": "proj-123",
+      "workspace_root": "/repo",
+      "environment": "prod",
+      "preference": "required",
+      "extensions": {}
+    }
+  ],
+  "desired_outcome": {
+    "outcome_kind": "invoke_capability",
+    "requested_capabilities": [
+      "workspace.run_test"
+    ],
+    "result_kind": "artifact",
+    "subject_selectors": [
+      "repo://citadel/core"
+    ],
+    "extensions": {}
+  },
+  "constraints": {
+    "boundary_requirement": "reuse_existing",
+    "allowed_boundary_classes": [
+      "workspace_session"
+    ],
+    "allowed_service_ids": [
+      "svc-terminal"
+    ],
+    "forbidden_service_ids": [],
+    "max_steps": 2,
+    "review_required": false,
+    "extensions": {}
+  },
+  "risk_hints": [],
+  "success_criteria": [
+    {
+      "criterion_kind": "completion",
+      "metric": "command_exit",
+      "target": {
+        "exit_code": 0
+      },
+      "required": true,
+      "extensions": {}
+    }
+  ],
+  "target_hints": [
+    {
+      "target_kind": "service",
+      "preferred_target_id": "target-shell-1",
+      "preferred_service_id": "svc-terminal",
+      "preferred_boundary_class": "workspace_session",
+      "session_mode_preference": "stateless",
+      "coordination_mode_preference": "single_target",
+      "routing_tags": [
+        "repo_local"
+      ],
+      "extensions": {}
+    }
+  ],
+  "plan_hints": null,
+  "resolution_provenance": {
+    "source_kind": "host_surface",
+    "resolver_kind": "direct_structured",
+    "resolver_version": "1",
+    "prompt_version": null,
+    "policy_version": "policy-2026-04-09",
+    "confidence": 1.0,
+    "ambiguity_flags": [],
+    "raw_input_refs": [
+      "ref://host/turns/43"
+    ],
+    "raw_input_hashes": [
+      "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+    ],
+    "extensions": {}
+  },
+  "extensions": {}
+}

@@ -54,6 +54,13 @@ defmodule Citadel.InvocationRequestTest do
              extensions: {:map, :json}
            ]
 
+    assert BoundaryIntent.allowed_attach_modes() == [
+             "reuse_existing",
+             "fresh_or_reuse",
+             "fresh_only",
+             "not_applicable"
+           ]
+
     assert TopologyIntent.schema() == [
              topology_intent_id: :string,
              session_mode: :string,
@@ -63,6 +70,8 @@ defmodule Citadel.InvocationRequestTest do
              extensions: {:map, :json}
            ]
 
+    assert TopologyIntent.allowed_session_modes() == ["attached", "detached", "stateless"]
+    assert TopologyIntent.allowed_coordination_modes() == ["single_target", "parallel_fanout", "local_only"]
     assert InvocationRequest.schema_version() == 1
     assert InvocationRequest.structured_ingress_posture() == :structured_only
     assert InvocationRequest.authority_packet_module() == V1
