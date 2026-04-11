@@ -27,7 +27,7 @@ defmodule Citadel.Runtime.Application do
       {Citadel.Runtime.SignalIngress,
        name: Citadel.Runtime.SignalIngress,
        session_directory: Citadel.Runtime.SessionDirectory,
-       signal_source: Citadel.Runtime.NoopSignalSource,
+       signal_source: Citadel.Runtime.ObservationSignalSource,
        auto_rebuild?: false},
       {Citadel.Runtime.TracePublisher, name: Citadel.Runtime.TracePublisher}
     ]

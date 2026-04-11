@@ -181,8 +181,7 @@ defmodule Citadel.BridgeState do
   defp maybe_delete_pending_dedupe_key(state, nil), do: state
 
   defp maybe_delete_pending_dedupe_key(state, dedupe_key) do
-    update_in(state.pending_dedupe_keys, &Map.delete(&1, dedupe_key))
-    |> then(fn pending_dedupe_keys -> %{state | pending_dedupe_keys: pending_dedupe_keys} end)
+    update_in(state, [:pending_dedupe_keys], &Map.delete(&1, dedupe_key))
   end
 
   defp apply_operation_result(state, pending_operation, {:ok, result}) do

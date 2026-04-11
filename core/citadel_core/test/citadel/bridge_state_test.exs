@@ -29,6 +29,35 @@ defmodule Citadel.BridgeStateTest do
              BridgeState.begin_operation(server, "scope-a", dedupe_key: "entry-1")
   end
 
+  test "clears pending dedupe keys without corrupting the bridge state shape" do
+    {:ok, server} =
+      BridgeState.start_link(
+        circuit:
+          BridgeCircuit.new!(
+            policy:
+              BridgeCircuitPolicy.new!(%{
+                failure_threshold: 2,
+                window_ms: 5_000,
+                cooldown_ms: 5_000,
+                half_open_max_inflight: 1,
+                scope_key_mode: "downstream_scope",
+                extensions: %{}
+              })
+          )
+      )
+
+    assert {:ok, token} = BridgeState.begin_operation(server, "scope-a", dedupe_key: "entry-1")
+    assert %{pending_dedupe_keys: %{"entry-1" => ^token}} = :sys.get_state(server)
+
+    assert {:ok, "receipt-1"} = BridgeState.finish_operation(server, token, {:ok, "receipt-1"})
+
+    state = :sys.get_state(server)
+    assert state.pending_dedupe_keys == %{}
+    assert state.pending_operations == %{}
+    assert state.monitor_refs == %{}
+    assert state.receipts_by_dedupe_key == %{"entry-1" => "receipt-1"}
+  end
+
   test "records a failure when the reserved caller dies before completing the operation" do
     {:ok, server} =
       BridgeState.start_link(

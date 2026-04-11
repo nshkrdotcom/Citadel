@@ -12,10 +12,9 @@ defmodule Citadel.Runtime.NoopSignalSource do
 
   @behaviour Citadel.Ports.SignalSource
 
-  alias Citadel.RuntimeObservation
+  @deprecated "Use Citadel.Runtime.ObservationSignalSource instead"
 
   @impl true
-  def normalize_signal(%RuntimeObservation{} = observation), do: {:ok, observation}
-
-  def normalize_signal(_signal), do: {:error, :unsupported_signal}
+  def normalize_signal(signal),
+    do: Citadel.Runtime.ObservationSignalSource.normalize_signal(signal)
 end

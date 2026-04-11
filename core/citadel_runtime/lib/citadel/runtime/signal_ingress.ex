@@ -8,6 +8,7 @@ defmodule Citadel.Runtime.SignalIngress do
   alias Citadel.ObservabilityContract.Telemetry
   alias Citadel.Runtime.SessionDirectory
   alias Citadel.Runtime.SystemClock
+  alias Citadel.RuntimeObservation
   alias Citadel.SignalIngressRebuildPolicy
 
   @rebuild_message :rebuild_batch
@@ -35,6 +36,10 @@ defmodule Citadel.Runtime.SignalIngress do
 
   def deliver_signal(server \\ __MODULE__, raw_signal) do
     GenServer.call(server, {:deliver_signal, raw_signal})
+  end
+
+  def deliver_observation(server \\ __MODULE__, %RuntimeObservation{} = observation) do
+    deliver_signal(server, observation)
   end
 
   def subscription_state(server \\ __MODULE__, session_id) do
