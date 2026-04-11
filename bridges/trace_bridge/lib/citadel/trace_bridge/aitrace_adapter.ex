@@ -133,7 +133,8 @@ defmodule Citadel.TraceBridge.AITraceAdapter do
     |> Map.merge(envelope.attributes)
   end
 
-  defp datetime_to_microseconds(%DateTime{} = datetime), do: DateTime.to_unix(datetime, :microsecond)
+  defp datetime_to_microseconds(%DateTime{} = datetime),
+    do: DateTime.to_unix(datetime, :microsecond)
 
   defp export_trace(%Trace{} = trace) do
     if function_exported?(AITrace, :export, 1) do

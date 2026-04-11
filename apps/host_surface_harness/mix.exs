@@ -26,7 +26,8 @@ defmodule Citadel.HostSurfaceHarness.MixProject do
       {:citadel_projection_bridge, path: "../../bridges/projection_bridge"},
       {:citadel_signal_bridge, path: "../../bridges/signal_bridge"},
       {:citadel_boundary_bridge, path: "../../bridges/boundary_bridge"},
-      {:citadel_trace_bridge, path: "../../bridges/trace_bridge"}
+      {:citadel_trace_bridge, path: "../../bridges/trace_bridge"},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 end

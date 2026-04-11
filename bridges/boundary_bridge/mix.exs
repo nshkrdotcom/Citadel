@@ -22,7 +22,8 @@ defmodule Citadel.BoundaryBridge.MixProject do
     [
       {:citadel_core, path: "../../core/citadel_core"},
       {:citadel_runtime, path: "../../core/citadel_runtime"},
-      {:citadel_authority_contract, path: "../../core/authority_contract"}
+      {:citadel_authority_contract, path: "../../core/authority_contract"},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 end

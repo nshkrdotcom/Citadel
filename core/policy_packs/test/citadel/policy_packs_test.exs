@@ -43,6 +43,7 @@ defmodule Citadel.PolicyPacksTest do
       org_pack(priority: 10, pack_id: "tenant-prod-10"),
       org_pack(priority: 30, pack_id: "tenant-prod-30")
     ]
+
     orders = [
       [0, 1, 2],
       [0, 2, 1],
@@ -52,7 +53,7 @@ defmodule Citadel.PolicyPacksTest do
       [2, 1, 0]
     ]
 
-    check all order <- StreamData.member_of(orders) do
+    check all(order <- StreamData.member_of(orders)) do
       ordered_packs = Enum.map(order, &Enum.at(packs, &1))
 
       selection =
@@ -69,7 +70,11 @@ defmodule Citadel.PolicyPacksTest do
     pack = default_pack() |> PolicyPack.new!()
 
     assert pack.selector.default?
-    assert pack.rejection_policy.denial_audit_reason_codes == ["policy_denied", "approval_missing"]
+
+    assert pack.rejection_policy.denial_audit_reason_codes == [
+             "policy_denied",
+             "approval_missing"
+           ]
   end
 
   defp default_pack do
@@ -108,7 +113,8 @@ defmodule Citadel.PolicyPacksTest do
   defp org_pack(overrides \\ []) do
     default_pack()
     |> Map.merge(%{
-      pack_id: Keyword.get(overrides, :pack_id, "tenant-prod-#{Keyword.get(overrides, :priority, 30)}"),
+      pack_id:
+        Keyword.get(overrides, :pack_id, "tenant-prod-#{Keyword.get(overrides, :priority, 30)}"),
       policy_version: Keyword.get(overrides, :policy_version, "policy-2026-04-09"),
       priority: Keyword.get(overrides, :priority, 30),
       selector: %{

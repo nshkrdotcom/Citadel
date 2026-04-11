@@ -1,14 +1,8 @@
-unless Code.ensure_loaded?(Citadel.Build.WorkspaceContract) do
-  Code.require_file("build_support/workspace_contract.exs", __DIR__)
-end
-
 defmodule Citadel.Workspace.MixProject do
   use Mix.Project
 
   @version "0.1.0"
   @source_url "https://github.com/nshkrdotcom/citadel"
-
-  alias Citadel.Build.WorkspaceContract
 
   def project do
     [
@@ -19,6 +13,7 @@ defmodule Citadel.Workspace.MixProject do
       deps: deps(),
       aliases: aliases(),
       blitz_workspace: blitz_workspace(),
+      dialyzer: [plt_add_apps: [:mix]],
       docs: docs(),
       source_url: @source_url,
       name: "Citadel Workspace",
@@ -37,7 +32,22 @@ defmodule Citadel.Workspace.MixProject do
       {:blitz, "~> 0.2.0", runtime: false},
       {:weld, "~> 0.4.0", runtime: false},
       {:libgraph, "~> 0.16.1-mg.2", hex: :multigraph, app: false, override: true},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.40.1", only: :dev, runtime: false}
+    ]
+  end
+
+  def cli do
+    [
+      preferred_envs: [
+        credo: :test,
+        dialyzer: :test,
+        ci: :test,
+        "lint.packet_seams": :test,
+        "lint.strict": :test,
+        "static.analysis": :test
+      ]
     ]
   end
 
@@ -46,19 +56,26 @@ defmodule Citadel.Workspace.MixProject do
       "monorepo.deps.get": ["blitz.workspace deps_get"],
       "monorepo.format": ["blitz.workspace format"],
       "monorepo.compile": ["blitz.workspace compile"],
+      "monorepo.dialyzer": ["blitz.workspace dialyzer"],
       "monorepo.test": ["blitz.workspace test"]
     ]
 
-    mr_aliases =
-      ~w[deps.get format compile test]
-      |> Enum.map(fn task -> {:"mr.#{task}", ["monorepo.#{task}"]} end)
+    mr_aliases = [
+      "mr.deps.get": ["monorepo.deps.get"],
+      "mr.format": ["monorepo.format"],
+      "mr.compile": ["monorepo.compile"],
+      "mr.test": ["monorepo.test"]
+    ]
 
     [
+      "lint.strict": ["credo --config-name strict --all"],
+      "static.analysis": ["lint.packet_seams", "lint.strict", "monorepo.dialyzer"],
       ci: [
         "deps.get",
         "monorepo.deps.get",
         "monorepo.format --check-formatted",
         "monorepo.compile",
+        "static.analysis",
         "monorepo.test"
       ],
       "docs.root": ["docs"]
@@ -68,7 +85,7 @@ defmodule Citadel.Workspace.MixProject do
   defp blitz_workspace do
     [
       root: __DIR__,
-      projects: WorkspaceContract.active_project_globs(),
+      projects: workspace_project_globs(),
       isolation: [
         deps_path: true,
         build_path: true,
@@ -90,6 +107,10 @@ defmodule Citadel.Workspace.MixProject do
         deps_get: [args: ["deps.get"], preflight?: false],
         format: [args: ["format"]],
         compile: [args: ["compile", "--warnings-as-errors"]],
+        dialyzer: [
+          args: ["dialyzer", "--format", "short"],
+          mix_env: "test"
+        ],
         test: [args: ["test"], mix_env: "test", color: true]
       ]
     ]
@@ -121,4 +142,6 @@ defmodule Citadel.Workspace.MixProject do
       ]
     ]
   end
+
+  defp workspace_project_globs, do: [".", "core/*", "bridges/*", "apps/*"]
 end

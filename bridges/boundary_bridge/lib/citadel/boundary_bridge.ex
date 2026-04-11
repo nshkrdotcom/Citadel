@@ -11,10 +11,15 @@ defmodule Citadel.BoundaryBridge do
   alias Citadel.BridgeCircuit
   alias Citadel.BridgeCircuitPolicy
 
+  @behaviour Citadel.Ports.BoundaryLifecycle
+
   defmodule Downstream do
     @moduledoc false
 
-    @callback submit_boundary_intent(map()) :: {:ok, String.t()} | {:error, atom()}
+    @callback submit_boundary_intent(
+                Citadel.BoundaryBridge.BoundaryProjectionAdapter.projection()
+              ) ::
+                {:ok, String.t()} | {:error, atom()}
   end
 
   @manifest %{
@@ -54,10 +59,28 @@ defmodule Citadel.BoundaryBridge do
     }
   end
 
-  @spec submit_boundary_intent(t(), BoundaryIntent.t() | map() | keyword(), map()) ::
+  @impl true
+  @spec submit_boundary_intent(
+          BoundaryIntent.t(),
+          Citadel.Ports.BoundaryLifecycle.boundary_intent_metadata()
+        ) :: no_return()
+  def submit_boundary_intent(_boundary_intent, _metadata) do
+    raise ArgumentError,
+          "Citadel.BoundaryBridge.submit_boundary_intent/2 requires an initialized bridge instance; use submit_boundary_intent/3"
+  end
+
+  @spec submit_boundary_intent(
+          t(),
+          BoundaryIntent.t(),
+          Citadel.Ports.BoundaryLifecycle.boundary_intent_metadata()
+        ) ::
           {:ok, String.t(), t()} | {:error, atom(), t()}
-  def submit_boundary_intent(%__MODULE__{} = bridge, boundary_intent, metadata) when is_map(metadata) do
-    boundary_intent = BoundaryIntent.new!(boundary_intent)
+  def submit_boundary_intent(
+        %__MODULE__{} = bridge,
+        %BoundaryIntent{} = boundary_intent,
+        metadata
+      )
+      when is_map(metadata) do
     projection = bridge.projection_adapter.project!(boundary_intent, metadata)
     scope_key = Map.get(projection, "downstream_scope", "boundary_lifecycle")
 
@@ -67,10 +90,12 @@ defmodule Citadel.BoundaryBridge do
 
         case bridge.downstream.submit_boundary_intent(projection) do
           {:ok, receipt_ref} ->
-            {:ok, receipt_ref, %{bridge | circuit: BridgeCircuit.record_success(bridge.circuit, scope_key)}}
+            {:ok, receipt_ref,
+             %{bridge | circuit: BridgeCircuit.record_success(bridge.circuit, scope_key)}}
 
           {:error, reason} ->
-            {:error, reason, %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
+            {:error, reason,
+             %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
         end
 
       {{:error, :circuit_open}, updated_circuit} ->
@@ -78,19 +103,49 @@ defmodule Citadel.BoundaryBridge do
     end
   end
 
-  @spec normalize_boundary_session(t(), BoundarySessionDescriptorV1.t() | map() | keyword()) ::
+  @impl true
+  @spec normalize_boundary_session(Citadel.Ports.BoundaryLifecycle.boundary_session_source()) ::
+          no_return()
+  def normalize_boundary_session(_raw_descriptor) do
+    raise ArgumentError,
+          "Citadel.BoundaryBridge.normalize_boundary_session/1 requires an initialized bridge instance; use normalize_boundary_session/2"
+  end
+
+  @spec normalize_boundary_session(
+          t(),
+          Citadel.Ports.BoundaryLifecycle.boundary_session_source()
+        ) ::
           {:ok, BoundarySessionDescriptorV1.t(), t()}
   def normalize_boundary_session(%__MODULE__{} = bridge, raw_descriptor) do
     {:ok, BoundarySessionDescriptorV1.new!(raw_descriptor), bridge}
   end
 
-  @spec normalize_attach_grant(t(), AttachGrantV1.t() | map() | keyword()) ::
+  @impl true
+  @spec normalize_attach_grant(Citadel.Ports.BoundaryLifecycle.attach_grant_source()) ::
+          no_return()
+  def normalize_attach_grant(_raw_grant) do
+    raise ArgumentError,
+          "Citadel.BoundaryBridge.normalize_attach_grant/1 requires an initialized bridge instance; use normalize_attach_grant/2"
+  end
+
+  @spec normalize_attach_grant(t(), Citadel.Ports.BoundaryLifecycle.attach_grant_source()) ::
           {:ok, AttachGrantV1.t(), t()}
   def normalize_attach_grant(%__MODULE__{} = bridge, raw_grant) do
     {:ok, AttachGrantV1.new!(raw_grant), bridge}
   end
 
-  @spec normalize_boundary_lease(t(), BoundaryLeaseView.t() | map() | keyword()) ::
+  @impl true
+  @spec normalize_boundary_lease(Citadel.Ports.BoundaryLifecycle.boundary_lease_source()) ::
+          no_return()
+  def normalize_boundary_lease(_raw_lease_view) do
+    raise ArgumentError,
+          "Citadel.BoundaryBridge.normalize_boundary_lease/1 requires an initialized bridge instance; use normalize_boundary_lease/2"
+  end
+
+  @spec normalize_boundary_lease(
+          t(),
+          Citadel.Ports.BoundaryLifecycle.boundary_lease_source()
+        ) ::
           {:ok, BoundaryLeaseView.t(), t()}
   def normalize_boundary_lease(%__MODULE__{} = bridge, raw_lease_view) do
     {:ok, BoundaryLeaseView.new!(raw_lease_view), bridge}
@@ -100,7 +155,8 @@ defmodule Citadel.BoundaryBridge do
   def manifest, do: @manifest
 
   @spec boundary_metadata_fields() :: [atom()]
-  def boundary_metadata_fields, do: [:boundary_ref, :boundary_class, :attach_mode, :lease_expires_at]
+  def boundary_metadata_fields,
+    do: [:boundary_ref, :boundary_class, :attach_mode, :lease_expires_at]
 
   @spec default_circuit_policy() :: BridgeCircuitPolicy.t()
   def default_circuit_policy do

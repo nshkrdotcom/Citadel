@@ -1,5 +1,5 @@
 unless Code.ensure_loaded?(Citadel.Build.DependencyResolver) do
-  Code.require_file("../../build_support/dependency_resolver.exs", __DIR__)
+  Code.require_file("../../lib/citadel/build/dependency_resolver.ex", __DIR__)
 end
 
 defmodule Citadel.TraceBridge.MixProject do
@@ -29,7 +29,8 @@ defmodule Citadel.TraceBridge.MixProject do
       {:citadel_core, path: "../../core/citadel_core"},
       {:citadel_runtime, path: "../../core/citadel_runtime"},
       {:citadel_observability_contract, path: "../../core/observability_contract"},
-      DependencyResolver.aitrace()
+      DependencyResolver.aitrace(),
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 end

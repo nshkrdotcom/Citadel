@@ -58,7 +58,12 @@ defmodule Citadel.Runtime.PolicyCache do
 
   @impl true
   def handle_call(:peek, _from, state) do
-    {:reply, %{policy_version: state.policy_version, policy_snapshot: state.policy_snapshot, policy_epoch: state.policy_epoch}, state}
+    {:reply,
+     %{
+       policy_version: state.policy_version,
+       policy_snapshot: state.policy_snapshot,
+       policy_epoch: state.policy_epoch
+     }, state}
   end
 
   def handle_call(:epoch, _from, state) do

@@ -13,9 +13,11 @@ defmodule Citadel.MemoryBridge do
     @callback put_memory_record(MemoryRecord.t()) ::
                 {:ok, %{write_guarantee: :stable_put_by_id | :best_effort}} | {:error, atom()}
 
-    @callback get_memory_record(String.t(), keyword()) :: {:ok, map() | nil} | {:error, atom()}
+    @callback get_memory_record(String.t(), Citadel.Ports.Memory.lookup_options()) ::
+                {:ok, MemoryRecord.t() | nil} | {:error, atom()}
 
-    @callback rank_memory_records(keyword()) :: {:ok, [map()]} | {:error, atom()}
+    @callback rank_memory_records(Citadel.Ports.Memory.rank_options()) ::
+                {:ok, [MemoryRecord.t()]} | {:error, atom()}
   end
 
   @manifest %{
@@ -56,10 +58,9 @@ defmodule Citadel.MemoryBridge do
     }
   end
 
-  @spec put_memory_record(t(), MemoryRecord.t() | map() | keyword()) ::
+  @spec put_memory_record(t(), MemoryRecord.t()) ::
           {:ok, %{write_guarantee: :stable_put_by_id | :best_effort}, t()} | {:error, atom(), t()}
-  def put_memory_record(%__MODULE__{} = bridge, record) do
-    record = MemoryRecord.new!(record)
+  def put_memory_record(%__MODULE__{} = bridge, %MemoryRecord{} = record) do
     scope_key = scope_key(bridge.circuit.policy, record.scope_ref.scope_id)
 
     with_scope(bridge, scope_key, fn downstream ->
@@ -67,7 +68,7 @@ defmodule Citadel.MemoryBridge do
     end)
   end
 
-  @spec get_memory_record(t(), String.t(), keyword()) ::
+  @spec get_memory_record(t(), String.t(), Citadel.Ports.Memory.lookup_options()) ::
           {:ok, MemoryRecord.t() | nil, t()} | {:error, atom(), t()}
   def get_memory_record(%__MODULE__{} = bridge, memory_id, opts \\ []) do
     memory_id = Citadel.ContractCore.Value.string!(memory_id, "Citadel.MemoryBridge memory_id")
@@ -76,20 +77,20 @@ defmodule Citadel.MemoryBridge do
     with_scope(bridge, scope_key, fn downstream ->
       case downstream.get_memory_record(memory_id, opts) do
         {:ok, nil} -> {:ok, nil}
-        {:ok, raw_record} -> {:ok, MemoryRecord.new!(raw_record)}
+        {:ok, %MemoryRecord{} = record} -> {:ok, record}
         {:error, reason} -> {:error, reason}
       end
     end)
   end
 
-  @spec rank_memory_records(t(), keyword()) ::
+  @spec rank_memory_records(t(), Citadel.Ports.Memory.rank_options()) ::
           {:ok, [MemoryRecord.t()], t()} | {:error, atom(), t()}
   def rank_memory_records(%__MODULE__{} = bridge, opts \\ []) do
     scope_key = scope_key(bridge.circuit.policy, Keyword.get(opts, :scope_id, "memory_rank"))
 
     with_scope(bridge, scope_key, fn downstream ->
       case downstream.rank_memory_records(opts) do
-        {:ok, records} -> {:ok, Enum.map(records, &MemoryRecord.new!/1)}
+        {:ok, records} -> {:ok, records}
         {:error, reason} -> {:error, reason}
       end
     end)
@@ -120,10 +121,12 @@ defmodule Citadel.MemoryBridge do
 
         case fun.(bridge.downstream) do
           {:ok, result} ->
-            {:ok, result, %{bridge | circuit: BridgeCircuit.record_success(bridge.circuit, scope_key)}}
+            {:ok, result,
+             %{bridge | circuit: BridgeCircuit.record_success(bridge.circuit, scope_key)}}
 
           {:error, reason} ->
-            {:error, reason, %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
+            {:error, reason,
+             %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
         end
 
       {{:error, :circuit_open}, updated_circuit} ->
@@ -132,6 +135,10 @@ defmodule Citadel.MemoryBridge do
   end
 
   defp scope_key(%BridgeCircuitPolicy{scope_key_mode: "bridge_global"}, _scope), do: "global"
-  defp scope_key(%BridgeCircuitPolicy{scope_key_mode: "tenant_partition"}, scope), do: "tenant:#{scope}"
-  defp scope_key(%BridgeCircuitPolicy{scope_key_mode: "downstream_scope"}, scope), do: "memory:#{scope}"
+
+  defp scope_key(%BridgeCircuitPolicy{scope_key_mode: "tenant_partition"}, scope),
+    do: "tenant:#{scope}"
+
+  defp scope_key(%BridgeCircuitPolicy{scope_key_mode: "downstream_scope"}, scope),
+    do: "memory:#{scope}"
 end

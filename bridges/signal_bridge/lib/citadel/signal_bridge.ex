@@ -5,10 +5,13 @@ defmodule Citadel.SignalBridge do
 
   alias Citadel.RuntimeObservation
 
+  @behaviour Citadel.Ports.SignalSource
+
   defmodule Adapter do
     @moduledoc false
 
-    @callback normalize_signal(term()) :: {:ok, map()} | {:error, atom()}
+    @callback normalize_signal(Citadel.Ports.SignalSource.raw_signal()) ::
+                {:ok, RuntimeObservation.t()} | {:error, atom()}
   end
 
   @manifest %{
@@ -20,8 +23,14 @@ defmodule Citadel.SignalBridge do
     external_dependencies: []
   }
 
-  @boundary_lifecycle_kinds ["attach_grant", "boundary_session", "boundary_heartbeat", "lease_staleness"]
+  @boundary_lifecycle_kinds [
+    "attach_grant",
+    "boundary_session",
+    "boundary_heartbeat",
+    "lease_staleness"
+  ]
 
+  @type raw_signal :: Citadel.Ports.SignalSource.raw_signal()
   @type t :: %__MODULE__{adapter: module()}
   defstruct adapter: nil
 
@@ -36,23 +45,35 @@ defmodule Citadel.SignalBridge do
     %__MODULE__{adapter: adapter}
   end
 
-  @spec normalize_signal(t(), term()) :: {:ok, RuntimeObservation.t(), t()} | {:error, atom(), t()}
+  @impl true
+  @spec normalize_signal(raw_signal()) :: no_return()
+  def normalize_signal(_raw_signal) do
+    raise ArgumentError,
+          "Citadel.SignalBridge.normalize_signal/1 requires an initialized bridge instance; use normalize_signal/2"
+  end
+
+  @spec normalize_signal(t(), raw_signal()) ::
+          {:ok, RuntimeObservation.t(), t()} | {:error, atom(), t()}
   def normalize_signal(%__MODULE__{} = bridge, raw_signal) do
     if boundary_lifecycle_signal?(raw_signal) do
       {:error, :boundary_lifecycle_signal, bridge}
     else
       case bridge.adapter.normalize_signal(raw_signal) do
-        {:ok, normalized_signal} ->
-          {:ok, RuntimeObservation.new!(normalized_signal), bridge}
+        {:ok, %RuntimeObservation{} = normalized_signal} ->
+          {:ok, normalized_signal, bridge}
 
         {:error, reason} ->
           {:error, reason, bridge}
+
+        _other ->
+          {:error, :invalid_signal, bridge}
       end
     end
   end
 
   @spec normalized_signal_fields() :: [atom()]
-  def normalized_signal_fields, do: [:signal_id, :signal_cursor, :event_kind, :payload, :subject_ref]
+  def normalized_signal_fields,
+    do: [:signal_id, :signal_cursor, :event_kind, :payload, :subject_ref]
 
   @spec manifest() :: map()
   def manifest, do: @manifest

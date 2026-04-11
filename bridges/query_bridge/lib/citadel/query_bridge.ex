@@ -13,8 +13,10 @@ defmodule Citadel.QueryBridge do
   defmodule Downstream do
     @moduledoc false
 
-    @callback fetch_runtime_observation(map()) :: {:ok, map()} | {:error, atom()}
-    @callback fetch_boundary_session(map()) :: {:ok, map()} | {:error, atom()}
+    @callback fetch_runtime_observation(Citadel.Ports.RuntimeQuery.runtime_observation_query()) ::
+                {:ok, map()} | {:error, atom()}
+    @callback fetch_boundary_session(Citadel.Ports.RuntimeQuery.boundary_session_query()) ::
+                {:ok, map()} | {:error, atom()}
   end
 
   @manifest %{
@@ -55,18 +57,22 @@ defmodule Citadel.QueryBridge do
   end
 
   @impl true
+  @spec fetch_runtime_observation(Citadel.Ports.RuntimeQuery.runtime_observation_query()) ::
+          no_return()
   def fetch_runtime_observation(_query) do
     raise ArgumentError,
           "Citadel.QueryBridge.fetch_runtime_observation/1 requires an initialized bridge instance; use fetch_runtime_observation/2"
   end
 
   @impl true
+  @spec fetch_boundary_session(Citadel.Ports.RuntimeQuery.boundary_session_query()) ::
+          no_return()
   def fetch_boundary_session(_query) do
     raise ArgumentError,
           "Citadel.QueryBridge.fetch_boundary_session/1 requires an initialized bridge instance; use fetch_boundary_session/2"
   end
 
-  @spec fetch_runtime_observation(t(), map()) ::
+  @spec fetch_runtime_observation(t(), Citadel.Ports.RuntimeQuery.runtime_observation_query()) ::
           {:ok, RuntimeObservation.t(), t()} | {:error, atom(), t()}
   def fetch_runtime_observation(%__MODULE__{} = bridge, query) when is_map(query) do
     with_scope(bridge, query, fn downstream, normalized_query ->
@@ -77,7 +83,7 @@ defmodule Citadel.QueryBridge do
     end)
   end
 
-  @spec fetch_boundary_session(t(), map()) ::
+  @spec fetch_boundary_session(t(), Citadel.Ports.RuntimeQuery.boundary_session_query()) ::
           {:ok, BoundarySessionDescriptorV1.t(), t()} | {:error, atom(), t()}
   def fetch_boundary_session(%__MODULE__{} = bridge, query) when is_map(query) do
     with_scope(bridge, query, fn downstream, normalized_query ->
@@ -104,7 +110,9 @@ defmodule Citadel.QueryBridge do
   end
 
   defp with_scope(%__MODULE__{} = bridge, query, fun) when is_function(fun, 2) do
-    scope_key = Map.get(query, "downstream_scope", Map.get(query, :downstream_scope, "runtime_query"))
+    scope_key =
+      Map.get(query, "downstream_scope", Map.get(query, :downstream_scope, "runtime_query"))
+
     normalized_query = Map.new(query)
 
     case BridgeCircuit.allow(bridge.circuit, scope_key) do
@@ -113,10 +121,12 @@ defmodule Citadel.QueryBridge do
 
         case fun.(bridge.downstream, normalized_query) do
           {:ok, result} ->
-            {:ok, result, %{bridge | circuit: BridgeCircuit.record_success(bridge.circuit, scope_key)}}
+            {:ok, result,
+             %{bridge | circuit: BridgeCircuit.record_success(bridge.circuit, scope_key)}}
 
           {:error, reason} ->
-            {:error, reason, %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
+            {:error, reason,
+             %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
         end
 
       {{:error, :circuit_open}, updated_circuit} ->

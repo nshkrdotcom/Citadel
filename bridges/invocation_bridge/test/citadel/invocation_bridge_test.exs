@@ -52,10 +52,7 @@ defmodule Citadel.InvocationBridgeTest do
   test "rejects unsupported invocation schema versions at bridge entry" do
     bridge = InvocationBridge.new!(downstream: Downstream)
 
-    request =
-      invocation_request()
-      |> InvocationRequest.dump()
-      |> Map.put(:schema_version, 2)
+    request = %{invocation_request() | schema_version: 2}
 
     assert {:error, :unsupported_schema_version, ^bridge} =
              InvocationBridge.submit(bridge, request, outbox_entry("entry-2"))

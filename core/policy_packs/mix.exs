@@ -21,7 +21,8 @@ defmodule Citadel.PolicyPacks.MixProject do
   defp deps do
     [
       {:citadel_contract_core, path: "../contract_core"},
-      {:stream_data, "~> 1.1", only: :test}
+      {:stream_data, "~> 1.1", only: :test},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 end

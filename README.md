@@ -90,6 +90,23 @@ mix monorepo.compile
 mix monorepo.test
 ```
 
+Static analysis and build hardening commands:
+
+```bash
+mix lint.packet_seams
+mix lint.strict
+mix monorepo.dialyzer
+mix static.analysis
+mix ci
+```
+
+The Wave 9 hardening posture is enforced in code and CI:
+
+- `mix lint.packet_seams` fails on `String.to_atom/1` anywhere in packet-critical workspace paths and blocks raw `map()` or `keyword()` public seam specs on the tracked ingress, bridge, runtime, and trace modules.
+- `mix lint.strict` runs a curated high-signal Credo config across the workspace libraries instead of style-noise checks that do not protect packet seams.
+- `mix monorepo.dialyzer` fans out `mix dialyzer --halt-exit-status` across the real workspace graph through Blitz, so any Dialyzer warning fails the build.
+- `.github/workflows/ci.yml` runs format, compile, packet seam lint, strict lint, Dialyzer, and tests as separate CI steps.
+
 Publication is now finalized as a derivative workspace boundary. The repo-local
 Weld manifest lives at `packaging/weld/citadel.exs`, projects the public
 `citadel` artifact in package-projection mode, keeps `apps/*` and

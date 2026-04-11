@@ -1,5 +1,5 @@
 unless Code.ensure_loaded?(Citadel.Build.DependencyResolver) do
-  Code.require_file("../../build_support/dependency_resolver.exs", __DIR__)
+  Code.require_file("../../lib/citadel/build/dependency_resolver.ex", __DIR__)
 end
 
 defmodule Citadel.Conformance.MixProject do
@@ -42,7 +42,8 @@ defmodule Citadel.Conformance.MixProject do
       {:citadel_coding_assist, path: "../../apps/coding_assist"},
       {:citadel_operator_assist, path: "../../apps/operator_assist"},
       {:citadel_host_surface_harness, path: "../../apps/host_surface_harness"},
-      DependencyResolver.jido_integration_v2_contracts()
+      DependencyResolver.jido_integration_v2_contracts(),
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 end

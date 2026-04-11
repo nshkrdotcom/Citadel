@@ -28,7 +28,8 @@ defmodule Citadel.CodingAssist.MixProject do
       {:citadel_boundary_bridge, path: "../../bridges/boundary_bridge"},
       {:citadel_projection_bridge, path: "../../bridges/projection_bridge"},
       {:citadel_trace_bridge, path: "../../bridges/trace_bridge"},
-      {:citadel_memory_bridge, path: "../../bridges/memory_bridge"}
+      {:citadel_memory_bridge, path: "../../bridges/memory_bridge"},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 end

@@ -40,8 +40,17 @@ defmodule Citadel.Runtime.SessionServer do
     GenServer.call(server, {:commit_transition, state_changes, opts}, :infinity)
   end
 
-  def replace_pending_entry(server, replaced_entry_id, %ActionOutboxEntry{} = replacement_entry, opts \\ []) do
-    GenServer.call(server, {:replace_pending_entry, replaced_entry_id, replacement_entry, opts}, :infinity)
+  def replace_pending_entry(
+        server,
+        replaced_entry_id,
+        %ActionOutboxEntry{} = replacement_entry,
+        opts \\ []
+      ) do
+    GenServer.call(
+      server,
+      {:replace_pending_entry, replaced_entry_id, replacement_entry, opts},
+      :infinity
+    )
   end
 
   def replay_pending(server) do
@@ -63,16 +72,29 @@ defmodule Citadel.Runtime.SessionServer do
       boundary_lease_tracker: Keyword.get(opts, :boundary_lease_tracker, BoundaryLeaseTracker),
       service_catalog: Keyword.get(opts, :service_catalog, ServiceCatalog),
       signal_ingress: signal_ingress,
-      invocation_supervisor: Keyword.get(opts, :invocation_supervisor, Citadel.Runtime.InvocationDispatchSupervisor),
-      projection_supervisor: Keyword.get(opts, :projection_supervisor, Citadel.Runtime.ProjectionDispatchSupervisor),
-      local_supervisor: Keyword.get(opts, :local_supervisor, Citadel.Runtime.LocalDispatchSupervisor),
-      invocation_handler: Keyword.get(opts, :invocation_handler, fn _payload, entry -> {:ok, "invocation/#{entry.entry_id}"} end),
-      projection_handler: Keyword.get(opts, :projection_handler, fn _action_kind, _payload, entry -> {:ok, "projection/#{entry.entry_id}"} end),
-      local_handler: Keyword.get(opts, :local_handler, fn _action, entry, _state -> {:ok, "local/#{entry.entry_id}"} end),
+      invocation_supervisor:
+        Keyword.get(opts, :invocation_supervisor, Citadel.Runtime.InvocationDispatchSupervisor),
+      projection_supervisor:
+        Keyword.get(opts, :projection_supervisor, Citadel.Runtime.ProjectionDispatchSupervisor),
+      local_supervisor:
+        Keyword.get(opts, :local_supervisor, Citadel.Runtime.LocalDispatchSupervisor),
+      invocation_handler:
+        Keyword.get(opts, :invocation_handler, fn _payload, entry ->
+          {:ok, "invocation/#{entry.entry_id}"}
+        end),
+      projection_handler:
+        Keyword.get(opts, :projection_handler, fn _action_kind, _payload, entry ->
+          {:ok, "projection/#{entry.entry_id}"}
+        end),
+      local_handler:
+        Keyword.get(opts, :local_handler, fn _action, entry, _state ->
+          {:ok, "local/#{entry.entry_id}"}
+        end),
       trace_publisher: Keyword.get(opts, :trace_publisher),
       redecision_notifier: Keyword.get(opts, :redecision_notifier),
       idle_timeout_ms: Keyword.get(opts, :idle_timeout_ms, nil),
-      recent_signal_window_size: Keyword.get(opts, :recent_signal_window_size, @recent_signal_window_size),
+      recent_signal_window_size:
+        Keyword.get(opts, :recent_signal_window_size, @recent_signal_window_size),
       dispatching_entry_ids: MapSet.new(),
       trace_id: Keyword.get(opts, :trace_id, "trace/#{session_id}"),
       request_id: Keyword.get(opts, :request_id),
@@ -108,7 +130,12 @@ defmodule Citadel.Runtime.SessionServer do
     end
   end
 
-  def handle_call({:replace_pending_entry, replaced_entry_id, %ActionOutboxEntry{} = replacement_entry, opts}, _from, state) do
+  def handle_call(
+        {:replace_pending_entry, replaced_entry_id, %ActionOutboxEntry{} = replacement_entry,
+         opts},
+        _from,
+        state
+      ) do
     current_entry = Map.get(state.session_state.outbox.entries_by_id, replaced_entry_id)
 
     if is_nil(current_entry) do
@@ -118,7 +145,8 @@ defmodule Citadel.Runtime.SessionServer do
         ActionOutboxEntry.new!(%{
           ActionOutboxEntry.dump(current_entry)
           | replay_status: :superseded,
-            extensions: Map.merge(current_entry.extensions, %{"superseded_by" => replacement_entry.entry_id})
+            extensions:
+              Map.merge(current_entry.extensions, %{"superseded_by" => replacement_entry.entry_id})
         })
 
       updated_outbox =
@@ -180,7 +208,10 @@ defmodule Citadel.Runtime.SessionServer do
     end
   end
 
-  def handle_info({:dispatch_result, entry_id, {:ok, durable_receipt_ref}, dispatch_family}, state) do
+  def handle_info(
+        {:dispatch_result, entry_id, {:ok, durable_receipt_ref}, dispatch_family},
+        state
+      ) do
     state = %{state | dispatching_entry_ids: MapSet.delete(state.dispatching_entry_ids, entry_id)}
 
     case Map.get(state.session_state.outbox.entries_by_id, entry_id) do
@@ -237,7 +268,11 @@ defmodule Citadel.Runtime.SessionServer do
 
       _idle_timeout_ms ->
         if state.session_state.lifecycle_status in [:active, :idle] do
-          case apply_transition_commit(state, %{lifecycle_status: :idle, last_active_at: state.clock.utc_now()}, meaningful_activity?: false) do
+          case apply_transition_commit(
+                 state,
+                 %{lifecycle_status: :idle, last_active_at: state.clock.utc_now()},
+                 meaningful_activity?: false
+               ) do
             {:ok, next_state} -> {:noreply, next_state, next_timeout(next_state)}
             {:error, _reason, next_state} -> {:noreply, next_state, next_timeout(next_state)}
           end
@@ -253,29 +288,52 @@ defmodule Citadel.Runtime.SessionServer do
         case resolve_boundary_view(state, claimed_blob) do
           {:ok, boundary_lease_view} ->
             visible_services = ServiceCatalog.visible_services(state.service_catalog)
-            session_state = build_session_state(claimed_blob, visible_services, boundary_lease_view)
+
+            session_state =
+              build_session_state(claimed_blob, visible_services, boundary_lease_view)
+
             state = %{state | trace_id: trace_id_from_blob(state.trace_id, claimed_blob)}
             state = %{state | session_state: session_state}
             {state, _superseded?} = supersede_stale_entries_before_replay(state)
             {state.session_state, lifecycle_event, state}
 
-          {:error, reason} when reason in [:bootstrap_timeout, :resume_wait_exhausted, :circuit_open] ->
+          {:error, reason}
+          when reason in [:bootstrap_timeout, :resume_wait_exhausted, :circuit_open] ->
             {blocked_state(state, :blocked), :blocked, state}
 
           {:error, _reason} ->
-            :ok = SessionDirectory.quarantine_session(state.session_directory, state.session_id, "boundary_resume_failed")
+            :ok =
+              SessionDirectory.quarantine_session(
+                state.session_directory,
+                state.session_id,
+                "boundary_resume_failed"
+              )
+
             {blocked_state(state, :quarantined), :quarantined, state}
         end
 
       {:error, {:migration_failed, _reason}} ->
-        :ok = SessionDirectory.quarantine_session(state.session_directory, state.session_id, "schema_migration_failed")
+        :ok =
+          SessionDirectory.quarantine_session(
+            state.session_directory,
+            state.session_id,
+            "schema_migration_failed"
+          )
+
         {blocked_state(state, :quarantined), :quarantined, state}
 
-      {:error, reason} when reason in [:bootstrap_timeout, :resume_wait_exhausted, :circuit_open] ->
+      {:error, reason}
+      when reason in [:bootstrap_timeout, :resume_wait_exhausted, :circuit_open] ->
         {blocked_state(state, :blocked), :blocked, state}
 
       {:error, _reason} ->
-        :ok = SessionDirectory.quarantine_session(state.session_directory, state.session_id, "continuity_corrupted")
+        :ok =
+          SessionDirectory.quarantine_session(
+            state.session_directory,
+            state.session_id,
+            "continuity_corrupted"
+          )
+
         {blocked_state(state, :quarantined), :quarantined, state}
     end
   end
@@ -312,7 +370,11 @@ defmodule Citadel.Runtime.SessionServer do
     end
   end
 
-  defp build_session_state(%PersistedSessionBlob{} = claimed_blob, visible_services, boundary_lease_view) do
+  defp build_session_state(
+         %PersistedSessionBlob{} = claimed_blob,
+         visible_services,
+         boundary_lease_view
+       ) do
     SessionState.new!(%{
       session_id: claimed_blob.session_id,
       continuity_revision: claimed_blob.envelope.continuity_revision,
@@ -380,10 +442,11 @@ defmodule Citadel.Runtime.SessionServer do
     )
 
     if lifecycle_event not in [:blocked, :quarantined] do
-      :ok = SignalIngress.register_subscription(state.signal_ingress, state.session_id,
-        committed_signal_cursor: state.session_state.signal_cursor,
-        priority_class: priority_class
-      )
+      :ok =
+        SignalIngress.register_subscription(state.signal_ingress, state.session_id,
+          committed_signal_cursor: state.session_state.signal_cursor,
+          priority_class: priority_class
+        )
 
       :ok = SignalIngress.register_consumer(state.signal_ingress, state.session_id, self())
     end
@@ -396,7 +459,9 @@ defmodule Citadel.Runtime.SessionServer do
       state.session_state.outbox.entry_order
       |> Enum.filter(fn entry_id ->
         entry = Map.fetch!(state.session_state.outbox.entries_by_id, entry_id)
-        entry.replay_status in [:pending, :dispatched] and Staleness.stale?(entry, snapshot, state.session_state)
+
+        entry.replay_status in [:pending, :dispatched] and
+          Staleness.stale?(entry, snapshot, state.session_state)
       end)
 
     if stale_entry_ids == [] do
@@ -410,7 +475,8 @@ defmodule Citadel.Runtime.SessionServer do
             ActionOutboxEntry.new!(%{
               ActionOutboxEntry.dump(stale_entry)
               | replay_status: :superseded,
-                extensions: Map.merge(stale_entry.extensions, %{"superseded_reason" => "resume_stale"})
+                extensions:
+                  Map.merge(stale_entry.extensions, %{"superseded_reason" => "resume_stale"})
             })
 
           SessionOutbox.put_entry!(outbox, superseded_entry)
@@ -432,7 +498,10 @@ defmodule Citadel.Runtime.SessionServer do
     existing_redecision? =
       outbox.entries_by_id
       |> Map.values()
-      |> Enum.any?(&(&1.action.action_kind == "enqueue_redecision" and &1.replay_status in [:pending, :dispatched]))
+      |> Enum.any?(
+        &(&1.action.action_kind == "enqueue_redecision" and
+            &1.replay_status in [:pending, :dispatched])
+      )
 
     if existing_redecision? do
       outbox
@@ -486,7 +555,15 @@ defmodule Citadel.Runtime.SessionServer do
     case SessionDirectory.commit_continuity(state.session_directory, commit) do
       {:ok, applied_blob} ->
         next_state =
-          %{state | session_state: build_session_state(applied_blob, next_session_state.visible_services, next_session_state.boundary_lease_view)}
+          %{
+            state
+            | session_state:
+                build_session_state(
+                  applied_blob,
+                  next_session_state.visible_services,
+                  next_session_state.boundary_lease_view
+                )
+          }
 
         {:ok, next_state}
 
@@ -551,7 +628,9 @@ defmodule Citadel.Runtime.SessionServer do
   defp current_boundary_ref(boundary_lease_view), do: boundary_lease_view.boundary_ref
 
   defp replayable_entries?(%SessionOutbox{} = outbox) do
-    Enum.any?(outbox.entries_by_id, fn {_entry_id, entry} -> entry.replay_status in [:pending, :dispatched] end)
+    Enum.any?(outbox.entries_by_id, fn {_entry_id, entry} ->
+      entry.replay_status in [:pending, :dispatched]
+    end)
   end
 
   defp schedule_replay(state) do
@@ -607,7 +686,12 @@ defmodule Citadel.Runtime.SessionServer do
       MapSet.member?(state.dispatching_entry_ids, entry.entry_id) ->
         state
 
-      entry.staleness_mode == :requires_check and Staleness.stale?(entry, KernelSnapshot.current_snapshot(state.kernel_snapshot), state.session_state) ->
+      entry.staleness_mode == :requires_check and
+          Staleness.stale?(
+            entry,
+            KernelSnapshot.current_snapshot(state.kernel_snapshot),
+            state.session_state
+          ) ->
         supersede_entry_with_redecision(state, entry.entry_id)
 
       true ->
@@ -622,7 +706,8 @@ defmodule Citadel.Runtime.SessionServer do
       ActionOutboxEntry.new!(%{
         ActionOutboxEntry.dump(stale_entry)
         | replay_status: :superseded,
-          extensions: Map.merge(stale_entry.extensions, %{"superseded_reason" => "stale_before_dispatch"})
+          extensions:
+            Map.merge(stale_entry.extensions, %{"superseded_reason" => "stale_before_dispatch"})
       })
 
     snapshot = KernelSnapshot.current_snapshot(state.kernel_snapshot)
@@ -686,7 +771,8 @@ defmodule Citadel.Runtime.SessionServer do
 
     case Task.Supervisor.start_child(supervisor, task_fun) do
       {:ok, _pid} ->
-        {:ok, %{state | dispatching_entry_ids: MapSet.put(state.dispatching_entry_ids, entry.entry_id)}}
+        {:ok,
+         %{state | dispatching_entry_ids: MapSet.put(state.dispatching_entry_ids, entry.entry_id)}}
 
       {:error, _reason} ->
         emit_dispatch_backlog(dispatch_family)
@@ -732,7 +818,9 @@ defmodule Citadel.Runtime.SessionServer do
         {:ok, "service_catalog/#{entry.entry_id}"}
 
       "service_catalog_retire" ->
-        {:ok, _epoch} = ServiceCatalog.retire_service(state.service_catalog, entry.action.payload["service_id"])
+        {:ok, _epoch} =
+          ServiceCatalog.retire_service(state.service_catalog, entry.action.payload["service_id"])
+
         {:ok, "service_catalog/#{entry.entry_id}"}
 
       "enqueue_redecision" ->
@@ -746,7 +834,8 @@ defmodule Citadel.Runtime.SessionServer do
 
   defp maybe_notify_redecision(%{redecision_notifier: nil}, _entry), do: :ok
 
-  defp maybe_notify_redecision(%{redecision_notifier: notifier, session_id: session_id}, entry) when is_pid(notifier) do
+  defp maybe_notify_redecision(%{redecision_notifier: notifier, session_id: session_id}, entry)
+       when is_pid(notifier) do
     send(notifier, {:redecision_requested, session_id, entry.entry_id})
   end
 
@@ -789,7 +878,9 @@ defmodule Citadel.Runtime.SessionServer do
 
       apply_transition_commit(state, updated_session_state, meaningful_activity?: true)
     else
-      delay_ms = BackoffPolicy.compute_delay_ms!(entry.backoff_policy, entry.entry_id, entry.attempt_count)
+      delay_ms =
+        BackoffPolicy.compute_delay_ms!(entry.backoff_policy, entry.entry_id, entry.attempt_count)
+
       next_attempt_at = DateTime.add(state.clock.utc_now(), delay_ms, :millisecond)
 
       retriable_entry =
@@ -855,7 +946,10 @@ defmodule Citadel.Runtime.SessionServer do
         :local -> "outbox_entry_dispatched"
       end
 
-    publish_trace_family(state, family, %{outbox_entry_id: entry_id, status: Atom.to_string(status)})
+    publish_trace_family(state, family, %{
+      outbox_entry_id: entry_id,
+      status: Atom.to_string(status)
+    })
   end
 
   defp emit_dispatch_backlog(:invocation) do

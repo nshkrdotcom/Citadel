@@ -65,15 +65,21 @@ defmodule Citadel.Runtime.BoundaryLeaseTracker do
        leases: %{},
        warm?: Keyword.get(opts, :warm?, false),
        resume_policy: Keyword.get(opts, :resume_policy, BoundaryResumePolicy.new!(%{})),
-       bootstrap_fun: Keyword.get(opts, :bootstrap_fun, fn _boundary_ref -> {:error, :not_ready} end),
-       classification_key_fun: Keyword.get(opts, :classification_key_fun, fn _boundary_ref -> nil end),
+       bootstrap_fun:
+         Keyword.get(opts, :bootstrap_fun, fn _boundary_ref -> {:error, :not_ready} end),
+       classification_key_fun:
+         Keyword.get(opts, :classification_key_fun, fn _boundary_ref -> nil end),
        inflight: %{},
        circuit_open_keys: MapSet.new()
      }}
   end
 
   @impl true
-  def handle_call({:record_boundary_view, %BoundaryLeaseView{} = boundary_lease_view}, _from, state) do
+  def handle_call(
+        {:record_boundary_view, %BoundaryLeaseView{} = boundary_lease_view},
+        _from,
+        state
+      ) do
     state = update_lease(state, boundary_lease_view)
     {:reply, {:ok, state.boundary_epoch}, state}
   end
@@ -210,7 +216,14 @@ defmodule Citadel.Runtime.BoundaryLeaseTracker do
           state = clear_inflight(state, coalesce_key)
           {:noreply, state}
         else
-          state = launch_bootstrap_task(state, coalesce_key, inflight_entry.boundary_ref, inflight_entry)
+          state =
+            launch_bootstrap_task(
+              state,
+              coalesce_key,
+              inflight_entry.boundary_ref,
+              inflight_entry
+            )
+
           {:noreply, state}
         end
     end
@@ -240,7 +253,15 @@ defmodule Citadel.Runtime.BoundaryLeaseTracker do
     }
 
     state = put_inflight(state, coalesce_key, inflight_entry)
-    state = launch_bootstrap_task(state, coalesce_key, boundary_ref, Map.fetch!(state.inflight, coalesce_key))
+
+    state =
+      launch_bootstrap_task(
+        state,
+        coalesce_key,
+        boundary_ref,
+        Map.fetch!(state.inflight, coalesce_key)
+      )
+
     emit_bootstrap_backlog_telemetry(state.inflight)
     state
   end
@@ -256,14 +277,22 @@ defmodule Citadel.Runtime.BoundaryLeaseTracker do
       )
 
     Task.start(fn ->
-      send(owner, {:bootstrap_result, coalesce_key, boundary_ref, state.bootstrap_fun.(boundary_ref)})
+      send(
+        owner,
+        {:bootstrap_result, coalesce_key, boundary_ref, state.bootstrap_fun.(boundary_ref)}
+      )
     end)
 
-    put_inflight(state, coalesce_key, %{inflight_entry | ttl_timer_ref: ttl_timer_ref, retry_timer_ref: nil})
+    put_inflight(state, coalesce_key, %{
+      inflight_entry
+      | ttl_timer_ref: ttl_timer_ref,
+        retry_timer_ref: nil
+    })
   end
 
   defp maybe_retry_bootstrap(state, coalesce_key, inflight_entry, boundary_ref) do
-    waited_ms = DateTime.diff(state.clock.utc_now(), inflight_entry.first_requested_at, :millisecond)
+    waited_ms =
+      DateTime.diff(state.clock.utc_now(), inflight_entry.first_requested_at, :millisecond)
 
     if waited_ms + state.resume_policy.retry_interval_ms > state.resume_policy.max_wait_ms do
       Enum.each(inflight_entry.waiters, &GenServer.reply(&1, {:error, :resume_wait_exhausted}))
@@ -271,7 +300,11 @@ defmodule Citadel.Runtime.BoundaryLeaseTracker do
       {:noreply, state}
     else
       retry_timer_ref =
-        Process.send_after(self(), {:retry_bootstrap, coalesce_key}, state.resume_policy.retry_interval_ms)
+        Process.send_after(
+          self(),
+          {:retry_bootstrap, coalesce_key},
+          state.resume_policy.retry_interval_ms
+        )
 
       updated_inflight_entry = %{
         inflight_entry
@@ -289,13 +322,20 @@ defmodule Citadel.Runtime.BoundaryLeaseTracker do
   defp update_lease(state, %BoundaryLeaseView{} = boundary_lease_view) do
     previous = Map.get(state.leases, boundary_lease_view.boundary_ref)
 
-    if decision_relevant_boundary_view(previous) == decision_relevant_boundary_view(boundary_lease_view) do
-      %{state | leases: Map.put(state.leases, boundary_lease_view.boundary_ref, boundary_lease_view)}
+    if decision_relevant_boundary_view(previous) ==
+         decision_relevant_boundary_view(boundary_lease_view) do
+      %{
+        state
+        | leases: Map.put(state.leases, boundary_lease_view.boundary_ref, boundary_lease_view)
+      }
     else
       updated_at = state.clock.utc_now()
 
       state
-      |> Map.put(:leases, Map.put(state.leases, boundary_lease_view.boundary_ref, boundary_lease_view))
+      |> Map.put(
+        :leases,
+        Map.put(state.leases, boundary_lease_view.boundary_ref, boundary_lease_view)
+      )
       |> Map.put(:boundary_epoch, state.boundary_epoch + 1)
       |> Map.put(:pending_epoch, state.boundary_epoch + 1)
       |> Map.put(:pending_updated_at, updated_at)
@@ -306,7 +346,8 @@ defmodule Citadel.Runtime.BoundaryLeaseTracker do
   defp decision_relevant_boundary_view(nil), do: nil
 
   defp decision_relevant_boundary_view(%BoundaryLeaseView{} = boundary_lease_view) do
-    {boundary_lease_view.boundary_ref, boundary_lease_view.staleness_status, boundary_lease_view.expires_at}
+    {boundary_lease_view.boundary_ref, boundary_lease_view.staleness_status,
+     boundary_lease_view.expires_at}
   end
 
   defp put_inflight(state, coalesce_key, inflight_entry) do
@@ -359,7 +400,10 @@ defmodule Citadel.Runtime.BoundaryLeaseTracker do
   end
 
   defp schedule_flush(%{flush_timer_ref: nil} = state) do
-    %{state | flush_timer_ref: Process.send_after(self(), @flush_message, state.flush_interval_ms)}
+    %{
+      state
+      | flush_timer_ref: Process.send_after(self(), @flush_message, state.flush_interval_ms)
+    }
   end
 
   defp schedule_flush(state), do: state

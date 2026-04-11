@@ -1,6 +1,7 @@
 defmodule Citadel.Runtime.TracePublisherTest do
   use ExUnit.Case, async: false
 
+  alias Citadel.TraceEnvelope
   alias Citadel.Runtime.TracePublisher
 
   defmodule NoopTracePort do
@@ -25,13 +26,42 @@ defmodule Citadel.Runtime.TracePublisherTest do
 
   test "buffer overflow preserves the protected error-family evidence window and emits dropped-family telemetry" do
     attach_telemetry(self())
-    publisher = start_trace_publisher(trace_port: NoopTracePort, buffer_capacity: 4, protected_error_capacity: 2, flush_interval_ms: 1_000, batch_size: 4)
 
-    assert :ok = TracePublisher.publish_trace(publisher, regular_envelope("env-1", "session_attached"))
-    assert :ok = TracePublisher.publish_trace(publisher, regular_envelope("env-2", "signal_normalized"))
-    assert :ok = TracePublisher.publish_trace(publisher, protected_envelope("env-3", "session_blocked"))
-    assert :ok = TracePublisher.publish_trace(publisher, protected_envelope("env-4", "session_crash_recovery_triggered"))
-    assert :ok = TracePublisher.publish_trace(publisher, regular_envelope("env-5", "session_resumed"))
+    publisher =
+      start_trace_publisher(
+        trace_port: NoopTracePort,
+        buffer_capacity: 4,
+        protected_error_capacity: 2,
+        flush_interval_ms: 1_000,
+        batch_size: 4
+      )
+
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               regular_envelope("env-1", "session_attached")
+             )
+
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               regular_envelope("env-2", "signal_normalized")
+             )
+
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               protected_envelope("env-3", "session_blocked")
+             )
+
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               protected_envelope("env-4", "session_crash_recovery_triggered")
+             )
+
+    assert :ok =
+             TracePublisher.publish_trace(publisher, regular_envelope("env-5", "session_resumed"))
 
     assert TracePublisher.snapshot(publisher) == %{depth: 4, protected_depth: 2, regular_depth: 2}
 
@@ -44,12 +74,24 @@ defmodule Citadel.Runtime.TracePublisherTest do
 
   test "publication failures emit low-cardinality telemetry without blocking the caller" do
     attach_telemetry(self())
-    publisher = start_trace_publisher(trace_port: FailingTracePort, buffer_capacity: 2, protected_error_capacity: 1, flush_interval_ms: 0, batch_size: 1)
 
-    assert :ok = TracePublisher.publish_trace(publisher, regular_envelope("env-fail", "session_attached"))
+    publisher =
+      start_trace_publisher(
+        trace_port: FailingTracePort,
+        buffer_capacity: 2,
+        protected_error_capacity: 1,
+        flush_interval_ms: 0,
+        batch_size: 1
+      )
 
-    assert_receive {:telemetry, [:citadel, :trace, :publish, :failure], %{count: 1, batch_size: 1},
-                    %{reason_code: :unavailable}}
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               regular_envelope("env-fail", "session_attached")
+             )
+
+    assert_receive {:telemetry, [:citadel, :trace, :publish, :failure],
+                    %{count: 1, batch_size: 1}, %{reason_code: :unavailable}}
   end
 
   defp start_trace_publisher(opts) do
@@ -77,7 +119,7 @@ defmodule Citadel.Runtime.TracePublisherTest do
   end
 
   defp regular_envelope(id, family) do
-    %{
+    TraceEnvelope.new!(%{
       trace_envelope_id: id,
       record_kind: :event,
       family: family,
@@ -100,7 +142,7 @@ defmodule Citadel.Runtime.TracePublisherTest do
       status: "ok",
       attributes: %{},
       extensions: %{}
-    }
+    })
   end
 
   defp protected_envelope(id, family) do
@@ -111,5 +153,7 @@ defmodule Citadel.Runtime.TracePublisherTest do
   defp canonical_name("signal_normalized"), do: "citadel.signal.normalized"
   defp canonical_name("session_resumed"), do: "citadel.session.resumed"
   defp canonical_name("session_blocked"), do: "citadel.session.blocked"
-  defp canonical_name("session_crash_recovery_triggered"), do: "citadel.session.crash_recovery_triggered"
+
+  defp canonical_name("session_crash_recovery_triggered"),
+    do: "citadel.session.crash_recovery_triggered"
 end

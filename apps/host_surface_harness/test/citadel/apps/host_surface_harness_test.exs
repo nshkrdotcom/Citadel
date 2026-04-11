@@ -9,6 +9,7 @@ defmodule Citadel.Apps.HostSurfaceHarnessTest do
   alias Citadel.PersistedSessionEnvelope
   alias Citadel.ProjectionBridge
   alias Citadel.Runtime.KernelSnapshot
+  alias Citadel.RuntimeObservation
   alias Citadel.Runtime.SessionDirectory
   alias Citadel.SignalBridge
 
@@ -43,7 +44,7 @@ defmodule Citadel.Apps.HostSurfaceHarnessTest do
   defmodule SignalAdapter do
     def normalize_signal(%{session_id: session_id, signal_id: signal_id, payload: payload}) do
       {:ok,
-       %{
+       RuntimeObservation.new!(%{
          observation_id: "obs/#{signal_id}",
          request_id: "req/#{signal_id}",
          session_id: session_id,
@@ -60,7 +61,7 @@ defmodule Citadel.Apps.HostSurfaceHarnessTest do
          evidence_refs: [],
          governance_refs: [],
          extensions: %{}
-       }}
+       })}
     end
 
     def normalize_signal(_signal), do: {:error, :unsupported_signal}

@@ -91,8 +91,7 @@ defmodule Citadel.InvocationBridge do
   end
 
   @impl true
-  @spec submit_invocation(InvocationRequest.t(), ActionOutboxEntry.t()) ::
-          {:ok, String.t()} | {:error, atom()}
+  @spec submit_invocation(InvocationRequest.t(), ActionOutboxEntry.t()) :: no_return()
   def submit_invocation(_request, _entry) do
     raise ArgumentError,
           "Citadel.InvocationBridge.submit_invocation/2 requires an initialized bridge instance; use submit/3"
@@ -100,16 +99,14 @@ defmodule Citadel.InvocationBridge do
 
   @spec submit(
           t(),
-          InvocationRequest.t() | map() | keyword(),
-          ActionOutboxEntry.t() | map() | keyword()
+          InvocationRequest.t(),
+          ActionOutboxEntry.t()
         ) ::
           {:ok, String.t(), t()} | {:error, atom(), t()}
-  def submit(%__MODULE__{} = bridge, request, entry) do
+  def submit(%__MODULE__{} = bridge, %InvocationRequest{} = request, %ActionOutboxEntry{} = entry) do
     if unsupported_schema_version?(request) do
       {:error, :unsupported_schema_version, bridge}
     else
-      request = InvocationRequest.new!(request)
-      entry = normalize_outbox_entry(entry)
       do_submit(bridge, request, entry)
     end
   end
@@ -189,27 +186,6 @@ defmodule Citadel.InvocationBridge do
   defp unsupported_schema_version?(%InvocationRequest{schema_version: schema_version}) do
     schema_version not in supported_invocation_request_schema_versions()
   end
-
-  defp unsupported_schema_version?(request) when is_list(request) do
-    request
-    |> Map.new()
-    |> unsupported_schema_version?()
-  end
-
-  defp unsupported_schema_version?(request) when is_map(request) do
-    case Map.get(request, :schema_version, Map.get(request, "schema_version")) do
-      schema_version when is_integer(schema_version) ->
-        schema_version not in supported_invocation_request_schema_versions()
-
-      _other ->
-        false
-    end
-  end
-
-  defp unsupported_schema_version?(_request), do: false
-
-  defp normalize_outbox_entry(%ActionOutboxEntry{} = entry), do: entry
-  defp normalize_outbox_entry(entry), do: ActionOutboxEntry.new!(entry)
 
   defp normalize_error({:error, reason}) when is_atom(reason), do: reason
   defp normalize_error(_other), do: :unknown

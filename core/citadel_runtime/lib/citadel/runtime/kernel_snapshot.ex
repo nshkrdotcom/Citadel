@@ -116,7 +116,10 @@ defmodule Citadel.Runtime.KernelSnapshot do
     end
   end
 
-  defp policy_version(snapshot, %KernelEpochUpdate{constituent: :policy_epoch, extensions: extensions}) do
+  defp policy_version(snapshot, %KernelEpochUpdate{
+         constituent: :policy_epoch,
+         extensions: extensions
+       }) do
     Map.get(extensions, "policy_version", snapshot.policy_version)
   end
 

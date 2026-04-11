@@ -48,7 +48,13 @@ defmodule Citadel.DecisionRejectionTest do
       policy_version: "policy-2026-04-09",
       policy_epoch: 7,
       priority: 0,
-      selector: %{tenant_ids: [], scope_kinds: [], environments: [], default?: true, extensions: %{}},
+      selector: %{
+        tenant_ids: [],
+        scope_kinds: [],
+        environments: [],
+        default?: true,
+        extensions: %{}
+      },
       profiles: %{
         trust_profile: "baseline",
         approval_profile: "standard_approval",

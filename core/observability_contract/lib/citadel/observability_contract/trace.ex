@@ -70,7 +70,8 @@ defmodule Citadel.ObservabilityContract.Trace do
     "session_crash_recovery_triggered" => "citadel.session.crash_recovery_triggered",
     "redecision_triggered" => "citadel.decision.redecision_triggered",
     "review_projection_published" => "citadel.projection.review_published",
-    "derived_state_attachment_published" => "citadel.projection.derived_state_attachment_published",
+    "derived_state_attachment_published" =>
+      "citadel.projection.derived_state_attachment_published",
     "boundary_lease_stale" => "citadel.boundary.lease_stale",
     "boundary_lease_expired" => "citadel.boundary.lease_expired",
     "decision_rejected" => "citadel.decision.rejected",

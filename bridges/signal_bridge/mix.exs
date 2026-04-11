@@ -22,7 +22,8 @@ defmodule Citadel.SignalBridge.MixProject do
     [
       {:citadel_core, path: "../../core/citadel_core"},
       {:citadel_runtime, path: "../../core/citadel_runtime"},
-      {:citadel_observability_contract, path: "../../core/observability_contract"}
+      {:citadel_observability_contract, path: "../../core/observability_contract"},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 end

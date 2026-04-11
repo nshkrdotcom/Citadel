@@ -71,7 +71,13 @@ defmodule Citadel.InvocationRequestTest do
            ]
 
     assert TopologyIntent.allowed_session_modes() == ["attached", "detached", "stateless"]
-    assert TopologyIntent.allowed_coordination_modes() == ["single_target", "parallel_fanout", "local_only"]
+
+    assert TopologyIntent.allowed_coordination_modes() == [
+             "single_target",
+             "parallel_fanout",
+             "local_only"
+           ]
+
     assert InvocationRequest.schema_version() == 1
     assert InvocationRequest.structured_ingress_posture() == :structured_only
     assert InvocationRequest.authority_packet_module() == V1

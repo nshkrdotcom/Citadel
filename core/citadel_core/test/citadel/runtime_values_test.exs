@@ -12,7 +12,7 @@ defmodule Citadel.RuntimeValuesTest do
   alias Citadel.StalenessRequirements
 
   property "backoff delay remains deterministic for the same entry id and attempt history" do
-    check all attempt_count <- StreamData.integer(0..10) do
+    check all(attempt_count <- StreamData.integer(0..10)) do
       policy =
         BackoffPolicy.new!(%{
           strategy: :exponential,
@@ -31,7 +31,10 @@ defmodule Citadel.RuntimeValuesTest do
   end
 
   property "session outbox preserves the one-to-one invariant across live writes" do
-    check all ids <- StreamData.uniq_list_of(StreamData.integer(1..100), min_length: 1, max_length: 6) do
+    check all(
+            ids <-
+              StreamData.uniq_list_of(StreamData.integer(1..100), min_length: 1, max_length: 6)
+          ) do
       entries = Enum.map(ids, &outbox_entry/1)
       outbox = SessionOutbox.from_entries!(entries)
 

@@ -20,7 +20,8 @@ defmodule Citadel.ContractCore.MixProject do
 
   defp deps do
     [
-      {:jcs, "~> 0.2.0"}
+      {:jcs, "~> 0.2.0"},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 end

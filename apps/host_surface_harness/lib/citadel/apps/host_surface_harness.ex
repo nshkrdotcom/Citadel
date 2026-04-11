@@ -34,6 +34,8 @@ defmodule Citadel.Apps.HostSurfaceHarness do
   alias Citadel.ScopeRef
   alias Citadel.SessionContinuityCommit
   alias Citadel.SignalBridge
+  alias Jido.Integration.V2.DerivedStateAttachment
+  alias Jido.Integration.V2.ReviewProjection
 
   @manifest %{
     package: :citadel_host_surface_harness,
@@ -488,7 +490,7 @@ defmodule Citadel.Apps.HostSurfaceHarness do
   end
 
   defp maybe_publish_rejection(
-         harness,
+         %__MODULE__{projection_bridge: %ProjectionBridge{}} = harness,
          %DecisionRejection{} = rejection,
          %Selection{} = selection,
          context
@@ -541,7 +543,7 @@ defmodule Citadel.Apps.HostSurfaceHarness do
     subject = host_subject(context)
     evidence_ref = rejection_evidence_ref(rejection, context)
 
-    %{
+    ReviewProjection.new!(%{
       schema_version: "review_projection.v1",
       projection: "citadel.decision_rejection",
       packet_ref: rejection_packet_ref(rejection),
@@ -561,11 +563,11 @@ defmodule Citadel.Apps.HostSurfaceHarness do
           }
         }
       ]
-    }
+    })
   end
 
   defp derived_state_attachment_for_rejection(rejection, selection, context) do
-    %{
+    DerivedStateAttachment.new!(%{
       subject: host_subject(context),
       evidence_refs: [rejection_evidence_ref(rejection, context)],
       governance_refs: [],
@@ -577,7 +579,7 @@ defmodule Citadel.Apps.HostSurfaceHarness do
         "publication_requirement" => Atom.to_string(rejection.publication_requirement),
         "summary" => rejection.summary
       }
-    }
+    })
   end
 
   defp rejection_publication_entry(rejection, context, now) do

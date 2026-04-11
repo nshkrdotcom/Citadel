@@ -38,7 +38,9 @@ defmodule Citadel.Runtime.SessionDirectory do
           pending_project_binding_epoch: non_neg_integer() | nil,
           pending_updated_at: DateTime.t() | nil,
           flush_timer_ref: reference() | nil,
-          activation_queue: %{optional(String.t()) => %{priority_class: String.t(), queued_at: DateTime.t()}}
+          activation_queue: %{
+            optional(String.t()) => %{priority_class: String.t(), queued_at: DateTime.t()}
+          }
         }
 
   def start_link(opts) do
@@ -145,7 +147,8 @@ defmodule Citadel.Runtime.SessionDirectory do
        clock: Keyword.get(opts, :clock, SystemClock),
        kernel_snapshot: Keyword.get(opts, :kernel_snapshot, KernelSnapshot),
        flush_interval_ms: Keyword.get(opts, :flush_interval_ms, 10),
-       activation_policy: Keyword.get(opts, :activation_policy, SessionActivationPolicy.new!(%{})),
+       activation_policy:
+         Keyword.get(opts, :activation_policy, SessionActivationPolicy.new!(%{})),
        store_key: store_key,
        store: store,
        fault_injection: Keyword.get(opts, :fault_injection),
@@ -229,7 +232,9 @@ defmodule Citadel.Runtime.SessionDirectory do
       with raw_blob when not is_nil(raw_blob) <- Map.get(state.store.blobs, commit.session_id),
            {:ok, current_blob} <- migrate_blob(raw_blob),
            :ok <- validate_commit_fence(current_blob, commit) do
-        {state, applied_blob} = apply_commit_binding_epoch(state, current_blob, commit.persisted_blob)
+        {state, applied_blob} =
+          apply_commit_binding_epoch(state, current_blob, commit.persisted_blob)
+
         fault_result = fault_result(state.fault_injection, commit)
 
         case fault_result do
@@ -300,7 +305,9 @@ defmodule Citadel.Runtime.SessionDirectory do
   end
 
   def handle_call({:unregister_active_session, session_id}, _from, state) do
-    state = put_store_in(state, [:active_sessions], Map.delete(state.store.active_sessions, session_id))
+    state =
+      put_store_in(state, [:active_sessions], Map.delete(state.store.active_sessions, session_id))
+
     {:reply, :ok, state}
   end
 
@@ -318,7 +325,10 @@ defmodule Citadel.Runtime.SessionDirectory do
 
   def handle_call({:enqueue_activation, session_id, priority_class}, _from, state) do
     activation_queue =
-      Map.put(state.activation_queue, session_id, %{priority_class: priority_class, queued_at: state.clock.utc_now()})
+      Map.put(state.activation_queue, session_id, %{
+        priority_class: priority_class,
+        queued_at: state.clock.utc_now()
+      })
 
     emit_activation_backlog_telemetry(activation_queue, state.activation_policy)
     {:reply, :ok, %{state | activation_queue: activation_queue}}
@@ -328,10 +338,12 @@ defmodule Citadel.Runtime.SessionDirectory do
     ordered =
       state.activation_queue
       |> Enum.sort_by(fn {_session_id, item} ->
-        {SessionActivationPolicy.priority_rank(state.activation_policy, item.priority_class), item.queued_at}
+        {SessionActivationPolicy.priority_rank(state.activation_policy, item.priority_class),
+         item.queued_at}
       end)
 
-    {selected, remaining} = Enum.split(ordered, state.activation_policy.max_concurrent_activations)
+    {selected, remaining} =
+      Enum.split(ordered, state.activation_policy.max_concurrent_activations)
 
     state = %{state | activation_queue: Map.new(remaining)}
 
@@ -345,7 +357,10 @@ defmodule Citadel.Runtime.SessionDirectory do
       )
     end)
 
-    {:reply, Enum.map(selected, fn {session_id, item} -> %{session_id: session_id, priority_class: item.priority_class, queued_at: item.queued_at} end), state}
+    {:reply,
+     Enum.map(selected, fn {session_id, item} ->
+       %{session_id: session_id, priority_class: item.priority_class, queued_at: item.queued_at}
+     end), state}
   end
 
   def handle_call({:clear_dead_letter, entry_id, override_reason}, _from, state) do
@@ -366,7 +381,11 @@ defmodule Citadel.Runtime.SessionDirectory do
     {:reply, reply, state}
   end
 
-  def handle_call({:replace_dead_letter, entry_id, replacement_entry, override_reason}, _from, state) do
+  def handle_call(
+        {:replace_dead_letter, entry_id, replacement_entry, override_reason},
+        _from,
+        state
+      ) do
     {reply, state} =
       mutate_dead_letter_entry(state, entry_id, fn blob, _entry ->
         outbox =
@@ -387,7 +406,11 @@ defmodule Citadel.Runtime.SessionDirectory do
     {:reply, reply, state}
   end
 
-  def handle_call({:retry_dead_letter_with_override, entry_id, override_reason, opts}, _from, state) do
+  def handle_call(
+        {:retry_dead_letter_with_override, entry_id, override_reason, opts},
+        _from,
+        state
+      ) do
     next_attempt_at = Keyword.get(opts, :next_attempt_at, state.clock.utc_now())
 
     {reply, state} =
@@ -425,18 +448,22 @@ defmodule Citadel.Runtime.SessionDirectory do
 
   def handle_call({:bulk_recover_dead_letters, selector, operation}, _from, state) do
     {state, affected_entry_count} =
-      Enum.reduce(state.store.blobs, {state, 0}, fn {_session_id, raw_blob}, {state_acc, count_acc} ->
+      Enum.reduce(state.store.blobs, {state, 0}, fn {_session_id, raw_blob},
+                                                    {state_acc, count_acc} ->
         case migrate_blob(raw_blob) do
           {:ok, blob} ->
             dead_letter_entries =
               blob.outbox_entries
               |> Map.values()
               |> Enum.filter(fn entry ->
-                entry.replay_status == :dead_letter and match_dead_letter_selector?(entry, selector)
+                entry.replay_status == :dead_letter and
+                  match_dead_letter_selector?(entry, selector)
               end)
 
             {state_acc, updated_count} =
-              Enum.reduce(dead_letter_entries, {state_acc, count_acc}, fn entry, {state_inner, inner_count} ->
+              Enum.reduce(dead_letter_entries, {state_acc, count_acc}, fn entry,
+                                                                          {state_inner,
+                                                                           inner_count} ->
                 case apply_bulk_recovery_operation(state_inner, entry.entry_id, operation) do
                   {:ok, next_state} -> {next_state, inner_count + 1}
                   {:error, _reason} -> {next_state_or_self(state_inner), inner_count}
@@ -485,12 +512,18 @@ defmodule Citadel.Runtime.SessionDirectory do
 
           state
           |> put_store_in([:blobs, session_id], quarantined_blob)
-          |> put_store_in([:quarantine, session_id], %{reason_family: reason_family, eviction_deadline: eviction_deadline})
+          |> put_store_in([:quarantine, session_id], %{
+            reason_family: reason_family,
+            eviction_deadline: eviction_deadline
+          })
           |> maybe_refresh_cached_metadata(session_id)
 
         _ ->
           state
-          |> put_store_in([:quarantine, session_id], %{reason_family: reason_family, eviction_deadline: eviction_deadline})
+          |> put_store_in([:quarantine, session_id], %{
+            reason_family: reason_family,
+            eviction_deadline: eviction_deadline
+          })
       end
 
     :telemetry.execute(
@@ -560,7 +593,8 @@ defmodule Citadel.Runtime.SessionDirectory do
   end
 
   defp build_new_claimed_blob(state, session_id, now, opts) do
-    {state, project_binding} = maybe_assign_claim_binding_epoch(state, Keyword.get(opts, :project_binding))
+    {state, project_binding} =
+      maybe_assign_claim_binding_epoch(state, Keyword.get(opts, :project_binding))
 
     blob =
       PersistedSessionBlob.new!(%{
@@ -652,8 +686,11 @@ defmodule Citadel.Runtime.SessionDirectory do
 
         next_blob =
           case next_binding do
-            %ProjectBinding{} = proposed -> normalize_binding_epoch(next_blob, next_epoch, proposed)
-            nil -> next_blob
+            %ProjectBinding{} = proposed ->
+              normalize_binding_epoch(next_blob, next_epoch, proposed)
+
+            nil ->
+              next_blob
           end
 
         state =
@@ -676,10 +713,13 @@ defmodule Citadel.Runtime.SessionDirectory do
   end
 
   defp fault_result(nil, _commit), do: :ok
-  defp fault_result(fault_injection, commit) when is_function(fault_injection, 1), do: fault_injection.(commit)
+
+  defp fault_result(fault_injection, commit) when is_function(fault_injection, 1),
+    do: fault_injection.(commit)
 
   defp mutate_dead_letter_entry(state, entry_id, mutation_fun) do
-    with {:ok, %{session_id: session_id, entry: entry}} <- resolve_entry_from_store(state, entry_id),
+    with {:ok, %{session_id: session_id, entry: entry}} <-
+           resolve_entry_from_store(state, entry_id),
          true <- entry.replay_status == :dead_letter or {:error, :not_dead_letter},
          {:ok, current_blob} <- fetch_blob_from_store(state, session_id) do
       updated_blob = mutation_fun.(current_blob, entry)
@@ -752,24 +792,37 @@ defmodule Citadel.Runtime.SessionDirectory do
     end
   end
 
-  defp apply_bulk_recovery_operation(state, entry_id, {:replace, replacement_builder, override_reason})
+  defp apply_bulk_recovery_operation(
+         state,
+         entry_id,
+         {:replace, replacement_builder, override_reason}
+       )
        when is_function(replacement_builder, 1) do
     with {:ok, %{entry: entry}} <- resolve_entry_from_store(state, entry_id),
          replacement_entry <- replacement_builder.(entry),
-         {:ok, next_state} <- apply_replace_dead_letter(state, entry_id, replacement_entry, override_reason) do
+         {:ok, next_state} <-
+           apply_replace_dead_letter(state, entry_id, replacement_entry, override_reason) do
       {:ok, next_state}
     else
       {:error, reason} -> {:error, reason}
     end
   end
 
-  defp apply_bulk_recovery_operation(_state, _entry_id, _operation), do: {:error, :unsupported_operation}
+  defp apply_bulk_recovery_operation(_state, _entry_id, _operation),
+    do: {:error, :unsupported_operation}
 
   defp apply_clear_dead_letter(state, entry_id, override_reason) do
     case mutate_dead_letter_entry(state, entry_id, fn blob, _entry ->
            outbox = PersistedSessionBlob.restore_session_outbox!(blob)
            updated_outbox = SessionOutbox.delete_entry!(outbox, entry_id)
-           rebuild_blob_from_outbox(blob, updated_outbox, %{"dead_letter_maintenance" => %{"entry_id" => entry_id, "operation" => "clear", "override_reason" => override_reason}})
+
+           rebuild_blob_from_outbox(blob, updated_outbox, %{
+             "dead_letter_maintenance" => %{
+               "entry_id" => entry_id,
+               "operation" => "clear",
+               "override_reason" => override_reason
+             }
+           })
          end) do
       {{:ok, _blob}, next_state} -> {:ok, next_state}
       {{:error, reason}, _state} -> {:error, reason}
@@ -784,7 +837,13 @@ defmodule Citadel.Runtime.SessionDirectory do
              |> SessionOutbox.delete_entry!(entry_id)
              |> SessionOutbox.put_entry!(replacement_entry)
 
-           rebuild_blob_from_outbox(blob, outbox, %{"dead_letter_maintenance" => %{"entry_id" => entry_id, "operation" => "replace", "override_reason" => override_reason}})
+           rebuild_blob_from_outbox(blob, outbox, %{
+             "dead_letter_maintenance" => %{
+               "entry_id" => entry_id,
+               "operation" => "replace",
+               "override_reason" => override_reason
+             }
+           })
          end) do
       {{:ok, _blob}, next_state} -> {:ok, next_state}
       {{:error, reason}, _state} -> {:error, reason}
@@ -812,7 +871,13 @@ defmodule Citadel.Runtime.SessionDirectory do
              |> PersistedSessionBlob.restore_session_outbox!()
              |> SessionOutbox.put_entry!(retried_entry)
 
-           rebuild_blob_from_outbox(blob, outbox, %{"dead_letter_maintenance" => %{"entry_id" => entry_id, "operation" => "retry_with_override", "override_reason" => override_reason}})
+           rebuild_blob_from_outbox(blob, outbox, %{
+             "dead_letter_maintenance" => %{
+               "entry_id" => entry_id,
+               "operation" => "retry_with_override",
+               "override_reason" => override_reason
+             }
+           })
          end) do
       {{:ok, _blob}, next_state} -> {:ok, next_state}
       {{:error, reason}, _state} -> {:error, reason}
@@ -839,7 +904,11 @@ defmodule Citadel.Runtime.SessionDirectory do
 
         state =
           if blocked_entries == %{} do
-            put_store_in(state, [:blocked_sessions], Map.delete(state.store.blocked_sessions, session_id))
+            put_store_in(
+              state,
+              [:blocked_sessions],
+              Map.delete(state.store.blocked_sessions, session_id)
+            )
           else
             emit_blocked_telemetry(blocked_entries)
             put_store_in(state, [:blocked_sessions, session_id], blocked_entries)
@@ -877,12 +946,21 @@ defmodule Citadel.Runtime.SessionDirectory do
     end)
   end
 
-  defp normalize_quarantine_meta(%{"reason_family" => reason_family, "eviction_deadline" => eviction_deadline}) do
-    %{reason_family: reason_family, eviction_deadline: DateTime.from_iso8601(eviction_deadline) |> elem(1)}
+  defp normalize_quarantine_meta(%{
+         "reason_family" => reason_family,
+         "eviction_deadline" => eviction_deadline
+       }) do
+    %{
+      reason_family: reason_family,
+      eviction_deadline: DateTime.from_iso8601(eviction_deadline) |> elem(1)
+    }
   end
 
   defp normalize_quarantine_meta(_meta) do
-    %{reason_family: "unknown", eviction_deadline: DateTime.add(DateTime.utc_now(), 7 * 24 * 60 * 60, :second)}
+    %{
+      reason_family: "unknown",
+      eviction_deadline: DateTime.add(DateTime.utc_now(), 7 * 24 * 60 * 60, :second)
+    }
   end
 
   defp replace_envelope(%PersistedSessionBlob{} = blob, updates) do
@@ -928,11 +1006,20 @@ defmodule Citadel.Runtime.SessionDirectory do
   end
 
   defp schedule_project_binding_flush(%{flush_timer_ref: nil} = state, next_epoch) do
-    %{state | pending_project_binding_epoch: next_epoch, pending_updated_at: state.clock.utc_now(), flush_timer_ref: Process.send_after(self(), @flush_message, state.flush_interval_ms)}
+    %{
+      state
+      | pending_project_binding_epoch: next_epoch,
+        pending_updated_at: state.clock.utc_now(),
+        flush_timer_ref: Process.send_after(self(), @flush_message, state.flush_interval_ms)
+    }
   end
 
   defp schedule_project_binding_flush(state, next_epoch) do
-    %{state | pending_project_binding_epoch: next_epoch, pending_updated_at: state.clock.utc_now()}
+    %{
+      state
+      | pending_project_binding_epoch: next_epoch,
+        pending_updated_at: state.clock.utc_now()
+    }
   end
 
   defp emit_lifecycle_telemetry(lifecycle_event) do

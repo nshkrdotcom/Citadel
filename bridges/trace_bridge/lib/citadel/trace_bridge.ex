@@ -18,7 +18,13 @@ defmodule Citadel.TraceBridge do
   }
 
   @type reason_code ::
-          :unavailable | :timeout | :rate_limited | :invalid_envelope | :backend_rejected | :circuit_open | :unknown
+          :unavailable
+          | :timeout
+          | :rate_limited
+          | :invalid_envelope
+          | :backend_rejected
+          | :circuit_open
+          | :unknown
 
   @impl true
   @spec publish_trace(TraceEnvelope.t()) :: :ok | {:error, reason_code()}

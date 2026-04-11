@@ -76,11 +76,16 @@ defmodule Citadel.Runtime.ScopeCatalog do
     if scopes == state.scopes and targets_by_scope == state.targets_by_scope do
       {:reply, {:ok, state.scope_catalog_epoch}, state}
     else
-      {:reply, {:ok, state.scope_catalog_epoch + 1}, bump_epoch(%{state | scopes: scopes, targets_by_scope: targets_by_scope})}
+      {:reply, {:ok, state.scope_catalog_epoch + 1},
+       bump_epoch(%{state | scopes: scopes, targets_by_scope: targets_by_scope})}
     end
   end
 
-  def handle_call({:put_target_resolution, scope_id, %TargetResolution{} = resolution}, _from, state) do
+  def handle_call(
+        {:put_target_resolution, scope_id, %TargetResolution{} = resolution},
+        _from,
+        state
+      ) do
     updated_targets =
       state.targets_by_scope
       |> Map.get(scope_id, %{})
@@ -91,7 +96,8 @@ defmodule Citadel.Runtime.ScopeCatalog do
     if targets_by_scope == state.targets_by_scope do
       {:reply, {:ok, state.scope_catalog_epoch}, state}
     else
-      {:reply, {:ok, state.scope_catalog_epoch + 1}, bump_epoch(%{state | targets_by_scope: targets_by_scope})}
+      {:reply, {:ok, state.scope_catalog_epoch + 1},
+       bump_epoch(%{state | targets_by_scope: targets_by_scope})}
     end
   end
 
@@ -109,7 +115,12 @@ defmodule Citadel.Runtime.ScopeCatalog do
   end
 
   def handle_call(:snapshot, _from, state) do
-    {:reply, %{scopes: state.scopes, targets_by_scope: state.targets_by_scope, scope_catalog_epoch: state.scope_catalog_epoch}, state}
+    {:reply,
+     %{
+       scopes: state.scopes,
+       targets_by_scope: state.targets_by_scope,
+       scope_catalog_epoch: state.scope_catalog_epoch
+     }, state}
   end
 
   @impl true

@@ -10,7 +10,7 @@ defmodule Citadel.MemoryBridgeTest do
 
     def get_memory_record("memory-1", _opts) do
       {:ok,
-       %{
+       MemoryRecord.new!(%{
          memory_id: "memory-1",
          scope_ref:
            ScopeRef.new!(%{
@@ -29,7 +29,7 @@ defmodule Citadel.MemoryBridgeTest do
          expires_at: nil,
          confidence: 0.9,
          metadata: %{}
-       }}
+       })}
     end
 
     def get_memory_record(_memory_id, _opts), do: {:ok, nil}
@@ -66,8 +66,12 @@ defmodule Citadel.MemoryBridgeTest do
 
     bridge = MemoryBridge.new!(downstream: Downstream)
 
-    assert {:ok, %{write_guarantee: :best_effort}, bridge} = MemoryBridge.put_memory_record(bridge, record)
-    assert {:ok, %MemoryRecord{memory_id: "memory-1"}, bridge} = MemoryBridge.get_memory_record(bridge, "memory-1", scope_id: "scope-1")
+    assert {:ok, %{write_guarantee: :best_effort}, bridge} =
+             MemoryBridge.put_memory_record(bridge, record)
+
+    assert {:ok, %MemoryRecord{memory_id: "memory-1"}, bridge} =
+             MemoryBridge.get_memory_record(bridge, "memory-1", scope_id: "scope-1")
+
     assert {:ok, [], _bridge} = MemoryBridge.rank_memory_records(bridge, scope_id: "scope-1")
   end
 end

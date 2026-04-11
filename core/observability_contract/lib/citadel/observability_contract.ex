@@ -19,7 +19,8 @@ defmodule Citadel.ObservabilityContract do
   def trace_record_kinds, do: Citadel.ObservabilityContract.Trace.record_kinds()
 
   @spec trace_required_event_families() :: [String.t(), ...]
-  def trace_required_event_families, do: Citadel.ObservabilityContract.Trace.required_event_families()
+  def trace_required_event_families,
+    do: Citadel.ObservabilityContract.Trace.required_event_families()
 
   @spec trace_protected_error_families() :: [String.t(), ...]
   def trace_protected_error_families,
@@ -43,7 +44,8 @@ defmodule Citadel.ObservabilityContract do
     do: Citadel.ObservabilityContract.Telemetry.measurement_keys(name)
 
   @spec telemetry_metadata_keys(atom()) :: [atom(), ...]
-  def telemetry_metadata_keys(name), do: Citadel.ObservabilityContract.Telemetry.metadata_keys(name)
+  def telemetry_metadata_keys(name),
+    do: Citadel.ObservabilityContract.Telemetry.metadata_keys(name)
 
   @spec manifest() :: map()
   def manifest, do: @manifest

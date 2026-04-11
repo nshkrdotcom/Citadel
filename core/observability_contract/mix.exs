@@ -20,7 +20,8 @@ defmodule Citadel.ObservabilityContract.MixProject do
 
   defp deps do
     [
-      {:citadel_contract_core, path: "../contract_core"}
+      {:citadel_contract_core, path: "../contract_core"},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 end

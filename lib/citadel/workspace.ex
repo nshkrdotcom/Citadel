@@ -1,11 +1,3 @@
-unless Code.ensure_loaded?(Citadel.Build.WorkspaceContract) do
-  Code.require_file("../../build_support/workspace_contract.exs", __DIR__)
-end
-
-unless Code.ensure_loaded?(Citadel.Build.DependencyResolver) do
-  Code.require_file("../../build_support/dependency_resolver.exs", __DIR__)
-end
-
 defmodule Citadel.Workspace do
   @moduledoc """
   Packet-aligned metadata for the Citadel non-umbrella workspace.
@@ -15,14 +7,53 @@ defmodule Citadel.Workspace do
   """
 
   alias Citadel.Build.DependencyResolver
-  alias Citadel.Build.WorkspaceContract
 
-  @package_paths WorkspaceContract.package_paths()
+  @package_paths [
+    "core/contract_core",
+    "core/authority_contract",
+    "core/observability_contract",
+    "core/policy_packs",
+    "core/citadel_core",
+    "core/citadel_runtime",
+    "core/conformance",
+    "bridges/invocation_bridge",
+    "bridges/query_bridge",
+    "bridges/signal_bridge",
+    "bridges/boundary_bridge",
+    "bridges/projection_bridge",
+    "bridges/trace_bridge",
+    "bridges/memory_bridge",
+    "apps/coding_assist",
+    "apps/operator_assist",
+    "apps/host_surface_harness"
+  ]
+  @active_project_globs [".", "core/*", "bridges/*", "apps/*"]
   @proof_package_paths [
     "core/conformance",
     "apps/coding_assist",
     "apps/operator_assist",
     "apps/host_surface_harness"
+  ]
+  @static_analysis_paths [
+    "lib",
+    "build_support",
+    "core/*/lib",
+    "bridges/*/lib",
+    "apps/host_surface_harness/lib"
+  ]
+  @packet_seam_spec_paths [
+    "core/citadel_core/lib/citadel/invocation_request.ex",
+    "core/citadel_core/lib/citadel/ports.ex",
+    "core/citadel_runtime/lib/citadel/runtime/trace_publisher.ex",
+    "bridges/invocation_bridge/lib/citadel/invocation_bridge.ex",
+    "bridges/query_bridge/lib/citadel/query_bridge.ex",
+    "bridges/signal_bridge/lib/citadel/signal_bridge.ex",
+    "bridges/boundary_bridge/lib/citadel/boundary_bridge.ex",
+    "bridges/boundary_bridge/lib/citadel/boundary_bridge/boundary_projection_adapter.ex",
+    "bridges/projection_bridge/lib/citadel/projection_bridge.ex",
+    "bridges/projection_bridge/lib/citadel/projection_bridge/review_projection_adapter.ex",
+    "bridges/projection_bridge/lib/citadel/projection_bridge/derived_state_attachment_adapter.ex",
+    "bridges/memory_bridge/lib/citadel/memory_bridge.ex"
   ]
   @tooling_project_paths ["."]
   @public_bridge_package_paths [
@@ -63,6 +94,12 @@ defmodule Citadel.Workspace do
 
   @spec proof_package_paths() :: [String.t()]
   def proof_package_paths, do: @proof_package_paths
+
+  @spec static_analysis_paths() :: [String.t()]
+  def static_analysis_paths, do: @static_analysis_paths
+
+  @spec packet_seam_spec_paths() :: [String.t()]
+  def packet_seam_spec_paths, do: @packet_seam_spec_paths
 
   @spec tooling_project_paths() :: [String.t()]
   def tooling_project_paths, do: @tooling_project_paths
@@ -123,7 +160,7 @@ defmodule Citadel.Workspace do
     [
       workspace: [
         root: "../..",
-        project_globs: WorkspaceContract.active_project_globs()
+        project_globs: @active_project_globs
       ],
       classify: [
         tooling: @tooling_project_paths,
@@ -184,7 +221,10 @@ defmodule Citadel.Workspace do
   end
 
   defp public_git_head!(remote_url) do
-    case System.cmd("git", ["ls-remote", remote_url, "HEAD"], stderr_to_stdout: true) do
+    case System.cmd("git", ["ls-remote", remote_url, "HEAD"],
+           env: [{"GIT_TERMINAL_PROMPT", "0"}, {"GIT_ASKPASS", "echo"}],
+           stderr_to_stdout: true
+         ) do
       {output, 0} ->
         output
         |> String.split()

@@ -47,7 +47,7 @@ defmodule Citadel.ContractCore.CanonicalJson do
   defp normalize_value!([], _path), do: []
 
   defp normalize_value!(value, path) when is_float(value) do
-    if value == value and abs(value) <= Float.max_finite() do
+    if finite_float?(value) do
       value
     else
       raise ArgumentError, "#{format_path(path)} must be a finite float, got: #{inspect(value)}"
@@ -113,6 +113,12 @@ defmodule Citadel.ContractCore.CanonicalJson do
     raise ArgumentError,
           "#{format_path(path)} contains unsupported object key #{inspect(key)}; " <>
             "canonical JSON object keys must be strings or atoms"
+  end
+
+  defp finite_float?(value) when is_float(value) do
+    value
+    |> :erlang.float_to_binary([:short])
+    |> then(&(&1 not in ["nan", "inf", "-inf"]))
   end
 
   defp format_path([]), do: "value"

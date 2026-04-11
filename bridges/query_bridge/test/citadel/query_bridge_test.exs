@@ -50,12 +50,12 @@ defmodule Citadel.QueryBridgeTest do
     bridge = QueryBridge.new!(downstream: Downstream)
 
     assert {:ok, observation, bridge} =
-             QueryBridge.fetch_runtime_observation(bridge, %{"downstream_scope" => "scope-1"})
+             QueryBridge.fetch_runtime_observation(bridge, %{downstream_scope: "scope-1"})
 
     assert observation.observation_id == "obs-1"
 
     assert {:ok, descriptor, _bridge} =
-             QueryBridge.fetch_boundary_session(bridge, %{"downstream_scope" => "scope-1"})
+             QueryBridge.fetch_boundary_session(bridge, %{downstream_scope: "scope-1"})
 
     assert descriptor.boundary_ref == "boundary-ref-1"
   end

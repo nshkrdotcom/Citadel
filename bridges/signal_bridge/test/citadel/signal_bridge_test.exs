@@ -1,13 +1,14 @@
 defmodule Citadel.SignalBridgeTest do
   use ExUnit.Case, async: true
 
+  alias Citadel.RuntimeObservation
   alias Citadel.SignalBridge
   alias Jido.Integration.V2.SubjectRef
 
   defmodule Adapter do
     def normalize_signal(_raw_signal) do
       {:ok,
-       %{
+       RuntimeObservation.new!(%{
          observation_id: "obs-1",
          request_id: "req-1",
          session_id: "sess-1",
@@ -24,14 +25,16 @@ defmodule Citadel.SignalBridgeTest do
          evidence_refs: [],
          governance_refs: [],
          extensions: %{}
-       }}
+       })}
     end
   end
 
   test "normalizes runtime signals into runtime observations" do
     bridge = SignalBridge.new!(adapter: Adapter)
 
-    assert {:ok, observation, ^bridge} = SignalBridge.normalize_signal(bridge, %{kind: "runtime_event"})
+    assert {:ok, observation, ^bridge} =
+             SignalBridge.normalize_signal(bridge, %{kind: "runtime_event"})
+
     assert observation.signal_id == "sig-1"
   end
 

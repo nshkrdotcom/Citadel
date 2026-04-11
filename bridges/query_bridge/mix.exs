@@ -21,7 +21,8 @@ defmodule Citadel.QueryBridge.MixProject do
   defp deps do
     [
       {:citadel_core, path: "../../core/citadel_core"},
-      {:citadel_runtime, path: "../../core/citadel_runtime"}
+      {:citadel_runtime, path: "../../core/citadel_runtime"},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 end

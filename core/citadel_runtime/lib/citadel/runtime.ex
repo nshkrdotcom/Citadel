@@ -35,7 +35,9 @@ defmodule Citadel.Runtime do
 
     child_spec = %{
       id: {:session_server, session_id},
-      start: {Citadel.Runtime.SessionServer, :start_link, [Keyword.put_new(opts, :name, via_tuple(session_id))]},
+      start:
+        {Citadel.Runtime.SessionServer, :start_link,
+         [Keyword.put_new(opts, :name, via_tuple(session_id))]},
       restart: :transient
     }
 

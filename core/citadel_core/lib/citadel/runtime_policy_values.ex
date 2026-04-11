@@ -46,20 +46,38 @@ defmodule Citadel.SignalIngressRebuildPolicy do
 
     policy = %__MODULE__{
       max_sessions_per_batch:
-        Value.required(attrs, :max_sessions_per_batch, "Citadel.SignalIngressRebuildPolicy", fn value ->
-          Value.positive_integer!(value, "Citadel.SignalIngressRebuildPolicy.max_sessions_per_batch")
-        end),
+        Value.required(
+          attrs,
+          :max_sessions_per_batch,
+          "Citadel.SignalIngressRebuildPolicy",
+          fn value ->
+            Value.positive_integer!(
+              value,
+              "Citadel.SignalIngressRebuildPolicy.max_sessions_per_batch"
+            )
+          end
+        ),
       batch_interval_ms:
-        Value.required(attrs, :batch_interval_ms, "Citadel.SignalIngressRebuildPolicy", fn value ->
-          Value.positive_integer!(value, "Citadel.SignalIngressRebuildPolicy.batch_interval_ms")
-        end),
+        Value.required(
+          attrs,
+          :batch_interval_ms,
+          "Citadel.SignalIngressRebuildPolicy",
+          fn value ->
+            Value.positive_integer!(value, "Citadel.SignalIngressRebuildPolicy.batch_interval_ms")
+          end
+        ),
       high_priority_ready_slo_ms:
-        Value.required(attrs, :high_priority_ready_slo_ms, "Citadel.SignalIngressRebuildPolicy", fn value ->
-          Value.positive_integer!(
-            value,
-            "Citadel.SignalIngressRebuildPolicy.high_priority_ready_slo_ms"
-          )
-        end),
+        Value.required(
+          attrs,
+          :high_priority_ready_slo_ms,
+          "Citadel.SignalIngressRebuildPolicy",
+          fn value ->
+            Value.positive_integer!(
+              value,
+              "Citadel.SignalIngressRebuildPolicy.high_priority_ready_slo_ms"
+            )
+          end
+        ),
       priority_order:
         Value.required(attrs, :priority_order, "Citadel.SignalIngressRebuildPolicy", fn value ->
           Value.unique_strings!(value, "Citadel.SignalIngressRebuildPolicy.priority_order")
@@ -84,7 +102,8 @@ defmodule Citadel.SignalIngressRebuildPolicy do
   end
 
   def priority_rank(%__MODULE__{} = policy, priority_class) when is_binary(priority_class) do
-    Enum.find_index(policy.priority_order, &(&1 == priority_class)) || length(policy.priority_order)
+    Enum.find_index(policy.priority_order, &(&1 == priority_class)) ||
+      length(policy.priority_order)
   end
 
   defp validate_signal_ingress_rebuild_policy!(%__MODULE__{} = policy) do
@@ -98,7 +117,8 @@ defmodule Citadel.SignalIngressRebuildPolicy do
             "Citadel.SignalIngressRebuildPolicy.high_priority_ready_slo_ms must be <= #{@default_high_priority_ready_slo_ms}"
     end
 
-    if Enum.take(policy.priority_order, length(@required_priority_prefix)) != @required_priority_prefix do
+    if Enum.take(policy.priority_order, length(@required_priority_prefix)) !=
+         @required_priority_prefix do
       raise ArgumentError,
             "Citadel.SignalIngressRebuildPolicy.priority_order must start with #{inspect(@required_priority_prefix)}"
     end
@@ -153,9 +173,17 @@ defmodule Citadel.BoundaryResumePolicy do
           Value.positive_integer!(value, "Citadel.BoundaryResumePolicy.retry_interval_ms")
         end),
       coalesced_request_ttl_ms:
-        Value.required(attrs, :coalesced_request_ttl_ms, "Citadel.BoundaryResumePolicy", fn value ->
-          Value.positive_integer!(value, "Citadel.BoundaryResumePolicy.coalesced_request_ttl_ms")
-        end),
+        Value.required(
+          attrs,
+          :coalesced_request_ttl_ms,
+          "Citadel.BoundaryResumePolicy",
+          fn value ->
+            Value.positive_integer!(
+              value,
+              "Citadel.BoundaryResumePolicy.coalesced_request_ttl_ms"
+            )
+          end
+        ),
       extensions:
         Value.required(attrs, :extensions, "Citadel.BoundaryResumePolicy", fn value ->
           Value.json_object!(value, "Citadel.BoundaryResumePolicy.extensions")
@@ -201,7 +229,12 @@ defmodule Citadel.SessionActivationPolicy do
 
   alias Citadel.ContractCore.Value
 
-  @required_priority_prefix ["blocked", "pending_replay_safe", "explicit_resume", "committed_signal_lag"]
+  @required_priority_prefix [
+    "blocked",
+    "pending_replay_safe",
+    "explicit_resume",
+    "committed_signal_lag"
+  ]
   @fields [:max_concurrent_activations, :refill_interval_ms, :priority_order, :extensions]
 
   @type t :: %__MODULE__{
@@ -231,9 +264,17 @@ defmodule Citadel.SessionActivationPolicy do
 
     policy = %__MODULE__{
       max_concurrent_activations:
-        Value.required(attrs, :max_concurrent_activations, "Citadel.SessionActivationPolicy", fn value ->
-          Value.positive_integer!(value, "Citadel.SessionActivationPolicy.max_concurrent_activations")
-        end),
+        Value.required(
+          attrs,
+          :max_concurrent_activations,
+          "Citadel.SessionActivationPolicy",
+          fn value ->
+            Value.positive_integer!(
+              value,
+              "Citadel.SessionActivationPolicy.max_concurrent_activations"
+            )
+          end
+        ),
       refill_interval_ms:
         Value.required(attrs, :refill_interval_ms, "Citadel.SessionActivationPolicy", fn value ->
           Value.positive_integer!(value, "Citadel.SessionActivationPolicy.refill_interval_ms")
@@ -261,11 +302,13 @@ defmodule Citadel.SessionActivationPolicy do
   end
 
   def priority_rank(%__MODULE__{} = policy, priority_class) when is_binary(priority_class) do
-    Enum.find_index(policy.priority_order, &(&1 == priority_class)) || length(policy.priority_order)
+    Enum.find_index(policy.priority_order, &(&1 == priority_class)) ||
+      length(policy.priority_order)
   end
 
   defp validate_session_activation_policy!(%__MODULE__{} = policy) do
-    if Enum.take(policy.priority_order, length(@required_priority_prefix)) != @required_priority_prefix do
+    if Enum.take(policy.priority_order, length(@required_priority_prefix)) !=
+         @required_priority_prefix do
       raise ArgumentError,
             "Citadel.SessionActivationPolicy.priority_order must start with #{inspect(@required_priority_prefix)}"
     end

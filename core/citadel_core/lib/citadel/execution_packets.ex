@@ -23,9 +23,15 @@ defmodule Citadel.ExecutionPacket.Helpers do
   end
 
   def optional_string(attrs, field, module_name, default \\ nil) do
-    Value.optional(attrs, field, module_name, fn value ->
-      Value.string!(value, "#{module_name}.#{field}")
-    end, default)
+    Value.optional(
+      attrs,
+      field,
+      module_name,
+      fn value ->
+        Value.string!(value, "#{module_name}.#{field}")
+      end,
+      default
+    )
   end
 
   def required_datetime(attrs, field, module_name) do
@@ -35,9 +41,15 @@ defmodule Citadel.ExecutionPacket.Helpers do
   end
 
   def optional_datetime(attrs, field, module_name, default \\ nil) do
-    Value.optional(attrs, field, module_name, fn value ->
-      Value.datetime!(value, "#{module_name}.#{field}")
-    end, default)
+    Value.optional(
+      attrs,
+      field,
+      module_name,
+      fn value ->
+        Value.datetime!(value, "#{module_name}.#{field}")
+      end,
+      default
+    )
   end
 
   def required_json_object(attrs, field, module_name) do
@@ -47,33 +59,56 @@ defmodule Citadel.ExecutionPacket.Helpers do
   end
 
   def optional_json_object(attrs, field, module_name, default \\ %{}) do
-    Value.optional(attrs, field, module_name, fn value ->
-      Value.json_object!(value, "#{module_name}.#{field}")
-    end, default)
+    Value.optional(
+      attrs,
+      field,
+      module_name,
+      fn value ->
+        Value.json_object!(value, "#{module_name}.#{field}")
+      end,
+      default
+    )
   end
 
   def required_string_list(attrs, field, module_name) do
     Value.required(attrs, field, module_name, fn value ->
-      Value.list!(value, "#{module_name}.#{field}", fn item ->
-        Value.string!(item, "#{module_name}.#{field}")
-      end, allow_empty?: false)
+      Value.list!(
+        value,
+        "#{module_name}.#{field}",
+        fn item ->
+          Value.string!(item, "#{module_name}.#{field}")
+        end,
+        allow_empty?: false
+      )
     end)
   end
 
   def optional_string_list(attrs, field, module_name, default \\ []) do
-    Value.optional(attrs, field, module_name, fn value ->
-      Value.list!(value, "#{module_name}.#{field}", fn item ->
-        Value.string!(item, "#{module_name}.#{field}")
-      end)
-    end, default)
+    Value.optional(
+      attrs,
+      field,
+      module_name,
+      fn value ->
+        Value.list!(value, "#{module_name}.#{field}", fn item ->
+          Value.string!(item, "#{module_name}.#{field}")
+        end)
+      end,
+      default
+    )
   end
 
   def optional_struct_list(attrs, field, module_name, target_module, default \\ []) do
-    Value.optional(attrs, field, module_name, fn value ->
-      Value.list!(value, "#{module_name}.#{field}", fn item ->
-        Value.module!(item, target_module, "#{module_name}.#{field}")
-      end)
-    end, default)
+    Value.optional(
+      attrs,
+      field,
+      module_name,
+      fn value ->
+        Value.list!(value, "#{module_name}.#{field}", fn item ->
+          Value.module!(item, target_module, "#{module_name}.#{field}")
+        end)
+      end,
+      default
+    )
   end
 
   def required_non_neg_integer(attrs, field, module_name) do
@@ -128,10 +163,17 @@ defmodule Citadel.HttpExecutionIntent.V1 do
       url: Helpers.required_string(attrs, :url, "Citadel.HttpExecutionIntent.V1"),
       headers: Helpers.required_json_object(attrs, :headers, "Citadel.HttpExecutionIntent.V1"),
       body:
-        Value.optional(attrs, :body, "Citadel.HttpExecutionIntent.V1", fn value ->
-          Value.json_value!(value, "Citadel.HttpExecutionIntent.V1.body")
-        end, nil),
-      extensions: Helpers.optional_json_object(attrs, :extensions, "Citadel.HttpExecutionIntent.V1")
+        Value.optional(
+          attrs,
+          :body,
+          "Citadel.HttpExecutionIntent.V1",
+          fn value ->
+            Value.json_value!(value, "Citadel.HttpExecutionIntent.V1.body")
+          end,
+          nil
+        ),
+      extensions:
+        Helpers.optional_json_object(attrs, :extensions, "Citadel.HttpExecutionIntent.V1")
     }
   end
 
@@ -156,7 +198,15 @@ defmodule Citadel.ProcessExecutionIntent.V1 do
   alias Citadel.ExecutionPacket.Helpers
 
   @contract_version "v1"
-  @fields [:contract_version, :command, :args, :working_directory, :environment, :stdin, :extensions]
+  @fields [
+    :contract_version,
+    :command,
+    :args,
+    :working_directory,
+    :environment,
+    :stdin,
+    :extensions
+  ]
 
   @type t :: %__MODULE__{
           contract_version: String.t(),
@@ -197,10 +247,17 @@ defmodule Citadel.ProcessExecutionIntent.V1 do
       environment:
         Helpers.optional_json_object(attrs, :environment, "Citadel.ProcessExecutionIntent.V1"),
       stdin:
-        Value.optional(attrs, :stdin, "Citadel.ProcessExecutionIntent.V1", fn value ->
-          Value.json_value!(value, "Citadel.ProcessExecutionIntent.V1.stdin")
-        end, nil),
-      extensions: Helpers.optional_json_object(attrs, :extensions, "Citadel.ProcessExecutionIntent.V1")
+        Value.optional(
+          attrs,
+          :stdin,
+          "Citadel.ProcessExecutionIntent.V1",
+          fn value ->
+            Value.json_value!(value, "Citadel.ProcessExecutionIntent.V1.stdin")
+          end,
+          nil
+        ),
+      extensions:
+        Helpers.optional_json_object(attrs, :extensions, "Citadel.ProcessExecutionIntent.V1")
     }
   end
 
@@ -259,7 +316,8 @@ defmodule Citadel.JsonRpcExecutionIntent.V1 do
       endpoint: Helpers.required_string(attrs, :endpoint, "Citadel.JsonRpcExecutionIntent.V1"),
       method: Helpers.required_string(attrs, :method, "Citadel.JsonRpcExecutionIntent.V1"),
       params: Helpers.required_json_object(attrs, :params, "Citadel.JsonRpcExecutionIntent.V1"),
-      extensions: Helpers.optional_json_object(attrs, :extensions, "Citadel.JsonRpcExecutionIntent.V1")
+      extensions:
+        Helpers.optional_json_object(attrs, :extensions, "Citadel.JsonRpcExecutionIntent.V1")
     }
   end
 
@@ -283,7 +341,14 @@ defmodule Citadel.CredentialHandleRef.V1 do
   alias Citadel.ExecutionPacket.Helpers
 
   @contract_version "v1"
-  @fields [:contract_version, :credential_handle_id, :handle_kind, :handle_ref, :expires_at, :extensions]
+  @fields [
+    :contract_version,
+    :credential_handle_id,
+    :handle_kind,
+    :handle_ref,
+    :expires_at,
+    :extensions
+  ]
 
   @type t :: %__MODULE__{
           contract_version: String.t(),
@@ -320,7 +385,8 @@ defmodule Citadel.CredentialHandleRef.V1 do
       handle_kind: Helpers.required_string(attrs, :handle_kind, "Citadel.CredentialHandleRef.V1"),
       handle_ref: Helpers.required_string(attrs, :handle_ref, "Citadel.CredentialHandleRef.V1"),
       expires_at: Helpers.optional_datetime(attrs, :expires_at, "Citadel.CredentialHandleRef.V1"),
-      extensions: Helpers.optional_json_object(attrs, :extensions, "Citadel.CredentialHandleRef.V1")
+      extensions:
+        Helpers.optional_json_object(attrs, :extensions, "Citadel.CredentialHandleRef.V1")
     }
   end
 
@@ -370,7 +436,16 @@ defmodule Citadel.AttachGrant.V1 do
           extensions: map()
         }
 
-  @enforce_keys [:contract_version, :attach_grant_id, :boundary_session_id, :boundary_ref, :session_id, :granted_at, :credential_handle_refs, :extensions]
+  @enforce_keys [
+    :contract_version,
+    :attach_grant_id,
+    :boundary_session_id,
+    :boundary_ref,
+    :session_id,
+    :granted_at,
+    :credential_handle_refs,
+    :extensions
+  ]
   defstruct contract_version: @contract_version,
             attach_grant_id: nil,
             boundary_session_id: nil,
@@ -388,9 +463,15 @@ defmodule Citadel.AttachGrant.V1 do
 
     %__MODULE__{
       contract_version:
-        Helpers.require_contract_version!(attrs, :contract_version, "Citadel.AttachGrant.V1", @contract_version),
+        Helpers.require_contract_version!(
+          attrs,
+          :contract_version,
+          "Citadel.AttachGrant.V1",
+          @contract_version
+        ),
       attach_grant_id: Helpers.required_string(attrs, :attach_grant_id, "Citadel.AttachGrant.V1"),
-      boundary_session_id: Helpers.required_string(attrs, :boundary_session_id, "Citadel.AttachGrant.V1"),
+      boundary_session_id:
+        Helpers.required_string(attrs, :boundary_session_id, "Citadel.AttachGrant.V1"),
       boundary_ref: Helpers.required_string(attrs, :boundary_ref, "Citadel.AttachGrant.V1"),
       session_id: Helpers.required_string(attrs, :session_id, "Citadel.AttachGrant.V1"),
       granted_at: Helpers.required_datetime(attrs, :granted_at, "Citadel.AttachGrant.V1"),
@@ -415,7 +496,8 @@ defmodule Citadel.AttachGrant.V1 do
       session_id: grant.session_id,
       granted_at: grant.granted_at,
       expires_at: grant.expires_at,
-      credential_handle_refs: Enum.map(grant.credential_handle_refs, &CredentialHandleRefV1.dump/1),
+      credential_handle_refs:
+        Enum.map(grant.credential_handle_refs, &CredentialHandleRefV1.dump/1),
       extensions: grant.extensions
     }
   end
@@ -453,7 +535,15 @@ defmodule Citadel.ExecutionRoute.V1 do
           extensions: map()
         }
 
-  @enforce_keys [:contract_version, :route_id, :intent_envelope_id, :downstream_scope, :transport_family, :target_locator, :extensions]
+  @enforce_keys [
+    :contract_version,
+    :route_id,
+    :intent_envelope_id,
+    :downstream_scope,
+    :transport_family,
+    :target_locator,
+    :extensions
+  ]
   defstruct contract_version: @contract_version,
             route_id: nil,
             intent_envelope_id: nil,
@@ -478,10 +568,14 @@ defmodule Citadel.ExecutionRoute.V1 do
           @contract_version
         ),
       route_id: Helpers.required_string(attrs, :route_id, "Citadel.ExecutionRoute.V1"),
-      intent_envelope_id: Helpers.required_string(attrs, :intent_envelope_id, "Citadel.ExecutionRoute.V1"),
-      downstream_scope: Helpers.required_string(attrs, :downstream_scope, "Citadel.ExecutionRoute.V1"),
-      transport_family: Helpers.required_string(attrs, :transport_family, "Citadel.ExecutionRoute.V1"),
-      target_locator: Helpers.required_json_object(attrs, :target_locator, "Citadel.ExecutionRoute.V1"),
+      intent_envelope_id:
+        Helpers.required_string(attrs, :intent_envelope_id, "Citadel.ExecutionRoute.V1"),
+      downstream_scope:
+        Helpers.required_string(attrs, :downstream_scope, "Citadel.ExecutionRoute.V1"),
+      transport_family:
+        Helpers.required_string(attrs, :transport_family, "Citadel.ExecutionRoute.V1"),
+      target_locator:
+        Helpers.required_json_object(attrs, :target_locator, "Citadel.ExecutionRoute.V1"),
       boundary_session_id:
         Helpers.optional_string(attrs, :boundary_session_id, "Citadel.ExecutionRoute.V1"),
       extensions: Helpers.optional_json_object(attrs, :extensions, "Citadel.ExecutionRoute.V1")
@@ -549,7 +643,18 @@ defmodule Citadel.BoundarySessionDescriptor.V1 do
           extensions: map()
         }
 
-  @enforce_keys [:contract_version, :boundary_session_id, :boundary_ref, :session_id, :tenant_id, :target_id, :boundary_class, :status, :attach_mode, :extensions]
+  @enforce_keys [
+    :contract_version,
+    :boundary_session_id,
+    :boundary_ref,
+    :session_id,
+    :tenant_id,
+    :target_id,
+    :boundary_class,
+    :status,
+    :attach_mode,
+    :extensions
+  ]
   defstruct contract_version: @contract_version,
             boundary_session_id: nil,
             boundary_ref: nil,
@@ -578,20 +683,38 @@ defmodule Citadel.BoundarySessionDescriptor.V1 do
           @contract_version
         ),
       boundary_session_id:
-        Helpers.required_string(attrs, :boundary_session_id, "Citadel.BoundarySessionDescriptor.V1"),
-      boundary_ref: Helpers.required_string(attrs, :boundary_ref, "Citadel.BoundarySessionDescriptor.V1"),
-      session_id: Helpers.required_string(attrs, :session_id, "Citadel.BoundarySessionDescriptor.V1"),
-      tenant_id: Helpers.required_string(attrs, :tenant_id, "Citadel.BoundarySessionDescriptor.V1"),
-      target_id: Helpers.required_string(attrs, :target_id, "Citadel.BoundarySessionDescriptor.V1"),
+        Helpers.required_string(
+          attrs,
+          :boundary_session_id,
+          "Citadel.BoundarySessionDescriptor.V1"
+        ),
+      boundary_ref:
+        Helpers.required_string(attrs, :boundary_ref, "Citadel.BoundarySessionDescriptor.V1"),
+      session_id:
+        Helpers.required_string(attrs, :session_id, "Citadel.BoundarySessionDescriptor.V1"),
+      tenant_id:
+        Helpers.required_string(attrs, :tenant_id, "Citadel.BoundarySessionDescriptor.V1"),
+      target_id:
+        Helpers.required_string(attrs, :target_id, "Citadel.BoundarySessionDescriptor.V1"),
       boundary_class:
         Helpers.required_string(attrs, :boundary_class, "Citadel.BoundarySessionDescriptor.V1"),
       status: Helpers.required_string(attrs, :status, "Citadel.BoundarySessionDescriptor.V1"),
-      attach_mode: Helpers.required_string(attrs, :attach_mode, "Citadel.BoundarySessionDescriptor.V1"),
+      attach_mode:
+        Helpers.required_string(attrs, :attach_mode, "Citadel.BoundarySessionDescriptor.V1"),
       lease_expires_at:
-        Helpers.optional_datetime(attrs, :lease_expires_at, "Citadel.BoundarySessionDescriptor.V1"),
+        Helpers.optional_datetime(
+          attrs,
+          :lease_expires_at,
+          "Citadel.BoundarySessionDescriptor.V1"
+        ),
       last_heartbeat_at:
-        Helpers.optional_datetime(attrs, :last_heartbeat_at, "Citadel.BoundarySessionDescriptor.V1"),
-      extensions: Helpers.optional_json_object(attrs, :extensions, "Citadel.BoundarySessionDescriptor.V1")
+        Helpers.optional_datetime(
+          attrs,
+          :last_heartbeat_at,
+          "Citadel.BoundarySessionDescriptor.V1"
+        ),
+      extensions:
+        Helpers.optional_json_object(attrs, :extensions, "Citadel.BoundarySessionDescriptor.V1")
     }
 
     if descriptor.status in @allowed_statuses do
@@ -663,7 +786,21 @@ defmodule Citadel.ExecutionEvent.V1 do
           extensions: map()
         }
 
-  @enforce_keys [:contract_version, :execution_event_id, :intent_envelope_id, :entry_id, :causal_group_id, :route_id, :session_id, :trace_id, :event_kind, :status, :occurred_at, :payload, :extensions]
+  @enforce_keys [
+    :contract_version,
+    :execution_event_id,
+    :intent_envelope_id,
+    :entry_id,
+    :causal_group_id,
+    :route_id,
+    :session_id,
+    :trace_id,
+    :event_kind,
+    :status,
+    :occurred_at,
+    :payload,
+    :extensions
+  ]
   defstruct contract_version: @contract_version,
             execution_event_id: nil,
             intent_envelope_id: nil,
@@ -686,11 +823,19 @@ defmodule Citadel.ExecutionEvent.V1 do
 
     %__MODULE__{
       contract_version:
-        Helpers.require_contract_version!(attrs, :contract_version, "Citadel.ExecutionEvent.V1", @contract_version),
-      execution_event_id: Helpers.required_string(attrs, :execution_event_id, "Citadel.ExecutionEvent.V1"),
-      intent_envelope_id: Helpers.required_string(attrs, :intent_envelope_id, "Citadel.ExecutionEvent.V1"),
+        Helpers.require_contract_version!(
+          attrs,
+          :contract_version,
+          "Citadel.ExecutionEvent.V1",
+          @contract_version
+        ),
+      execution_event_id:
+        Helpers.required_string(attrs, :execution_event_id, "Citadel.ExecutionEvent.V1"),
+      intent_envelope_id:
+        Helpers.required_string(attrs, :intent_envelope_id, "Citadel.ExecutionEvent.V1"),
       entry_id: Helpers.required_string(attrs, :entry_id, "Citadel.ExecutionEvent.V1"),
-      causal_group_id: Helpers.required_string(attrs, :causal_group_id, "Citadel.ExecutionEvent.V1"),
+      causal_group_id:
+        Helpers.required_string(attrs, :causal_group_id, "Citadel.ExecutionEvent.V1"),
       route_id: Helpers.required_string(attrs, :route_id, "Citadel.ExecutionEvent.V1"),
       session_id: Helpers.required_string(attrs, :session_id, "Citadel.ExecutionEvent.V1"),
       trace_id: Helpers.required_string(attrs, :trace_id, "Citadel.ExecutionEvent.V1"),
@@ -764,7 +909,20 @@ defmodule Citadel.ExecutionOutcome.V1 do
           extensions: map()
         }
 
-  @enforce_keys [:contract_version, :execution_outcome_id, :intent_envelope_id, :entry_id, :causal_group_id, :route_id, :session_id, :trace_id, :status, :result, :finished_at, :extensions]
+  @enforce_keys [
+    :contract_version,
+    :execution_outcome_id,
+    :intent_envelope_id,
+    :entry_id,
+    :causal_group_id,
+    :route_id,
+    :session_id,
+    :trace_id,
+    :status,
+    :result,
+    :finished_at,
+    :extensions
+  ]
   defstruct contract_version: @contract_version,
             execution_outcome_id: nil,
             intent_envelope_id: nil,
@@ -794,9 +952,11 @@ defmodule Citadel.ExecutionOutcome.V1 do
         ),
       execution_outcome_id:
         Helpers.required_string(attrs, :execution_outcome_id, "Citadel.ExecutionOutcome.V1"),
-      intent_envelope_id: Helpers.required_string(attrs, :intent_envelope_id, "Citadel.ExecutionOutcome.V1"),
+      intent_envelope_id:
+        Helpers.required_string(attrs, :intent_envelope_id, "Citadel.ExecutionOutcome.V1"),
       entry_id: Helpers.required_string(attrs, :entry_id, "Citadel.ExecutionOutcome.V1"),
-      causal_group_id: Helpers.required_string(attrs, :causal_group_id, "Citadel.ExecutionOutcome.V1"),
+      causal_group_id:
+        Helpers.required_string(attrs, :causal_group_id, "Citadel.ExecutionOutcome.V1"),
       route_id: Helpers.required_string(attrs, :route_id, "Citadel.ExecutionOutcome.V1"),
       session_id: Helpers.required_string(attrs, :session_id, "Citadel.ExecutionOutcome.V1"),
       trace_id: Helpers.required_string(attrs, :trace_id, "Citadel.ExecutionOutcome.V1"),
@@ -947,13 +1107,16 @@ defmodule Citadel.ExecutionIntentEnvelope.V1 do
           :invocation_schema_version,
           "Citadel.ExecutionIntentEnvelope.V1"
         ),
-      request_id: Helpers.required_string(attrs, :request_id, "Citadel.ExecutionIntentEnvelope.V1"),
-      session_id: Helpers.required_string(attrs, :session_id, "Citadel.ExecutionIntentEnvelope.V1"),
+      request_id:
+        Helpers.required_string(attrs, :request_id, "Citadel.ExecutionIntentEnvelope.V1"),
+      session_id:
+        Helpers.required_string(attrs, :session_id, "Citadel.ExecutionIntentEnvelope.V1"),
       tenant_id: Helpers.required_string(attrs, :tenant_id, "Citadel.ExecutionIntentEnvelope.V1"),
       trace_id: Helpers.required_string(attrs, :trace_id, "Citadel.ExecutionIntentEnvelope.V1"),
       actor_id: Helpers.required_string(attrs, :actor_id, "Citadel.ExecutionIntentEnvelope.V1"),
       target_id: Helpers.required_string(attrs, :target_id, "Citadel.ExecutionIntentEnvelope.V1"),
-      target_kind: Helpers.required_string(attrs, :target_kind, "Citadel.ExecutionIntentEnvelope.V1"),
+      target_kind:
+        Helpers.required_string(attrs, :target_kind, "Citadel.ExecutionIntentEnvelope.V1"),
       allowed_operations:
         Helpers.required_string_list(
           attrs,
@@ -962,22 +1125,39 @@ defmodule Citadel.ExecutionIntentEnvelope.V1 do
         ),
       authority_packet:
         Value.required(attrs, :authority_packet, "Citadel.ExecutionIntentEnvelope.V1", fn value ->
-          Value.module!(value, AuthorityDecisionV1, "Citadel.ExecutionIntentEnvelope.V1.authority_packet")
+          Value.module!(
+            value,
+            AuthorityDecisionV1,
+            "Citadel.ExecutionIntentEnvelope.V1.authority_packet"
+          )
         end),
       boundary_intent:
         Value.required(attrs, :boundary_intent, "Citadel.ExecutionIntentEnvelope.V1", fn value ->
-          Value.module!(value, BoundaryIntent, "Citadel.ExecutionIntentEnvelope.V1.boundary_intent")
+          Value.module!(
+            value,
+            BoundaryIntent,
+            "Citadel.ExecutionIntentEnvelope.V1.boundary_intent"
+          )
         end),
       topology_intent:
         Value.required(attrs, :topology_intent, "Citadel.ExecutionIntentEnvelope.V1", fn value ->
-          Value.module!(value, TopologyIntent, "Citadel.ExecutionIntentEnvelope.V1.topology_intent")
+          Value.module!(
+            value,
+            TopologyIntent,
+            "Citadel.ExecutionIntentEnvelope.V1.topology_intent"
+          )
         end),
       execution_intent_family: execution_intent_family,
       execution_intent:
         Value.required(attrs, :execution_intent, "Citadel.ExecutionIntentEnvelope.V1", fn value ->
-          Value.module!(value, execution_module, "Citadel.ExecutionIntentEnvelope.V1.execution_intent")
+          Value.module!(
+            value,
+            execution_module,
+            "Citadel.ExecutionIntentEnvelope.V1.execution_intent"
+          )
         end),
-      extensions: Helpers.optional_json_object(attrs, :extensions, "Citadel.ExecutionIntentEnvelope.V1")
+      extensions:
+        Helpers.optional_json_object(attrs, :extensions, "Citadel.ExecutionIntentEnvelope.V1")
     }
   end
 
@@ -1006,7 +1186,12 @@ defmodule Citadel.ExecutionIntentEnvelope.V1 do
     }
   end
 
-  defp dump_execution_intent(%HttpExecutionIntentV1{} = intent), do: HttpExecutionIntentV1.dump(intent)
-  defp dump_execution_intent(%ProcessExecutionIntentV1{} = intent), do: ProcessExecutionIntentV1.dump(intent)
-  defp dump_execution_intent(%JsonRpcExecutionIntentV1{} = intent), do: JsonRpcExecutionIntentV1.dump(intent)
+  defp dump_execution_intent(%HttpExecutionIntentV1{} = intent),
+    do: HttpExecutionIntentV1.dump(intent)
+
+  defp dump_execution_intent(%ProcessExecutionIntentV1{} = intent),
+    do: ProcessExecutionIntentV1.dump(intent)
+
+  defp dump_execution_intent(%JsonRpcExecutionIntentV1{} = intent),
+    do: JsonRpcExecutionIntentV1.dump(intent)
 end

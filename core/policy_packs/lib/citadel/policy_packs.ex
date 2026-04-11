@@ -32,25 +32,55 @@ defmodule Citadel.PolicyPacks.Selector do
 
     %__MODULE__{
       tenant_ids:
-        Value.optional(attrs, :tenant_ids, "Citadel.PolicyPacks.Selector", fn value ->
-          Value.unique_strings!(value, "Citadel.PolicyPacks.Selector.tenant_ids")
-        end, []),
+        Value.optional(
+          attrs,
+          :tenant_ids,
+          "Citadel.PolicyPacks.Selector",
+          fn value ->
+            Value.unique_strings!(value, "Citadel.PolicyPacks.Selector.tenant_ids")
+          end,
+          []
+        ),
       scope_kinds:
-        Value.optional(attrs, :scope_kinds, "Citadel.PolicyPacks.Selector", fn value ->
-          Value.unique_strings!(value, "Citadel.PolicyPacks.Selector.scope_kinds")
-        end, []),
+        Value.optional(
+          attrs,
+          :scope_kinds,
+          "Citadel.PolicyPacks.Selector",
+          fn value ->
+            Value.unique_strings!(value, "Citadel.PolicyPacks.Selector.scope_kinds")
+          end,
+          []
+        ),
       environments:
-        Value.optional(attrs, :environments, "Citadel.PolicyPacks.Selector", fn value ->
-          Value.unique_strings!(value, "Citadel.PolicyPacks.Selector.environments")
-        end, []),
+        Value.optional(
+          attrs,
+          :environments,
+          "Citadel.PolicyPacks.Selector",
+          fn value ->
+            Value.unique_strings!(value, "Citadel.PolicyPacks.Selector.environments")
+          end,
+          []
+        ),
       default?:
-        Value.optional(attrs, :default?, "Citadel.PolicyPacks.Selector", fn value ->
-          Value.boolean!(value, "Citadel.PolicyPacks.Selector.default?")
-        end, false),
+        Value.optional(
+          attrs,
+          :default?,
+          "Citadel.PolicyPacks.Selector",
+          fn value ->
+            Value.boolean!(value, "Citadel.PolicyPacks.Selector.default?")
+          end,
+          false
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.PolicyPacks.Selector", fn value ->
-          Value.json_object!(value, "Citadel.PolicyPacks.Selector.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.PolicyPacks.Selector",
+          fn value ->
+            Value.json_object!(value, "Citadel.PolicyPacks.Selector.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -69,7 +99,9 @@ defmodule Citadel.PolicyPacks.Selector do
   def matches?(%__MODULE__{} = selector, attrs) when is_map(attrs) do
     tenant_id = Value.string!(Map.fetch!(attrs, :tenant_id), "policy selection tenant_id")
     scope_kind = Value.string!(Map.fetch!(attrs, :scope_kind), "policy selection scope_kind")
-    environment = Value.optional_string!(Map.get(attrs, :environment), "policy selection environment")
+
+    environment =
+      Value.optional_string!(Map.get(attrs, :environment), "policy selection environment")
 
     match_dimension?(selector.tenant_ids, tenant_id) and
       match_dimension?(selector.scope_kinds, scope_kind) and
@@ -142,9 +174,15 @@ defmodule Citadel.PolicyPacks.Profiles do
           Value.string!(value, "Citadel.PolicyPacks.Profiles.boundary_class")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.PolicyPacks.Profiles", fn value ->
-          Value.json_object!(value, "Citadel.PolicyPacks.Profiles.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.PolicyPacks.Profiles",
+          fn value ->
+            Value.json_object!(value, "Citadel.PolicyPacks.Profiles.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -195,25 +233,67 @@ defmodule Citadel.PolicyPacks.RejectionPolicy do
 
     %__MODULE__{
       denial_audit_reason_codes:
-        Value.optional(attrs, :denial_audit_reason_codes, "Citadel.PolicyPacks.RejectionPolicy", fn value ->
-          Value.unique_strings!(value, "Citadel.PolicyPacks.RejectionPolicy.denial_audit_reason_codes")
-        end, []),
+        Value.optional(
+          attrs,
+          :denial_audit_reason_codes,
+          "Citadel.PolicyPacks.RejectionPolicy",
+          fn value ->
+            Value.unique_strings!(
+              value,
+              "Citadel.PolicyPacks.RejectionPolicy.denial_audit_reason_codes"
+            )
+          end,
+          []
+        ),
       derived_state_reason_codes:
-        Value.optional(attrs, :derived_state_reason_codes, "Citadel.PolicyPacks.RejectionPolicy", fn value ->
-          Value.unique_strings!(value, "Citadel.PolicyPacks.RejectionPolicy.derived_state_reason_codes")
-        end, []),
+        Value.optional(
+          attrs,
+          :derived_state_reason_codes,
+          "Citadel.PolicyPacks.RejectionPolicy",
+          fn value ->
+            Value.unique_strings!(
+              value,
+              "Citadel.PolicyPacks.RejectionPolicy.derived_state_reason_codes"
+            )
+          end,
+          []
+        ),
       runtime_change_reason_codes:
-        Value.optional(attrs, :runtime_change_reason_codes, "Citadel.PolicyPacks.RejectionPolicy", fn value ->
-          Value.unique_strings!(value, "Citadel.PolicyPacks.RejectionPolicy.runtime_change_reason_codes")
-        end, []),
+        Value.optional(
+          attrs,
+          :runtime_change_reason_codes,
+          "Citadel.PolicyPacks.RejectionPolicy",
+          fn value ->
+            Value.unique_strings!(
+              value,
+              "Citadel.PolicyPacks.RejectionPolicy.runtime_change_reason_codes"
+            )
+          end,
+          []
+        ),
       governance_change_reason_codes:
-        Value.optional(attrs, :governance_change_reason_codes, "Citadel.PolicyPacks.RejectionPolicy", fn value ->
-          Value.unique_strings!(value, "Citadel.PolicyPacks.RejectionPolicy.governance_change_reason_codes")
-        end, []),
+        Value.optional(
+          attrs,
+          :governance_change_reason_codes,
+          "Citadel.PolicyPacks.RejectionPolicy",
+          fn value ->
+            Value.unique_strings!(
+              value,
+              "Citadel.PolicyPacks.RejectionPolicy.governance_change_reason_codes"
+            )
+          end,
+          []
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.PolicyPacks.RejectionPolicy", fn value ->
-          Value.json_object!(value, "Citadel.PolicyPacks.RejectionPolicy.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.PolicyPacks.RejectionPolicy",
+          fn value ->
+            Value.json_object!(value, "Citadel.PolicyPacks.RejectionPolicy.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -283,9 +363,15 @@ defmodule Citadel.PolicyPacks.PolicyPack do
           Value.non_neg_integer!(value, "Citadel.PolicyPacks.PolicyPack.policy_epoch")
         end),
       priority:
-        Value.optional(attrs, :priority, "Citadel.PolicyPacks.PolicyPack", fn value ->
-          Value.non_neg_integer!(value, "Citadel.PolicyPacks.PolicyPack.priority")
-        end, 0),
+        Value.optional(
+          attrs,
+          :priority,
+          "Citadel.PolicyPacks.PolicyPack",
+          fn value ->
+            Value.non_neg_integer!(value, "Citadel.PolicyPacks.PolicyPack.priority")
+          end,
+          0
+        ),
       selector:
         Value.required(attrs, :selector, "Citadel.PolicyPacks.PolicyPack", fn value ->
           Value.module!(value, Selector, "Citadel.PolicyPacks.PolicyPack.selector")
@@ -299,9 +385,15 @@ defmodule Citadel.PolicyPacks.PolicyPack do
           Value.module!(value, RejectionPolicy, "Citadel.PolicyPacks.PolicyPack.rejection_policy")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.PolicyPacks.PolicyPack", fn value ->
-          Value.json_object!(value, "Citadel.PolicyPacks.PolicyPack.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.PolicyPacks.PolicyPack",
+          fn value ->
+            Value.json_object!(value, "Citadel.PolicyPacks.PolicyPack.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -385,9 +477,15 @@ defmodule Citadel.PolicyPacks.Selection do
           Value.module!(value, RejectionPolicy, "Citadel.PolicyPacks.Selection.rejection_policy")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.PolicyPacks.Selection", fn value ->
-          Value.json_object!(value, "Citadel.PolicyPacks.Selection.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.PolicyPacks.Selection",
+          fn value ->
+            Value.json_object!(value, "Citadel.PolicyPacks.Selection.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -483,7 +581,12 @@ defmodule Citadel.PolicyPacks do
   def stable_selection_ordering, do: :priority_desc_then_pack_id_asc
 
   defp normalize_selection_inputs!(attrs) do
-    attrs = Value.normalize_attrs!(attrs, "Citadel.PolicyPacks selection input", @selection_input_fields)
+    attrs =
+      Value.normalize_attrs!(
+        attrs,
+        "Citadel.PolicyPacks selection input",
+        @selection_input_fields
+      )
 
     %{
       tenant_id:
@@ -495,13 +598,25 @@ defmodule Citadel.PolicyPacks do
           Value.string!(value, "Citadel.PolicyPacks selection input.scope_kind")
         end),
       environment:
-        Value.optional(attrs, :environment, "Citadel.PolicyPacks selection input", fn value ->
-          Value.string!(value, "Citadel.PolicyPacks selection input.environment")
-        end, nil),
+        Value.optional(
+          attrs,
+          :environment,
+          "Citadel.PolicyPacks selection input",
+          fn value ->
+            Value.string!(value, "Citadel.PolicyPacks selection input.environment")
+          end,
+          nil
+        ),
       policy_epoch:
-        Value.optional(attrs, :policy_epoch, "Citadel.PolicyPacks selection input", fn value ->
-          Value.non_neg_integer!(value, "Citadel.PolicyPacks selection input.policy_epoch")
-        end, nil)
+        Value.optional(
+          attrs,
+          :policy_epoch,
+          "Citadel.PolicyPacks selection input",
+          fn value ->
+            Value.non_neg_integer!(value, "Citadel.PolicyPacks selection input.policy_epoch")
+          end,
+          nil
+        )
     }
   end
 end
