@@ -44,6 +44,7 @@ defmodule Citadel.Workspace.MixProject do
         credo: :test,
         dialyzer: :test,
         ci: :test,
+        "hardening.infrastructure_faults": :test,
         "hardening.pure_core": :test,
         "hardening.pure_core.adversarial": :test,
         "hardening.pure_core.mutation": :test,
@@ -82,6 +83,9 @@ defmodule Citadel.Workspace.MixProject do
       "hardening.pure_core": [
         "hardening.pure_core.adversarial",
         "hardening.pure_core.mutation"
+      ],
+      "hardening.infrastructure_faults": [
+        "cmd ./dev/docker/toxiproxy/run_fault_injection_suite.sh"
       ],
       "lint.strict": ["credo --config-name strict --all"],
       "static.analysis": ["lint.packet_seams", "lint.strict", "monorepo.dialyzer"],

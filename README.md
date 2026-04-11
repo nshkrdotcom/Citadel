@@ -170,4 +170,5 @@ The canonical Docker-based Toxiproxy harness remains at `dev/docker/toxiproxy`.
 ```bash
 docker compose -f dev/docker/toxiproxy/docker-compose.yml -p citadel-toxiproxy up -d
 dev/docker/toxiproxy/verify.sh
+mix hardening.infrastructure_faults
 ```
