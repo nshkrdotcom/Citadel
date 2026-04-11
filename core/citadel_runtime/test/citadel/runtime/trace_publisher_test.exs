@@ -1,8 +1,16 @@
 defmodule Citadel.Runtime.TracePublisherTest do
   use ExUnit.Case, async: false
 
+  alias Citadel.ObservabilityContract.Telemetry
+  alias Citadel.ObservabilityContract.Trace, as: TraceContract
   alias Citadel.TraceEnvelope
   alias Citadel.Runtime.TracePublisher
+
+  defmodule TelemetryForwarder do
+    def handle_event(event, measurements, metadata, test_pid) do
+      send(test_pid, {:telemetry, event, measurements, metadata})
+    end
+  end
 
   defmodule NoopTracePort do
     @behaviour Citadel.Ports.Trace
@@ -26,6 +34,8 @@ defmodule Citadel.Runtime.TracePublisherTest do
 
   test "buffer overflow preserves the protected error-family evidence window and emits dropped-family telemetry" do
     attach_telemetry(self())
+    drop_event = Telemetry.event_name(:trace_publication_drop)
+    depth_event = Telemetry.event_name(:trace_buffer_depth)
 
     publisher =
       start_trace_publisher(
@@ -65,15 +75,27 @@ defmodule Citadel.Runtime.TracePublisherTest do
 
     assert TracePublisher.snapshot(publisher) == %{depth: 4, protected_depth: 2, regular_depth: 2}
 
-    assert_receive {:telemetry, [:citadel, :trace, :publish, :drop], %{count: 1},
+    assert_receive {:telemetry, ^drop_event, %{count: 1},
                     %{dropped_family: "session_attached", dropped_family_classification: :default}}
 
-    assert_receive {:telemetry, [:citadel, :trace, :buffer, :depth],
-                    %{depth: 4, protected_depth: 2, regular_depth: 2}, %{}}
+    assert_receive {:telemetry, ^depth_event, %{depth: 4, protected_depth: 2, regular_depth: 2},
+                    %{}}
+
+    assert_contract_shape(:trace_publication_drop, %{count: 1}, %{
+      dropped_family: "session_attached",
+      dropped_family_classification: :default
+    })
+
+    assert_contract_shape(
+      :trace_buffer_depth,
+      %{depth: 4, protected_depth: 2, regular_depth: 2},
+      %{}
+    )
   end
 
   test "publication failures emit low-cardinality telemetry without blocking the caller" do
     attach_telemetry(self())
+    failure_event = Telemetry.event_name(:trace_publication_failure)
 
     publisher =
       start_trace_publisher(
@@ -90,8 +112,12 @@ defmodule Citadel.Runtime.TracePublisherTest do
                regular_envelope("env-fail", "session_attached")
              )
 
-    assert_receive {:telemetry, [:citadel, :trace, :publish, :failure],
-                    %{count: 1, batch_size: 1}, %{reason_code: :unavailable}}
+    assert_receive {:telemetry, ^failure_event, %{count: 1, batch_size: 1},
+                    %{reason_code: :unavailable}}
+
+    assert_contract_shape(:trace_publication_failure, %{count: 1, batch_size: 1}, %{
+      reason_code: :unavailable
+    })
   end
 
   defp start_trace_publisher(opts) do
@@ -105,13 +131,11 @@ defmodule Citadel.Runtime.TracePublisherTest do
     :telemetry.attach_many(
       handler_id,
       [
-        [:citadel, :trace, :buffer, :depth],
-        [:citadel, :trace, :publish, :drop],
-        [:citadel, :trace, :publish, :failure]
+        Telemetry.event_name(:trace_buffer_depth),
+        Telemetry.event_name(:trace_publication_drop),
+        Telemetry.event_name(:trace_publication_failure)
       ],
-      fn event, measurements, metadata, pid ->
-        send(pid, {:telemetry, event, measurements, metadata})
-      end,
+      &TelemetryForwarder.handle_event/4,
       test_pid
     )
 
@@ -123,7 +147,7 @@ defmodule Citadel.Runtime.TracePublisherTest do
       trace_envelope_id: id,
       record_kind: :event,
       family: family,
-      name: canonical_name(family),
+      name: TraceContract.canonical_event_name!(family),
       phase: "post_commit",
       trace_id: "trace-1",
       tenant_id: "tenant-1",
@@ -149,11 +173,11 @@ defmodule Citadel.Runtime.TracePublisherTest do
     regular_envelope(id, family)
   end
 
-  defp canonical_name("session_attached"), do: "citadel.session.attached"
-  defp canonical_name("signal_normalized"), do: "citadel.signal.normalized"
-  defp canonical_name("session_resumed"), do: "citadel.session.resumed"
-  defp canonical_name("session_blocked"), do: "citadel.session.blocked"
+  defp assert_contract_shape(telemetry_name, measurements, metadata) do
+    assert Enum.sort(Map.keys(measurements)) ==
+             telemetry_name |> Telemetry.measurement_keys() |> Enum.sort()
 
-  defp canonical_name("session_crash_recovery_triggered"),
-    do: "citadel.session.crash_recovery_triggered"
+    assert Enum.sort(Map.keys(metadata)) ==
+             telemetry_name |> Telemetry.metadata_keys() |> Enum.sort()
+  end
 end
