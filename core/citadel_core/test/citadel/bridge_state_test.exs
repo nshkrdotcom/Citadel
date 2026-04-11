@@ -89,6 +89,36 @@ defmodule Citadel.BridgeStateTest do
     assert {:error, :circuit_open} = BridgeState.begin_operation(server, "scope-a")
   end
 
+  test "restart-safe refs recreate dead bridge-state processes by name" do
+    state_ref =
+      BridgeState.new_ref!(
+        circuit:
+          BridgeCircuit.new!(
+            policy:
+              BridgeCircuitPolicy.new!(%{
+                failure_threshold: 2,
+                window_ms: 5_000,
+                cooldown_ms: 5_000,
+                half_open_max_inflight: 1,
+                scope_key_mode: "downstream_scope",
+                extensions: %{}
+              })
+          )
+      )
+
+    server = BridgeState.server(state_ref)
+
+    assert {:ok, token} = BridgeState.begin_operation(state_ref, "scope-a", dedupe_key: "entry-1")
+    assert {:ok, "receipt-1"} = BridgeState.finish_operation(state_ref, token, {:ok, "receipt-1"})
+
+    Process.exit(server, :kill)
+    wait_until(fn -> not Process.alive?(server) end)
+
+    assert {:ok, token} = BridgeState.begin_operation(state_ref, "scope-a", dedupe_key: "entry-2")
+    assert {:ok, "receipt-2"} = BridgeState.finish_operation(state_ref, token, {:ok, "receipt-2"})
+    assert BridgeState.server(state_ref) != server
+  end
+
   defp reserve_operation(server, parent) do
     assert {:ok, _token} = BridgeState.begin_operation(server, "scope-a")
     send(parent, :operation_reserved)

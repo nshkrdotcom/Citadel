@@ -132,6 +132,32 @@ defmodule Citadel.InvocationBridgeTest do
              InvocationBridge.submit(bridge, invocation_request(), outbox_entry("entry-5"))
   end
 
+  test "recreates bridge state by name after the underlying state process dies" do
+    bridge =
+      InvocationBridge.new!(
+        downstream: Downstream,
+        state_name: unique_name(:invocation_bridge_state_restart)
+      )
+
+    state_server =
+      bridge
+      |> Map.fetch!(:state_ref)
+      |> Citadel.BridgeState.server()
+
+    Process.exit(state_server, :kill)
+    wait_until(fn -> not Process.alive?(state_server) end)
+
+    assert {:ok, "receipt:entry-restarted", _bridge} =
+             InvocationBridge.submit(
+               bridge,
+               invocation_request(),
+               outbox_entry("entry-restarted")
+             )
+
+    assert_receive {:submitted, envelope}
+    assert envelope.entry_id == "entry-restarted"
+  end
+
   defp invocation_request do
     InvocationRequest.new!(%{
       schema_version: 1,
@@ -258,5 +284,20 @@ defmodule Citadel.InvocationBridgeTest do
 
   defp unique_name(prefix) do
     :"#{prefix}_#{System.unique_integer([:positive])}"
+  end
+
+  defp wait_until(fun, attempts \\ 40)
+
+  defp wait_until(fun, attempts) do
+    if fun.() do
+      :ok
+    else
+      do_wait_until(fun, attempts)
+    end
+  end
+
+  defp do_wait_until(fun, attempts) when attempts > 0 do
+    Process.sleep(10)
+    wait_until(fun, attempts - 1)
   end
 end

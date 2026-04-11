@@ -12,8 +12,6 @@ defmodule Citadel.BoundaryBridge do
   alias Citadel.BridgeCircuitPolicy
   alias Citadel.BridgeState
 
-  @behaviour Citadel.Ports.BoundaryLifecycle
-
   defmodule Downstream do
     @moduledoc false
 
@@ -35,13 +33,13 @@ defmodule Citadel.BoundaryBridge do
   @type t :: %__MODULE__{
           downstream: module(),
           circuit_policy: BridgeCircuitPolicy.t(),
-          state_server: GenServer.server(),
+          state_ref: BridgeState.state_ref(),
           projection_adapter: module()
         }
 
   defstruct downstream: nil,
             circuit_policy: nil,
-            state_server: nil,
+            state_ref: nil,
             projection_adapter: BoundaryProjectionAdapter
 
   @spec new!(keyword()) :: t()
@@ -59,8 +57,8 @@ defmodule Citadel.BoundaryBridge do
     %__MODULE__{
       downstream: downstream,
       circuit_policy: circuit_policy,
-      state_server:
-        BridgeState.ensure_started!(
+      state_ref:
+        BridgeState.new_ref!(
           circuit:
             BridgeCircuit.new!(
               policy: circuit_policy,
@@ -70,16 +68,6 @@ defmodule Citadel.BoundaryBridge do
         ),
       projection_adapter: Keyword.get(opts, :projection_adapter, BoundaryProjectionAdapter)
     }
-  end
-
-  @impl true
-  @spec submit_boundary_intent(
-          BoundaryIntent.t(),
-          Citadel.Ports.BoundaryLifecycle.boundary_intent_metadata()
-        ) :: no_return()
-  def submit_boundary_intent(_boundary_intent, _metadata) do
-    raise ArgumentError,
-          "Citadel.BoundaryBridge.submit_boundary_intent/2 requires an initialized bridge instance; use submit_boundary_intent/3"
   end
 
   @spec submit_boundary_intent(
@@ -97,33 +85,25 @@ defmodule Citadel.BoundaryBridge do
     projection = bridge.projection_adapter.project!(boundary_intent, metadata)
     scope_key = Map.get(projection, "downstream_scope", "boundary_lifecycle")
 
-    case BridgeState.begin_operation(bridge.state_server, scope_key) do
+    case BridgeState.begin_operation(bridge.state_ref, scope_key) do
       {:ok, token} ->
         case bridge.downstream.submit_boundary_intent(projection) do
           {:ok, receipt_ref} ->
-            {:ok, receipt_ref} =
-              BridgeState.finish_operation(bridge.state_server, token, {:ok, receipt_ref})
-
-            {:ok, receipt_ref, bridge}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:ok, receipt_ref}) do
+              {:ok, ^receipt_ref} -> {:ok, receipt_ref, bridge}
+              {:error, :operation_not_found} -> {:ok, receipt_ref, bridge}
+            end
 
           {:error, reason} ->
-            {:error, reason} =
-              BridgeState.finish_operation(bridge.state_server, token, {:error, reason})
-
-            {:error, reason, bridge}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
+              {:error, ^reason} -> {:error, reason, bridge}
+              {:error, :operation_not_found} -> {:error, reason, bridge}
+            end
         end
 
       {:error, reason} ->
         {:error, reason, bridge}
     end
-  end
-
-  @impl true
-  @spec normalize_boundary_session(Citadel.Ports.BoundaryLifecycle.boundary_session_source()) ::
-          no_return()
-  def normalize_boundary_session(_raw_descriptor) do
-    raise ArgumentError,
-          "Citadel.BoundaryBridge.normalize_boundary_session/1 requires an initialized bridge instance; use normalize_boundary_session/2"
   end
 
   @spec normalize_boundary_session(
@@ -135,26 +115,10 @@ defmodule Citadel.BoundaryBridge do
     {:ok, BoundarySessionDescriptorV1.new!(raw_descriptor), bridge}
   end
 
-  @impl true
-  @spec normalize_attach_grant(Citadel.Ports.BoundaryLifecycle.attach_grant_source()) ::
-          no_return()
-  def normalize_attach_grant(_raw_grant) do
-    raise ArgumentError,
-          "Citadel.BoundaryBridge.normalize_attach_grant/1 requires an initialized bridge instance; use normalize_attach_grant/2"
-  end
-
   @spec normalize_attach_grant(t(), Citadel.Ports.BoundaryLifecycle.attach_grant_source()) ::
           {:ok, AttachGrantV1.t(), t()}
   def normalize_attach_grant(%__MODULE__{} = bridge, raw_grant) do
     {:ok, AttachGrantV1.new!(raw_grant), bridge}
-  end
-
-  @impl true
-  @spec normalize_boundary_lease(Citadel.Ports.BoundaryLifecycle.boundary_lease_source()) ::
-          no_return()
-  def normalize_boundary_lease(_raw_lease_view) do
-    raise ArgumentError,
-          "Citadel.BoundaryBridge.normalize_boundary_lease/1 requires an initialized bridge instance; use normalize_boundary_lease/2"
   end
 
   @spec normalize_boundary_lease(

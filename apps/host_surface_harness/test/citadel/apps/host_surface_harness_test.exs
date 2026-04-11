@@ -71,6 +71,32 @@ defmodule Citadel.Apps.HostSurfaceHarnessTest do
     def normalize_signal(_signal), do: {:error, :unsupported_signal}
   end
 
+  defmodule FakeSessionOwner do
+    use GenServer
+
+    def start_link(opts \\ []) do
+      GenServer.start_link(__MODULE__, :ok, opts)
+    end
+
+    def observation_count(server) do
+      GenServer.call(server, :observation_count)
+    end
+
+    @impl true
+    def init(:ok) do
+      {:ok, %{observations: []}}
+    end
+
+    @impl true
+    def handle_call({:record_runtime_observation, observation}, _from, state) do
+      {:reply, :ok, %{state | observations: [observation | state.observations]}}
+    end
+
+    def handle_call(:observation_count, _from, state) do
+      {:reply, length(state.observations), state}
+    end
+  end
+
   setup do
     Process.put(:host_surface_harness_test_pid, self())
 
@@ -301,6 +327,147 @@ defmodule Citadel.Apps.HostSurfaceHarnessTest do
              "boundary_reuse_requires_attached_session"
   end
 
+  test "aligns host-surface policy selection with the active runtime snapshot when one is available",
+       %{
+         session_directory: session_directory,
+         signal_bridge: signal_bridge
+       } do
+    harness =
+      HostSurfaceHarness.new!(
+        session_directory: session_directory,
+        signal_bridge: signal_bridge,
+        policy_packs: [policy_pack(), runtime_policy_pack()],
+        policy_snapshot: fn ->
+          {:ok, %{policy_version: "policy-2026-04-10", policy_epoch: 9}}
+        end
+      )
+
+    assert {:accepted, result, _harness} =
+             HostSurfaceHarness.submit_envelope(
+               harness,
+               HostSurfaceHarness.valid_direct_envelope(%{
+                 resolution_provenance: %{
+                   source_kind: "host_surface_harness",
+                   policy_version: "policy-2026-04-10",
+                   confidence: 1.0,
+                   ambiguity_flags: [],
+                   raw_input_refs: [],
+                   raw_input_hashes: [],
+                   extensions: %{}
+                 }
+               }),
+               request_context("req-runtime-policy", "sess-runtime-policy")
+             )
+
+    assert result.policy_pack_id == "runtime"
+  end
+
+  test "routes accepted ingress through the live session owner without rotating ownership",
+       %{
+         kernel_snapshot: kernel_snapshot,
+         session_directory: session_directory,
+         signal_bridge: signal_bridge
+       } do
+    service_catalog = unique_name(:service_catalog)
+    boundary_tracker = unique_name(:boundary_tracker)
+    signal_ingress = unique_name(:signal_ingress)
+    invocation_supervisor = unique_name(:invocation_supervisor)
+    projection_supervisor = unique_name(:projection_supervisor)
+    local_supervisor = unique_name(:local_supervisor)
+    session_server = unique_name(:session_server)
+
+    start_supervised!({ServiceCatalog, name: service_catalog, kernel_snapshot: kernel_snapshot})
+
+    start_supervised!(
+      {BoundaryLeaseTracker, name: boundary_tracker, kernel_snapshot: kernel_snapshot}
+    )
+
+    start_supervised!({Task.Supervisor, name: invocation_supervisor})
+    start_supervised!({Task.Supervisor, name: projection_supervisor})
+    start_supervised!({Task.Supervisor, name: local_supervisor})
+
+    start_supervised!(
+      {SignalIngress,
+       name: signal_ingress, session_directory: session_directory, signal_source: SignalAdapter}
+    )
+
+    start_supervised!(
+      {SessionServer,
+       name: session_server,
+       session_id: "sess-live-accept",
+       session_directory: session_directory,
+       kernel_snapshot: kernel_snapshot,
+       boundary_lease_tracker: boundary_tracker,
+       service_catalog: service_catalog,
+       signal_ingress: signal_ingress,
+       invocation_supervisor: invocation_supervisor,
+       projection_supervisor: projection_supervisor,
+       local_supervisor: local_supervisor}
+    )
+
+    harness =
+      HostSurfaceHarness.new!(
+        session_directory: session_directory,
+        signal_bridge: signal_bridge,
+        policy_packs: [policy_pack()],
+        lookup_session: fn
+          "sess-live-accept" -> {:ok, session_server}
+          _other -> {:error, :not_found}
+        end
+      )
+
+    assert {:accepted, result, _harness} =
+             HostSurfaceHarness.submit_envelope(
+               harness,
+               HostSurfaceHarness.valid_direct_envelope(),
+               request_context("req-live-accept", "sess-live-accept")
+             )
+
+    assert result.lifecycle_event == :live_owner
+
+    assert {:ok, session_state} =
+             SessionServer.commit_transition(session_server, %{
+               external_refs: %{"follow_up" => "ok"}
+             })
+
+    assert session_state.owner_incarnation == 1
+
+    assert {:ok, persisted_blob} =
+             SessionDirectory.fetch_persisted_blob(session_directory, "sess-live-accept")
+
+    assert persisted_blob.envelope.owner_incarnation == 1
+  end
+
+  test "delivers observations through the public session API instead of a raw mailbox send",
+       %{
+         signal_bridge: signal_bridge
+       } do
+    fake_session = start_supervised!({FakeSessionOwner, name: unique_name(:fake_session_owner)})
+
+    harness =
+      HostSurfaceHarness.new!(
+        signal_bridge: signal_bridge,
+        policy_packs: [policy_pack()],
+        lookup_session: fn
+          "sess-observation" -> {:ok, fake_session}
+          _other -> {:error, :not_found}
+        end
+      )
+
+    assert {:ok, %{signal_id: "sig-observation"}, _harness} =
+             HostSurfaceHarness.deliver_signal(
+               harness,
+               "sess-observation",
+               %{
+                 session_id: "sess-observation",
+                 signal_id: "sig-observation",
+                 payload: %{"kind" => "operator_event"}
+               }
+             )
+
+    assert FakeSessionOwner.observation_count(fake_session) == 1
+  end
+
   test "exposes strict dead-letter maintenance and selector-based bulk recovery through host-facing wrappers",
        %{
          session_directory: session_directory,
@@ -385,6 +552,13 @@ defmodule Citadel.Apps.HostSurfaceHarnessTest do
       },
       extensions: %{}
     }
+  end
+
+  defp runtime_policy_pack do
+    policy_pack()
+    |> Map.put(:pack_id, "runtime")
+    |> Map.put(:policy_version, "policy-2026-04-10")
+    |> Map.put(:policy_epoch, 9)
   end
 
   defp seed_dead_lettered_session(session_directory, session_id, entry_id, dead_letter_reason) do

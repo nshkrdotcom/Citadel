@@ -12,8 +12,6 @@ defmodule Citadel.InvocationBridge do
   alias Citadel.InvocationBridge.ExecutionIntentAdapter
   alias Citadel.InvocationRequest
 
-  @behaviour Citadel.Ports.InvocationSink
-
   defmodule Downstream do
     @moduledoc false
 
@@ -39,14 +37,14 @@ defmodule Citadel.InvocationBridge do
   @type t :: %__MODULE__{
           downstream: module(),
           circuit_policy: BridgeCircuitPolicy.t(),
-          state_server: GenServer.server(),
+          state_ref: BridgeState.state_ref(),
           execution_intent_adapter: module(),
           supported_invocation_request_schema_versions: [pos_integer(), ...]
         }
 
   defstruct downstream: nil,
             circuit_policy: nil,
-            state_server: nil,
+            state_ref: nil,
             execution_intent_adapter: ExecutionIntentAdapter,
             supported_invocation_request_schema_versions: []
 
@@ -80,8 +78,8 @@ defmodule Citadel.InvocationBridge do
     %__MODULE__{
       downstream: downstream,
       circuit_policy: circuit_policy,
-      state_server:
-        BridgeState.ensure_started!(
+      state_ref:
+        BridgeState.new_ref!(
           circuit:
             BridgeCircuit.new!(policy: circuit_policy, now_ms_fun: Keyword.get(opts, :now_ms_fun)),
           name: state_name
@@ -107,13 +105,6 @@ defmodule Citadel.InvocationBridge do
     end
   end
 
-  @impl true
-  @spec submit_invocation(InvocationRequest.t(), ActionOutboxEntry.t()) :: no_return()
-  def submit_invocation(_request, _entry) do
-    raise ArgumentError,
-          "Citadel.InvocationBridge.submit_invocation/2 requires an initialized bridge instance; use submit/3"
-  end
-
   @spec submit(
           t(),
           InvocationRequest.t(),
@@ -126,6 +117,20 @@ defmodule Citadel.InvocationBridge do
     else
       do_submit(bridge, request, entry)
     end
+  end
+
+  @spec submit_invocation(
+          t(),
+          InvocationRequest.t(),
+          ActionOutboxEntry.t()
+        ) ::
+          {:ok, String.t(), t()} | {:error, atom(), t()}
+  def submit_invocation(
+        %__MODULE__{} = bridge,
+        %InvocationRequest{} = request,
+        %ActionOutboxEntry{} = entry
+      ) do
+    submit(bridge, request, entry)
   end
 
   @spec manifest() :: map()
@@ -151,7 +156,7 @@ defmodule Citadel.InvocationBridge do
     envelope = bridge.execution_intent_adapter.project!(request, entry)
     scope_key = scope_key(bridge.circuit_policy, envelope)
 
-    case BridgeState.begin_operation(bridge.state_server, scope_key, dedupe_key: entry.entry_id) do
+    case BridgeState.begin_operation(bridge.state_ref, scope_key, dedupe_key: entry.entry_id) do
       {:duplicate, receipt_ref} ->
         {:ok, receipt_ref, bridge}
 
@@ -161,24 +166,24 @@ defmodule Citadel.InvocationBridge do
       {:ok, token} ->
         case bridge.downstream.submit_execution_intent(envelope) do
           {:ok, receipt_ref} when is_binary(receipt_ref) ->
-            {:ok, receipt_ref} =
-              BridgeState.finish_operation(bridge.state_server, token, {:ok, receipt_ref})
-
-            {:ok, receipt_ref, bridge}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:ok, receipt_ref}) do
+              {:ok, ^receipt_ref} -> {:ok, receipt_ref, bridge}
+              {:error, :operation_not_found} -> {:ok, receipt_ref, bridge}
+            end
 
           {:error, reason} ->
-            {:error, reason} =
-              BridgeState.finish_operation(bridge.state_server, token, {:error, reason})
-
-            {:error, reason, bridge}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
+              {:error, ^reason} -> {:error, reason, bridge}
+              {:error, :operation_not_found} -> {:error, reason, bridge}
+            end
 
           other ->
             reason = normalize_error(other)
 
-            {:error, reason} =
-              BridgeState.finish_operation(bridge.state_server, token, {:error, reason})
-
-            {:error, reason, bridge}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
+              {:error, ^reason} -> {:error, reason, bridge}
+              {:error, :operation_not_found} -> {:error, reason, bridge}
+            end
         end
     end
   end

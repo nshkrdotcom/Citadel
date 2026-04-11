@@ -9,8 +9,6 @@ defmodule Citadel.QueryBridge do
   alias Citadel.BridgeState
   alias Citadel.RuntimeObservation
 
-  @behaviour Citadel.Ports.RuntimeQuery
-
   defmodule Downstream do
     @moduledoc false
 
@@ -32,10 +30,10 @@ defmodule Citadel.QueryBridge do
   @type t :: %__MODULE__{
           downstream: module(),
           circuit_policy: BridgeCircuitPolicy.t(),
-          state_server: GenServer.server()
+          state_ref: BridgeState.state_ref()
         }
 
-  defstruct downstream: nil, circuit_policy: nil, state_server: nil
+  defstruct downstream: nil, circuit_policy: nil, state_ref: nil
 
   @spec new!(keyword()) :: t()
   def new!(opts) do
@@ -54,8 +52,8 @@ defmodule Citadel.QueryBridge do
     %__MODULE__{
       downstream: downstream,
       circuit_policy: circuit_policy,
-      state_server:
-        BridgeState.ensure_started!(
+      state_ref:
+        BridgeState.new_ref!(
           circuit:
             BridgeCircuit.new!(
               policy: circuit_policy,
@@ -64,22 +62,6 @@ defmodule Citadel.QueryBridge do
           name: state_name
         )
     }
-  end
-
-  @impl true
-  @spec fetch_runtime_observation(Citadel.Ports.RuntimeQuery.runtime_observation_query()) ::
-          no_return()
-  def fetch_runtime_observation(_query) do
-    raise ArgumentError,
-          "Citadel.QueryBridge.fetch_runtime_observation/1 requires an initialized bridge instance; use fetch_runtime_observation/2"
-  end
-
-  @impl true
-  @spec fetch_boundary_session(Citadel.Ports.RuntimeQuery.boundary_session_query()) ::
-          no_return()
-  def fetch_boundary_session(_query) do
-    raise ArgumentError,
-          "Citadel.QueryBridge.fetch_boundary_session/1 requires an initialized bridge instance; use fetch_boundary_session/2"
   end
 
   @spec fetch_runtime_observation(t(), Citadel.Ports.RuntimeQuery.runtime_observation_query()) ::
@@ -125,20 +107,20 @@ defmodule Citadel.QueryBridge do
 
     normalized_query = Map.new(query)
 
-    case BridgeState.begin_operation(bridge.state_server, scope_key) do
+    case BridgeState.begin_operation(bridge.state_ref, scope_key) do
       {:ok, token} ->
         case fun.(bridge.downstream, normalized_query) do
           {:ok, result} ->
-            {:ok, result} =
-              BridgeState.finish_operation(bridge.state_server, token, {:ok, result})
-
-            {:ok, result, bridge}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:ok, result}) do
+              {:ok, ^result} -> {:ok, result, bridge}
+              {:error, :operation_not_found} -> {:ok, result, bridge}
+            end
 
           {:error, reason} ->
-            {:error, reason} =
-              BridgeState.finish_operation(bridge.state_server, token, {:error, reason})
-
-            {:error, reason, bridge}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
+              {:error, ^reason} -> {:error, reason, bridge}
+              {:error, :operation_not_found} -> {:error, reason, bridge}
+            end
         end
 
       {:error, reason} ->

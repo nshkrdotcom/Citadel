@@ -4,6 +4,7 @@ defmodule Citadel.IntentEnvelopeTest do
   alias Citadel.ContractCore.CanonicalJson
   alias Citadel.IntentEnvelope
   alias Citadel.IntentMappingConstraints
+  alias Citadel.TopologyIntent
 
   @fixture_dir Path.expand("../fixtures/intent_envelope", __DIR__)
 
@@ -39,6 +40,31 @@ defmodule Citadel.IntentEnvelopeTest do
 
     assert IntentMappingConstraints.planning_status(envelope) ==
              {:unplannable, "boundary_reuse_requires_attached_session"}
+  end
+
+  test "builds a typed topology intent with a deterministic generated id" do
+    envelope = read_fixture!("valid.json") |> IntentEnvelope.new!()
+
+    topology_intent =
+      IntentMappingConstraints.topology_intent(
+        envelope,
+        topology_epoch: 7,
+        extensions: %{"planner" => "wave-7"}
+      )
+
+    assert %TopologyIntent{} = topology_intent
+    assert topology_intent.topology_epoch == 7
+    assert topology_intent.session_mode == "attached"
+    assert topology_intent.coordination_mode == "single_target"
+    assert topology_intent.extensions == %{"planner" => "wave-7"}
+    assert String.starts_with?(topology_intent.topology_intent_id, "topology/")
+
+    assert topology_intent ==
+             IntentMappingConstraints.topology_intent(
+               envelope,
+               topology_epoch: 7,
+               extensions: %{"planner" => "wave-7"}
+             )
   end
 
   test "rejects raw intent strings at the kernel boundary" do

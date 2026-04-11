@@ -7,6 +7,7 @@ defmodule Citadel.Runtime.SignalIngress do
 
   alias Citadel.ObservabilityContract.Telemetry
   alias Citadel.Runtime.SessionDirectory
+  alias Citadel.Runtime.SessionServer
   alias Citadel.Runtime.SystemClock
   alias Citadel.RuntimeObservation
   alias Citadel.SignalIngressRebuildPolicy
@@ -239,7 +240,14 @@ defmodule Citadel.Runtime.SignalIngress do
         state
 
       pid ->
-        send(pid, {:runtime_observation, observation})
+        _ =
+          try do
+            SessionServer.record_runtime_observation(pid, observation)
+          catch
+            :exit, {:noproc, _details} -> :ok
+            :exit, :noproc -> :ok
+          end
+
         state
     end
   end

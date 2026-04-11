@@ -8,7 +8,16 @@ defmodule Citadel.BridgeState do
   alias Citadel.BridgeCircuit
   alias Citadel.ContractCore.Value
 
+  defmodule Ref do
+    @moduledoc false
+
+    @enforce_keys [:name, :start_opts]
+    defstruct [:name, :start_opts]
+  end
+
   @type operation_token :: reference()
+  @type state_ref :: %Ref{name: GenServer.name(), start_opts: keyword()}
+  @type state_server :: state_ref() | GenServer.server()
 
   @type state :: %{
           circuit: BridgeCircuit.t(),
@@ -25,13 +34,24 @@ defmodule Citadel.BridgeState do
     GenServer.start_link(__MODULE__, opts, start_opts)
   end
 
+  @spec new_ref!(keyword()) :: state_ref()
+  def new_ref!(opts) do
+    name = Keyword.get(opts, :name) || generated_name()
+    start_opts = Keyword.put(opts, :name, name)
+    _ = ensure_started!(start_opts)
+
+    %Ref{name: name, start_opts: start_opts}
+  end
+
   @spec ensure_started!(keyword()) :: GenServer.server()
   def ensure_started!(opts) do
     case start_link(opts) do
       {:ok, pid} ->
+        Process.unlink(pid)
         pid
 
       {:error, {:already_started, pid}} ->
+        Process.unlink(pid)
         pid
 
       {:error, reason} ->
@@ -39,17 +59,36 @@ defmodule Citadel.BridgeState do
     end
   end
 
-  @spec begin_operation(GenServer.server(), String.t(), keyword()) ::
+  @spec server(state_server()) :: GenServer.server()
+  def server(%Ref{} = ref), do: ensure_started!(ref.start_opts)
+  def server(server), do: server
+
+  @spec begin_operation(state_server(), String.t(), keyword()) ::
           {:ok, operation_token()}
           | {:duplicate, term()}
           | {:error, :circuit_open | :submission_inflight}
-  def begin_operation(server, scope_key, opts \\ []) do
+  def begin_operation(server, scope_key, opts \\ [])
+
+  def begin_operation(%Ref{} = ref, scope_key, opts) do
+    dedupe_key = Keyword.get(opts, :dedupe_key)
+    call_with_ref(ref, {:begin_operation, scope_key, dedupe_key})
+  end
+
+  def begin_operation(server, scope_key, opts) do
     dedupe_key = Keyword.get(opts, :dedupe_key)
     GenServer.call(server, {:begin_operation, scope_key, dedupe_key})
   end
 
-  @spec finish_operation(GenServer.server(), operation_token(), {:ok, term()} | {:error, atom()}) ::
+  @spec finish_operation(
+          state_server(),
+          operation_token(),
+          {:ok, term()} | {:error, atom()}
+        ) ::
           {:ok, term()} | {:error, atom() | :operation_not_found}
+  def finish_operation(%Ref{} = ref, token, result) when is_reference(token) do
+    call_with_ref(ref, {:finish_operation, token, result})
+  end
+
   def finish_operation(server, token, result) when is_reference(token) do
     GenServer.call(server, {:finish_operation, token, result})
   end
@@ -200,5 +239,35 @@ defmodule Citadel.BridgeState do
 
   defp apply_operation_result(state, pending_operation, {:error, _reason}) do
     Map.update!(state, :circuit, &BridgeCircuit.record_failure(&1, pending_operation.scope_key))
+  end
+
+  defp call_with_ref(%Ref{} = ref, message) do
+    case safe_call(server(ref), message) do
+      {:ok, reply} ->
+        reply
+
+      {:error, :noproc} ->
+        _ = ensure_started!(ref.start_opts)
+
+        case safe_call(server(ref), message) do
+          {:ok, reply} ->
+            reply
+
+          {:error, :noproc} ->
+            raise RuntimeError,
+                  "Citadel.BridgeState became unavailable during #{inspect(message)}"
+        end
+    end
+  end
+
+  defp safe_call(server, message) do
+    {:ok, GenServer.call(server, message)}
+  catch
+    :exit, {:noproc, _details} -> {:error, :noproc}
+    :exit, :noproc -> {:error, :noproc}
+  end
+
+  defp generated_name do
+    {:global, {:citadel_bridge_state, System.unique_integer([:positive, :monotonic])}}
   end
 end

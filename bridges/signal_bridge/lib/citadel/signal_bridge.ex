@@ -5,8 +5,6 @@ defmodule Citadel.SignalBridge do
 
   alias Citadel.RuntimeObservation
 
-  @behaviour Citadel.Ports.SignalSource
-
   defmodule Adapter do
     @moduledoc false
 
@@ -43,13 +41,6 @@ defmodule Citadel.SignalBridge do
     end
 
     %__MODULE__{adapter: adapter}
-  end
-
-  @impl true
-  @spec normalize_signal(raw_signal()) :: no_return()
-  def normalize_signal(_raw_signal) do
-    raise ArgumentError,
-          "Citadel.SignalBridge.normalize_signal/1 requires an initialized bridge instance; use normalize_signal/2"
   end
 
   @spec normalize_signal(t(), raw_signal()) ::

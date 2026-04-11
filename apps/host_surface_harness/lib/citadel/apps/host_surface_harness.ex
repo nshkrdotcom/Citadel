@@ -68,6 +68,7 @@ defmodule Citadel.Apps.HostSurfaceHarness do
           signal_bridge: SignalBridge.t(),
           projection_bridge: ProjectionBridge.t() | nil,
           policy_packs: [PolicyPack.t()],
+          policy_snapshot: (-> {:ok, map()} | {:error, term()}),
           intent_resolver: module() | nil,
           lookup_session: (String.t() -> {:ok, pid()} | {:error, term()}),
           clock: module()
@@ -82,6 +83,7 @@ defmodule Citadel.Apps.HostSurfaceHarness do
             signal_bridge: nil,
             projection_bridge: nil,
             policy_packs: [],
+            policy_snapshot: nil,
             intent_resolver: nil,
             lookup_session: &Citadel.Runtime.lookup_session/1,
             clock: SystemClock
@@ -136,6 +138,12 @@ defmodule Citadel.Apps.HostSurfaceHarness do
       raise ArgumentError, "lookup_session must be an arity-1 function"
     end
 
+    policy_snapshot = Keyword.get(opts, :policy_snapshot, fn -> runtime_policy_snapshot() end)
+
+    unless is_function(policy_snapshot, 0) do
+      raise ArgumentError, "policy_snapshot must be an arity-0 function"
+    end
+
     clock = Keyword.get(opts, :clock, SystemClock)
 
     unless is_atom(clock) and function_exported?(clock, :utc_now, 0) do
@@ -147,6 +155,7 @@ defmodule Citadel.Apps.HostSurfaceHarness do
       signal_bridge: signal_bridge,
       projection_bridge: projection_bridge,
       policy_packs: Enum.map(Keyword.get(opts, :policy_packs, []), &PolicyPack.new!/1),
+      policy_snapshot: policy_snapshot,
       intent_resolver: intent_resolver,
       lookup_session: lookup_session,
       clock: clock
@@ -196,11 +205,15 @@ defmodule Citadel.Apps.HostSurfaceHarness do
           {:error, :session_mismatch, %{harness | signal_bridge: signal_bridge}}
         else
           case harness.lookup_session.(session_id) do
-            {:ok, pid} ->
-              send(pid, {:runtime_observation, observation})
+            {:ok, session_server} ->
+              case record_runtime_observation_with_live_owner(session_server, observation) do
+                :ok ->
+                  {:ok, %{session_id: session_id, signal_id: observation.signal_id},
+                   %{harness | signal_bridge: signal_bridge}}
 
-              {:ok, %{session_id: session_id, signal_id: observation.signal_id},
-               %{harness | signal_bridge: signal_bridge}}
+                {:error, reason} ->
+                  {:error, reason, %{harness | signal_bridge: signal_bridge}}
+              end
 
             {:error, reason} ->
               {:error, reason, %{harness | signal_bridge: signal_bridge}}
@@ -344,6 +357,37 @@ defmodule Citadel.Apps.HostSurfaceHarness do
       |> Keyword.put_new(:scope_ref, scope_ref_from_envelope(envelope, context))
       |> Keyword.put_new(:extensions, host_extensions(context, ingress_path))
 
+    case harness.lookup_session.(context.session_id) do
+      {:ok, session_server} ->
+        case record_acceptance_with_live_owner(session_server) do
+          {:ok, session_state} ->
+            {:accepted,
+             %{
+               request_id: context.request_id,
+               session_id: context.session_id,
+               trace_id: context.trace_id,
+               lifecycle_event: :live_owner,
+               continuity_revision: session_state.continuity_revision,
+               policy_pack_id: selection.pack_id,
+               ingress_path: ingress_path
+             }, harness}
+
+          {:error, :not_found} ->
+            accept_without_live_owner(harness, context, selection, ingress_path, claim_opts)
+
+          {:error, reason} ->
+            {:error, reason, harness}
+        end
+
+      {:error, :not_found} ->
+        accept_without_live_owner(harness, context, selection, ingress_path, claim_opts)
+
+      {:error, reason} ->
+        {:error, reason, harness}
+    end
+  end
+
+  defp accept_without_live_owner(harness, context, selection, ingress_path, claim_opts) do
     case SessionDirectory.claim_session(harness.session_directory, context.session_id, claim_opts) do
       {:ok, %{blob: blob, lifecycle_event: lifecycle_event}} ->
         {:accepted,
@@ -445,6 +489,22 @@ defmodule Citadel.Apps.HostSurfaceHarness do
 
   defp record_rejection_with_live_owner(session_server, rejection) do
     SessionServer.record_rejection(session_server, rejection)
+  catch
+    :exit, {:noproc, _details} -> {:error, :not_found}
+    :exit, :noproc -> {:error, :not_found}
+    :exit, reason -> {:error, reason}
+  end
+
+  defp record_acceptance_with_live_owner(session_server) do
+    SessionServer.record_host_acceptance(session_server)
+  catch
+    :exit, {:noproc, _details} -> {:error, :not_found}
+    :exit, :noproc -> {:error, :not_found}
+    :exit, reason -> {:error, reason}
+  end
+
+  defp record_runtime_observation_with_live_owner(session_server, observation) do
+    SessionServer.record_runtime_observation(session_server, observation)
   catch
     :exit, {:noproc, _details} -> {:error, :not_found}
     :exit, :noproc -> {:error, :not_found}
@@ -678,12 +738,24 @@ defmodule Citadel.Apps.HostSurfaceHarness do
         pack -> pack
       end)
 
-    PolicyPacks.select_profile!(policy_packs, %{
-      tenant_id: context.tenant_id,
-      scope_kind: selector.scope_kind,
-      environment: selector.environment || Map.get(context, :environment),
-      policy_epoch: Map.get(context, :policy_epoch, 0)
-    })
+    expected_policy = expected_policy_alignment!(harness, envelope, context)
+
+    policy_packs =
+      filter_policy_packs!(
+        policy_packs,
+        expected_policy.policy_version,
+        expected_policy.policy_epoch
+      )
+
+    selection =
+      PolicyPacks.select_profile!(policy_packs, %{
+        tenant_id: context.tenant_id,
+        scope_kind: selector.scope_kind,
+        environment: selector.environment || Map.get(context, :environment),
+        policy_epoch: expected_policy.policy_epoch
+      })
+
+    ensure_selection_alignment!(selection, expected_policy)
   end
 
   defp scope_ref_from_envelope(envelope, context) do
@@ -764,7 +836,7 @@ defmodule Citadel.Apps.HostSurfaceHarness do
       actor_id: required_string!(attrs, :actor_id),
       trace_id: required_string!(attrs, :trace_id),
       environment: optional_string(attrs, :environment),
-      policy_epoch: Map.get(attrs, :policy_epoch, Map.get(attrs, "policy_epoch", 0))
+      policy_epoch: optional_non_neg_integer(attrs, :policy_epoch)
     }
   end
 
@@ -785,6 +857,21 @@ defmodule Citadel.Apps.HostSurfaceHarness do
       value
     else
       nil
+    end
+  end
+
+  defp optional_non_neg_integer(attrs, key) do
+    value = Map.get(attrs, key, Map.get(attrs, Atom.to_string(key)))
+
+    cond do
+      is_nil(value) ->
+        nil
+
+      is_integer(value) and value >= 0 ->
+        value
+
+      true ->
+        raise ArgumentError, "request context #{inspect(key)} must be a non-negative integer"
     end
   end
 
@@ -908,4 +995,93 @@ defmodule Citadel.Apps.HostSurfaceHarness do
 
   defp normalize_envelope!(%IntentEnvelope{} = envelope), do: envelope
   defp normalize_envelope!(envelope), do: IntentEnvelope.new!(envelope)
+
+  defp expected_policy_alignment!(harness, envelope, context) do
+    runtime_policy =
+      case harness.policy_snapshot.() do
+        {:ok, snapshot} -> normalize_policy_snapshot!(snapshot)
+        {:error, _reason} -> nil
+      end
+
+    provenance_policy_version = envelope.resolution_provenance.policy_version
+    context_policy_epoch = context.policy_epoch
+
+    if runtime_policy && provenance_policy_version &&
+         runtime_policy.policy_version != provenance_policy_version do
+      raise ArgumentError,
+            "policy version mismatch between runtime snapshot #{inspect(runtime_policy.policy_version)} and ingress provenance #{inspect(provenance_policy_version)}"
+    end
+
+    if runtime_policy && not is_nil(context_policy_epoch) &&
+         runtime_policy.policy_epoch != context_policy_epoch do
+      raise ArgumentError,
+            "policy epoch mismatch between runtime snapshot #{inspect(runtime_policy.policy_epoch)} and request context #{inspect(context_policy_epoch)}"
+    end
+
+    %{
+      policy_version:
+        (runtime_policy && runtime_policy.policy_version) || provenance_policy_version,
+      policy_epoch: (runtime_policy && runtime_policy.policy_epoch) || context_policy_epoch
+    }
+  end
+
+  defp filter_policy_packs!(policy_packs, policy_version, policy_epoch) do
+    filtered_packs =
+      Enum.filter(policy_packs, fn pack ->
+        (is_nil(policy_version) or pack.policy_version == policy_version) and
+          (is_nil(policy_epoch) or pack.policy_epoch == policy_epoch)
+      end)
+
+    if filtered_packs == [] and (not is_nil(policy_version) or not is_nil(policy_epoch)) do
+      raise ArgumentError,
+            "no policy pack matched the expected runtime policy alignment version=#{inspect(policy_version)} epoch=#{inspect(policy_epoch)}"
+    end
+
+    if filtered_packs == [] do
+      policy_packs
+    else
+      filtered_packs
+    end
+  end
+
+  defp ensure_selection_alignment!(%Selection{} = selection, expected_policy) do
+    if expected_policy.policy_version &&
+         selection.policy_version != expected_policy.policy_version do
+      raise ArgumentError,
+            "selected policy pack version #{inspect(selection.policy_version)} did not match expected version #{inspect(expected_policy.policy_version)}"
+    end
+
+    if not is_nil(expected_policy.policy_epoch) &&
+         selection.policy_epoch != expected_policy.policy_epoch do
+      raise ArgumentError,
+            "selected policy pack epoch #{inspect(selection.policy_epoch)} did not match expected epoch #{inspect(expected_policy.policy_epoch)}"
+    end
+
+    selection
+  end
+
+  defp runtime_policy_snapshot do
+    try do
+      snapshot = Citadel.Runtime.PolicyCache.peek()
+
+      if snapshot.policy_version == "policy/uninitialized" do
+        {:error, :uninitialized}
+      else
+        {:ok, snapshot}
+      end
+    catch
+      :exit, _reason -> {:error, :not_available}
+    end
+  end
+
+  defp normalize_policy_snapshot!(snapshot) do
+    snapshot = Map.new(snapshot)
+
+    %{
+      policy_version: required_string!(snapshot, :policy_version),
+      policy_epoch:
+        optional_non_neg_integer(snapshot, :policy_epoch) ||
+          raise(ArgumentError, "runtime policy snapshot must include policy_epoch")
+    }
+  end
 end

@@ -37,7 +37,11 @@ defmodule Citadel.Runtime do
       id: {:session_server, session_id},
       start:
         {Citadel.Runtime.SessionServer, :start_link,
-         [Keyword.put_new(opts, :name, via_tuple(session_id))]},
+         [
+           opts
+           |> Keyword.put_new(:name, via_tuple(session_id))
+           |> Keyword.put_new(:trace_publisher, Citadel.Runtime.TracePublisher)
+         ]},
       restart: :transient
     }
 

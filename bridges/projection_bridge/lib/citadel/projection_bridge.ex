@@ -12,8 +12,6 @@ defmodule Citadel.ProjectionBridge do
   alias Jido.Integration.V2.DerivedStateAttachment
   alias Jido.Integration.V2.ReviewProjection
 
-  @behaviour Citadel.Ports.ProjectionSink
-
   @type downstream_metadata :: %{
           required(:entry_id) => String.t(),
           required(:payload_kind) => String.t(),
@@ -56,14 +54,14 @@ defmodule Citadel.ProjectionBridge do
   @type t :: %__MODULE__{
           downstream: module(),
           circuit_policy: BridgeCircuitPolicy.t(),
-          state_server: GenServer.server(),
+          state_ref: BridgeState.state_ref(),
           review_projection_adapter: module(),
           derived_state_attachment_adapter: module()
         }
 
   defstruct downstream: nil,
             circuit_policy: nil,
-            state_server: nil,
+            state_ref: nil,
             review_projection_adapter: ReviewProjectionAdapter,
             derived_state_attachment_adapter: DerivedStateAttachmentAdapter
 
@@ -84,8 +82,8 @@ defmodule Citadel.ProjectionBridge do
     %__MODULE__{
       downstream: downstream,
       circuit_policy: circuit_policy,
-      state_server:
-        BridgeState.ensure_started!(
+      state_ref:
+        BridgeState.new_ref!(
           circuit:
             BridgeCircuit.new!(
               policy: circuit_policy,
@@ -98,21 +96,6 @@ defmodule Citadel.ProjectionBridge do
       derived_state_attachment_adapter:
         Keyword.get(opts, :derived_state_attachment_adapter, DerivedStateAttachmentAdapter)
     }
-  end
-
-  @impl true
-  @spec publish_review_projection(ReviewProjection.t(), ActionOutboxEntry.t()) :: no_return()
-  def publish_review_projection(_projection, _entry) do
-    raise ArgumentError,
-          "Citadel.ProjectionBridge.publish_review_projection/2 requires an initialized bridge instance; use publish_review_projection/3"
-  end
-
-  @impl true
-  @spec publish_derived_state_attachment(DerivedStateAttachment.t(), ActionOutboxEntry.t()) ::
-          no_return()
-  def publish_derived_state_attachment(_attachment, _entry) do
-    raise ArgumentError,
-          "Citadel.ProjectionBridge.publish_derived_state_attachment/2 requires an initialized bridge instance; use publish_derived_state_attachment/3"
   end
 
   @spec publish_review_projection(
@@ -189,7 +172,7 @@ defmodule Citadel.ProjectionBridge do
        when is_function(publish_fun, 3) do
     scope_key = scope_key(bridge.circuit_policy, payload, payload_kind)
 
-    case BridgeState.begin_operation(bridge.state_server, scope_key, dedupe_key: entry.entry_id) do
+    case BridgeState.begin_operation(bridge.state_ref, scope_key, dedupe_key: entry.entry_id) do
       {:duplicate, receipt_ref} ->
         {:ok, receipt_ref, bridge}
 
@@ -205,22 +188,22 @@ defmodule Citadel.ProjectionBridge do
 
         case publish_fun.(bridge.downstream, payload, metadata) do
           {:ok, receipt_ref} when is_binary(receipt_ref) ->
-            {:ok, receipt_ref} =
-              BridgeState.finish_operation(bridge.state_server, token, {:ok, receipt_ref})
-
-            {:ok, receipt_ref, bridge}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:ok, receipt_ref}) do
+              {:ok, ^receipt_ref} -> {:ok, receipt_ref, bridge}
+              {:error, :operation_not_found} -> {:ok, receipt_ref, bridge}
+            end
 
           {:error, reason} ->
-            {:error, reason} =
-              BridgeState.finish_operation(bridge.state_server, token, {:error, reason})
-
-            {:error, reason, bridge}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
+              {:error, ^reason} -> {:error, reason, bridge}
+              {:error, :operation_not_found} -> {:error, reason, bridge}
+            end
 
           _other ->
-            {:error, :unknown} =
-              BridgeState.finish_operation(bridge.state_server, token, {:error, :unknown})
-
-            {:error, :unknown, bridge}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:error, :unknown}) do
+              {:error, :unknown} -> {:error, :unknown, bridge}
+              {:error, :operation_not_found} -> {:error, :unknown, bridge}
+            end
         end
     end
   end

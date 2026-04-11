@@ -3,10 +3,12 @@ defmodule Citadel.IntentMappingConstraints do
   Frozen Wave 3 value-level mappings that later feed `BoundaryIntent` and `TopologyIntent`.
   """
 
+  alias Citadel.ContractCore.CanonicalJson
   alias Citadel.ContractCore.Value
   alias Citadel.IntentEnvelope
   alias Citadel.IntentEnvelope.Constraints
   alias Citadel.IntentEnvelope.TargetHint
+  alias Citadel.TopologyIntent
 
   @allowed_boundary_requirements [:reuse_existing, :fresh_or_reuse, :fresh_only, :no_boundary]
   @allowed_session_modes [:attached, :detached, :stateless]
@@ -117,6 +119,28 @@ defmodule Citadel.IntentMappingConstraints do
     }
   end
 
+  @spec topology_intent(IntentEnvelope.t() | map() | keyword(), keyword()) :: TopologyIntent.t()
+  def topology_intent(envelope, opts \\ []) do
+    envelope = normalize_envelope!(envelope)
+    mapping = topology_mapping(envelope)
+    topology_epoch = Keyword.get(opts, :topology_epoch, 0)
+    extensions = Keyword.get(opts, :extensions, %{})
+
+    TopologyIntent.new!(%{
+      topology_intent_id:
+        Keyword.get(
+          opts,
+          :topology_intent_id,
+          generated_topology_intent_id(envelope, mapping, topology_epoch, extensions)
+        ),
+      session_mode: Atom.to_string(mapping.session_mode),
+      coordination_mode: Atom.to_string(mapping.coordination_mode),
+      routing_hints: mapping.routing_hints,
+      topology_epoch: topology_epoch,
+      extensions: extensions
+    })
+  end
+
   def planning_status(envelope) do
     envelope = normalize_envelope!(envelope)
     session_mode = topology_session_mode_for(envelope.constraints, envelope.target_hints)
@@ -172,6 +196,26 @@ defmodule Citadel.IntentMappingConstraints do
     ] ->
       reraise ArgumentError.exception("#{label} is invalid: #{Exception.message(error)}"),
               __STACKTRACE__
+  end
+
+  defp generated_topology_intent_id(envelope, mapping, topology_epoch, extensions) do
+    payload =
+      %{
+        intent_envelope_id: envelope.intent_envelope_id,
+        topology_epoch: topology_epoch,
+        mapping: mapping,
+        extensions: extensions
+      }
+      |> CanonicalJson.normalize!()
+      |> Jason.encode!()
+
+    digest =
+      :sha256
+      |> :crypto.hash(payload)
+      |> Base.encode16(case: :lower)
+      |> binary_part(0, 16)
+
+    "topology/#{digest}"
   end
 end
 

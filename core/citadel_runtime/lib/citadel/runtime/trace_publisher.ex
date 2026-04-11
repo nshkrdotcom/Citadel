@@ -2,8 +2,8 @@ defmodule Citadel.Runtime.TracePublisher do
   @moduledoc """
   Best-effort bounded trace publisher used after commit.
 
-  The module is intentionally not wired into the application tree yet. Runtime
-  owners can start it explicitly in later waves without redefining the seam.
+  The runtime owns the process in the default application tree and session
+  startup wires it by default through `Citadel.Runtime.start_session/1`.
   """
 
   use GenServer

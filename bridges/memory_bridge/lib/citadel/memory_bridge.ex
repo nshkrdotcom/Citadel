@@ -33,10 +33,10 @@ defmodule Citadel.MemoryBridge do
   @type t :: %__MODULE__{
           downstream: module(),
           circuit_policy: BridgeCircuitPolicy.t(),
-          state_server: GenServer.server()
+          state_ref: BridgeState.state_ref()
         }
 
-  defstruct downstream: nil, circuit_policy: nil, state_server: nil
+  defstruct downstream: nil, circuit_policy: nil, state_ref: nil
 
   @spec new!(keyword()) :: t()
   def new!(opts) do
@@ -56,8 +56,8 @@ defmodule Citadel.MemoryBridge do
     %__MODULE__{
       downstream: downstream,
       circuit_policy: circuit_policy,
-      state_server:
-        BridgeState.ensure_started!(
+      state_ref:
+        BridgeState.new_ref!(
           circuit:
             BridgeCircuit.new!(
               policy: circuit_policy,
@@ -125,20 +125,20 @@ defmodule Citadel.MemoryBridge do
   end
 
   defp with_scope(%__MODULE__{} = bridge, scope_key, fun) when is_function(fun, 1) do
-    case BridgeState.begin_operation(bridge.state_server, scope_key) do
+    case BridgeState.begin_operation(bridge.state_ref, scope_key) do
       {:ok, token} ->
         case fun.(bridge.downstream) do
           {:ok, result} ->
-            {:ok, result} =
-              BridgeState.finish_operation(bridge.state_server, token, {:ok, result})
-
-            {:ok, result, bridge}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:ok, result}) do
+              {:ok, ^result} -> {:ok, result, bridge}
+              {:error, :operation_not_found} -> {:ok, result, bridge}
+            end
 
           {:error, reason} ->
-            {:error, reason} =
-              BridgeState.finish_operation(bridge.state_server, token, {:error, reason})
-
-            {:error, reason, bridge}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
+              {:error, ^reason} -> {:error, reason, bridge}
+              {:error, :operation_not_found} -> {:error, reason, bridge}
+            end
         end
 
       {:error, reason} ->

@@ -253,6 +253,57 @@ defmodule Citadel.Conformance.HostSurfaceHarnessConformanceTest do
              HostSurfaceHarness.inspect_session(harness, "sess-review").raw_blob
   end
 
+  test "keeps live-owner acceptance on the public host surface without rotating session ownership",
+       setup do
+    signal_bridge = SignalBridge.new!(adapter: SignalAdapter)
+
+    {:ok, session_server} =
+      SessionServer.start_link(
+        name: unique_name(:live_owner_session),
+        session_id: "sess-live-owner",
+        session_directory: setup.session_directory,
+        kernel_snapshot: setup.kernel_snapshot,
+        boundary_lease_tracker: setup.boundary_tracker,
+        service_catalog: setup.service_catalog,
+        signal_ingress: setup.signal_ingress,
+        invocation_supervisor: setup.invocation_supervisor,
+        projection_supervisor: setup.projection_supervisor,
+        local_supervisor: setup.local_supervisor,
+        request_id: "req-live-owner",
+        trace_id: "trace/req-live-owner",
+        tenant_id: "tenant-1"
+      )
+
+    harness =
+      HostSurfaceHarness.new!(
+        session_directory: setup.session_directory,
+        signal_bridge: signal_bridge,
+        policy_packs: [policy_pack()],
+        lookup_session: fn
+          "sess-live-owner" -> {:ok, session_server}
+          _session_id -> {:error, :not_found}
+        end
+      )
+
+    assert {:accepted, accepted, _harness} =
+             HostSurfaceHarness.submit_envelope(
+               harness,
+               HostSurfaceHarness.valid_direct_envelope(%{
+                 intent_envelope_id: "intent/conformance/live-owner"
+               }),
+               request_context("req-live-owner", "sess-live-owner")
+             )
+
+    assert accepted.lifecycle_event == :live_owner
+
+    assert {:ok, session_state} =
+             SessionServer.commit_transition(session_server, %{
+               external_refs: %{"conformance" => "ok"}
+             })
+
+    assert session_state.owner_incarnation == 1
+  end
+
   defp request_context(request_id, session_id) do
     %{
       request_id: request_id,

@@ -13,6 +13,7 @@ defmodule Citadel.Runtime.SessionServer do
   alias Citadel.ObservabilityContract.Trace
   alias Citadel.PersistedSessionBlob
   alias Citadel.PersistedSessionEnvelope
+  alias Citadel.RuntimeObservation
   alias Citadel.Runtime.BoundaryLeaseTracker
   alias Citadel.Runtime.KernelSnapshot
   alias Citadel.Runtime.ServiceCatalog
@@ -39,6 +40,14 @@ defmodule Citadel.Runtime.SessionServer do
 
   def commit_transition(server, state_changes, opts \\ []) do
     GenServer.call(server, {:commit_transition, state_changes, opts}, :infinity)
+  end
+
+  def record_host_acceptance(server, opts \\ []) do
+    commit_transition(server, %{}, Keyword.put_new(opts, :meaningful_activity?, true))
+  end
+
+  def record_runtime_observation(server, %RuntimeObservation{} = observation) do
+    GenServer.call(server, {:record_runtime_observation, observation}, :infinity)
   end
 
   def record_rejection(server, %DecisionRejection{} = rejection, opts \\ []) do
@@ -181,6 +190,20 @@ defmodule Citadel.Runtime.SessionServer do
     end
   end
 
+  def handle_call(
+        {:record_runtime_observation, %RuntimeObservation{} = observation},
+        _from,
+        state
+      ) do
+    case apply_runtime_observation(state, observation) do
+      {:ok, next_state} ->
+        {:reply, :ok, next_state, next_timeout(next_state)}
+
+      {:error, reason, next_state} ->
+        {:reply, {:error, reason}, next_state, next_timeout(next_state)}
+    end
+  end
+
   def handle_call(:replay_pending, _from, state) do
     state = schedule_replay(state)
     {:reply, :ok, state, next_timeout(state)}
@@ -193,27 +216,12 @@ defmodule Citadel.Runtime.SessionServer do
   end
 
   def handle_info({:runtime_observation, observation}, state) do
-    if observation.signal_id in state.session_state.recent_signal_hashes do
-      {:noreply, state, next_timeout(state)}
-    else
-      trimmed_hashes =
-        [observation.signal_id | state.session_state.recent_signal_hashes]
-        |> Enum.uniq()
-        |> Enum.take(state.recent_signal_window_size)
+    case apply_runtime_observation(state, observation) do
+      {:ok, next_state} ->
+        {:noreply, next_state, next_timeout(next_state)}
 
-      state_changes = %{
-        signal_cursor: observation.signal_cursor || state.session_state.signal_cursor,
-        recent_signal_hashes: trimmed_hashes,
-        last_active_at: state.clock.utc_now()
-      }
-
-      case apply_transition_commit(state, state_changes, meaningful_activity?: true) do
-        {:ok, next_state} ->
-          {:noreply, next_state, next_timeout(next_state)}
-
-        {:error, _reason, next_state} ->
-          {:noreply, next_state, next_timeout(next_state)}
-      end
+      {:error, _reason, next_state} ->
+        {:noreply, next_state, next_timeout(next_state)}
     end
   end
 
@@ -701,6 +709,28 @@ defmodule Citadel.Runtime.SessionServer do
   defp replay_ready?(entry, now) do
     entry.replay_status in [:pending, :dispatched] and
       (is_nil(entry.next_attempt_at) or DateTime.compare(entry.next_attempt_at, now) != :gt)
+  end
+
+  defp apply_runtime_observation(state, %RuntimeObservation{} = observation) do
+    if observation.signal_id in state.session_state.recent_signal_hashes do
+      {:ok, state}
+    else
+      trimmed_hashes =
+        [observation.signal_id | state.session_state.recent_signal_hashes]
+        |> Enum.uniq()
+        |> Enum.take(state.recent_signal_window_size)
+
+      state_changes = %{
+        signal_cursor: observation.signal_cursor || state.session_state.signal_cursor,
+        recent_signal_hashes: trimmed_hashes,
+        last_active_at: state.clock.utc_now()
+      }
+
+      case apply_transition_commit(state, state_changes, meaningful_activity?: true) do
+        {:ok, next_state} -> {:ok, next_state}
+        {:error, reason, next_state} -> {:error, reason, next_state}
+      end
+    end
   end
 
   defp maybe_dispatch_entry(state, entry) do
