@@ -8,9 +8,13 @@ defmodule Citadel.Apps.HostSurfaceHarnessTest do
   alias Citadel.PersistedSessionBlob
   alias Citadel.PersistedSessionEnvelope
   alias Citadel.ProjectionBridge
+  alias Citadel.Runtime.BoundaryLeaseTracker
   alias Citadel.Runtime.KernelSnapshot
+  alias Citadel.Runtime.ServiceCatalog
   alias Citadel.RuntimeObservation
   alias Citadel.Runtime.SessionDirectory
+  alias Citadel.Runtime.SessionServer
+  alias Citadel.Runtime.SignalIngress
   alias Citadel.SignalBridge
 
   defmodule Resolver do
@@ -80,6 +84,7 @@ defmodule Citadel.Apps.HostSurfaceHarnessTest do
     )
 
     {:ok,
+     kernel_snapshot: kernel_snapshot_name,
      session_directory: session_directory_name,
      signal_bridge: SignalBridge.new!(adapter: SignalAdapter)}
   end
@@ -214,6 +219,83 @@ defmodule Citadel.Apps.HostSurfaceHarnessTest do
     assert_receive {:derived_state_attachment, attachment, %{entry_id: derived_entry_id}}
     assert attachment.metadata["attachment_kind"] == "decision_rejection"
     assert derived_entry_id == "publish/#{derived_result.rejection.rejection_id}"
+  end
+
+  test "routes rejection persistence through a live session owner when one exists",
+       %{
+         kernel_snapshot: kernel_snapshot,
+         session_directory: session_directory,
+         signal_bridge: signal_bridge
+       } do
+    service_catalog = unique_name(:service_catalog)
+    boundary_tracker = unique_name(:boundary_tracker)
+    signal_ingress = unique_name(:signal_ingress)
+    invocation_supervisor = unique_name(:invocation_supervisor)
+    projection_supervisor = unique_name(:projection_supervisor)
+    local_supervisor = unique_name(:local_supervisor)
+    session_server = unique_name(:session_server)
+
+    start_supervised!({ServiceCatalog, name: service_catalog, kernel_snapshot: kernel_snapshot})
+    start_supervised!({BoundaryLeaseTracker, name: boundary_tracker, kernel_snapshot: kernel_snapshot})
+    start_supervised!({Task.Supervisor, name: invocation_supervisor})
+    start_supervised!({Task.Supervisor, name: projection_supervisor})
+    start_supervised!({Task.Supervisor, name: local_supervisor})
+
+    start_supervised!(
+      {SignalIngress,
+       name: signal_ingress,
+       session_directory: session_directory,
+       signal_source: SignalAdapter}
+    )
+
+    start_supervised!(
+      {SessionServer,
+       name: session_server,
+       session_id: "sess-live",
+       session_directory: session_directory,
+       kernel_snapshot: kernel_snapshot,
+       boundary_lease_tracker: boundary_tracker,
+       service_catalog: service_catalog,
+       signal_ingress: signal_ingress,
+       invocation_supervisor: invocation_supervisor,
+       projection_supervisor: projection_supervisor,
+       local_supervisor: local_supervisor}
+    )
+
+    harness =
+      HostSurfaceHarness.new!(
+        session_directory: session_directory,
+        signal_bridge: signal_bridge,
+        policy_packs: [policy_pack()],
+        lookup_session: fn
+          "sess-live" -> {:ok, session_server}
+          _other -> {:error, :not_found}
+        end
+      )
+
+    assert {:rejected, result, _harness} =
+             HostSurfaceHarness.submit_envelope(
+               harness,
+               HostSurfaceHarness.unplannable_direct_envelope(),
+               request_context("req-live", "sess-live")
+             )
+
+    assert result.lifecycle_event == :live_owner
+
+    assert {:ok, session_state} =
+             SessionServer.commit_transition(session_server, %{
+               external_refs: %{"follow_up" => "ok"}
+             })
+
+    assert session_state.owner_incarnation == 1
+    assert session_state.last_rejection.reason_code == "boundary_reuse_requires_attached_session"
+
+    assert {:ok, persisted_blob} =
+             SessionDirectory.fetch_persisted_blob(session_directory, "sess-live")
+
+    assert persisted_blob.envelope.owner_incarnation == 1
+    assert persisted_blob.envelope.last_rejection.reason_code ==
+             "boundary_reuse_requires_attached_session"
   end
 
   test "exposes strict dead-letter maintenance and selector-based bulk recovery through host-facing wrappers",

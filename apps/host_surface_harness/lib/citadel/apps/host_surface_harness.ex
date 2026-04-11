@@ -30,6 +30,7 @@ defmodule Citadel.Apps.HostSurfaceHarness do
   alias Citadel.ProjectionBridge
   alias Citadel.ResolutionProvenance
   alias Citadel.Runtime.SessionDirectory
+  alias Citadel.Runtime.SessionServer
   alias Citadel.Runtime.SystemClock
   alias Citadel.ScopeRef
   alias Citadel.SessionContinuityCommit
@@ -376,14 +377,10 @@ defmodule Citadel.Apps.HostSurfaceHarness do
       |> Keyword.put_new(:scope_ref, scope_ref_from_envelope(envelope, context))
       |> Keyword.put_new(:extensions, host_extensions(context, ingress_path))
 
-    with {:ok, %{blob: claimed_blob, lifecycle_event: lifecycle_event}} <-
-           SessionDirectory.claim_session(
-             harness.session_directory,
-             context.session_id,
-             claim_opts
-           ),
-         rejection <- classify_rejection!(context, selection, default_reason_code, opts),
-         {:ok, committed_blob} <- commit_rejection(harness, claimed_blob, rejection) do
+    rejection = classify_rejection!(context, selection, default_reason_code, opts)
+
+    with {:ok, persistence_result} <-
+           persist_rejection(harness, context.session_id, rejection, claim_opts) do
       {publication, harness} =
         maybe_publish_rejection(harness, rejection, selection, context)
 
@@ -392,8 +389,8 @@ defmodule Citadel.Apps.HostSurfaceHarness do
          request_id: context.request_id,
          session_id: context.session_id,
          trace_id: context.trace_id,
-         lifecycle_event: lifecycle_event,
-         continuity_revision: committed_blob.envelope.continuity_revision,
+         lifecycle_event: persistence_result.lifecycle_event,
+         continuity_revision: persistence_result.continuity_revision,
          ingress_path: ingress_path,
          rejection: rejection,
          publication: publication,
@@ -402,6 +399,56 @@ defmodule Citadel.Apps.HostSurfaceHarness do
     else
       {:error, reason} -> {:error, reason, harness}
     end
+  end
+
+  defp persist_rejection(harness, session_id, rejection, claim_opts) do
+    case harness.lookup_session.(session_id) do
+      {:ok, session_server} ->
+        case record_rejection_with_live_owner(session_server, rejection) do
+          {:ok, session_state} ->
+            {:ok,
+             %{
+               lifecycle_event: :live_owner,
+               continuity_revision: session_state.continuity_revision
+             }}
+
+          {:error, :not_found} ->
+            persist_rejection_without_live_owner(harness, session_id, rejection, claim_opts)
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+
+      {:error, :not_found} ->
+        persist_rejection_without_live_owner(harness, session_id, rejection, claim_opts)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp persist_rejection_without_live_owner(harness, session_id, rejection, claim_opts) do
+    with {:ok, %{blob: claimed_blob, lifecycle_event: lifecycle_event}} <-
+           SessionDirectory.claim_session(
+             harness.session_directory,
+             session_id,
+             claim_opts
+           ),
+         {:ok, committed_blob} <- commit_rejection(harness, claimed_blob, rejection) do
+      {:ok,
+       %{
+         lifecycle_event: lifecycle_event,
+         continuity_revision: committed_blob.envelope.continuity_revision
+       }}
+    end
+  end
+
+  defp record_rejection_with_live_owner(session_server, rejection) do
+    SessionServer.record_rejection(session_server, rejection)
+  catch
+    :exit, {:noproc, _details} -> {:error, :not_found}
+    :exit, :noproc -> {:error, :not_found}
+    :exit, reason -> {:error, reason}
   end
 
   defp classify_rejection!(context, %Selection{} = selection, default_reason_code, opts) do

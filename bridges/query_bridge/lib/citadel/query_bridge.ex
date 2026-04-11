@@ -6,6 +6,7 @@ defmodule Citadel.QueryBridge do
   alias Citadel.BoundarySessionDescriptor.V1, as: BoundarySessionDescriptorV1
   alias Citadel.BridgeCircuit
   alias Citadel.BridgeCircuitPolicy
+  alias Citadel.BridgeState
   alias Citadel.RuntimeObservation
 
   @behaviour Citadel.Ports.RuntimeQuery
@@ -30,10 +31,11 @@ defmodule Citadel.QueryBridge do
 
   @type t :: %__MODULE__{
           downstream: module(),
-          circuit: BridgeCircuit.t()
+          circuit_policy: BridgeCircuitPolicy.t(),
+          state_server: GenServer.server()
         }
 
-  defstruct downstream: nil, circuit: nil
+  defstruct downstream: nil, circuit_policy: nil, state_server: nil
 
   @spec new!(keyword()) :: t()
   def new!(opts) do
@@ -46,12 +48,20 @@ defmodule Citadel.QueryBridge do
             "Citadel.QueryBridge.downstream must export fetch_runtime_observation/1 and fetch_boundary_session/1"
     end
 
+    circuit_policy = Keyword.get(opts, :circuit_policy, default_circuit_policy())
+    state_name = Keyword.get(opts, :state_name)
+
     %__MODULE__{
       downstream: downstream,
-      circuit:
-        BridgeCircuit.new!(
-          policy: Keyword.get(opts, :circuit_policy, default_circuit_policy()),
-          now_ms_fun: Keyword.get(opts, :now_ms_fun)
+      circuit_policy: circuit_policy,
+      state_server:
+        BridgeState.ensure_started!(
+          circuit:
+            BridgeCircuit.new!(
+              policy: circuit_policy,
+              now_ms_fun: Keyword.get(opts, :now_ms_fun)
+            ),
+          name: state_name
         )
     }
   end
@@ -115,22 +125,24 @@ defmodule Citadel.QueryBridge do
 
     normalized_query = Map.new(query)
 
-    case BridgeCircuit.allow(bridge.circuit, scope_key) do
-      {:ok, updated_circuit} ->
-        bridge = %{bridge | circuit: updated_circuit}
-
+    case BridgeState.begin_operation(bridge.state_server, scope_key) do
+      {:ok, token} ->
         case fun.(bridge.downstream, normalized_query) do
           {:ok, result} ->
-            {:ok, result,
-             %{bridge | circuit: BridgeCircuit.record_success(bridge.circuit, scope_key)}}
+            {:ok, result} =
+              BridgeState.finish_operation(bridge.state_server, token, {:ok, result})
+
+            {:ok, result, bridge}
 
           {:error, reason} ->
-            {:error, reason,
-             %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
+            {:error, reason} =
+              BridgeState.finish_operation(bridge.state_server, token, {:error, reason})
+
+            {:error, reason, bridge}
         end
 
-      {{:error, :circuit_open}, updated_circuit} ->
-        {:error, :circuit_open, %{bridge | circuit: updated_circuit}}
+      {:error, reason} ->
+        {:error, reason, bridge}
     end
   end
 end

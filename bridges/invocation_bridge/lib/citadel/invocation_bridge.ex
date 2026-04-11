@@ -7,6 +7,7 @@ defmodule Citadel.InvocationBridge do
   alias Citadel.ActionOutboxEntry
   alias Citadel.BridgeCircuit
   alias Citadel.BridgeCircuitPolicy
+  alias Citadel.BridgeState
   alias Citadel.ExecutionIntentEnvelope.V1, as: ExecutionIntentEnvelopeV1
   alias Citadel.InvocationBridge.ExecutionIntentAdapter
   alias Citadel.InvocationRequest
@@ -37,15 +38,17 @@ defmodule Citadel.InvocationBridge do
 
   @type t :: %__MODULE__{
           downstream: module(),
-          circuit: BridgeCircuit.t(),
+          circuit_policy: BridgeCircuitPolicy.t(),
+          state_server: GenServer.server(),
           execution_intent_adapter: module(),
-          receipts_by_entry_id: %{required(String.t()) => String.t()}
+          supported_invocation_request_schema_versions: [pos_integer(), ...]
         }
 
   defstruct downstream: nil,
-            circuit: nil,
+            circuit_policy: nil,
+            state_server: nil,
             execution_intent_adapter: ExecutionIntentAdapter,
-            receipts_by_entry_id: %{}
+            supported_invocation_request_schema_versions: []
 
   @spec new!(keyword()) :: t()
   def new!(opts) do
@@ -58,6 +61,14 @@ defmodule Citadel.InvocationBridge do
 
     circuit_policy = Keyword.get(opts, :circuit_policy, default_circuit_policy())
     adapter = Keyword.get(opts, :execution_intent_adapter, ExecutionIntentAdapter)
+    state_name = Keyword.get(opts, :state_name)
+    supported_versions =
+      opts
+      |> Keyword.get(
+        :supported_invocation_request_schema_versions,
+        supported_invocation_request_schema_versions()
+      )
+      |> validate_supported_invocation_request_schema_versions!()
 
     unless is_atom(adapter) and Code.ensure_loaded?(adapter) and
              function_exported?(adapter, :project!, 2) do
@@ -67,10 +78,15 @@ defmodule Citadel.InvocationBridge do
 
     %__MODULE__{
       downstream: downstream,
-      circuit:
-        BridgeCircuit.new!(policy: circuit_policy, now_ms_fun: Keyword.get(opts, :now_ms_fun)),
+      circuit_policy: circuit_policy,
+      state_server:
+        BridgeState.ensure_started!(
+          circuit:
+            BridgeCircuit.new!(policy: circuit_policy, now_ms_fun: Keyword.get(opts, :now_ms_fun)),
+          name: state_name
+        ),
       execution_intent_adapter: adapter,
-      receipts_by_entry_id: %{}
+      supported_invocation_request_schema_versions: supported_versions
     }
   end
 
@@ -104,7 +120,7 @@ defmodule Citadel.InvocationBridge do
         ) ::
           {:ok, String.t(), t()} | {:error, atom(), t()}
   def submit(%__MODULE__{} = bridge, %InvocationRequest{} = request, %ActionOutboxEntry{} = entry) do
-    if unsupported_schema_version?(request) do
+    if unsupported_schema_version?(bridge, request) do
       {:error, :unsupported_schema_version, bridge}
     else
       do_submit(bridge, request, entry)
@@ -131,38 +147,36 @@ defmodule Citadel.InvocationBridge do
          %InvocationRequest{} = request,
          %ActionOutboxEntry{} = entry
        ) do
-    case Map.fetch(bridge.receipts_by_entry_id, entry.entry_id) do
-      {:ok, receipt_ref} ->
+    envelope = bridge.execution_intent_adapter.project!(request, entry)
+    scope_key = scope_key(bridge.circuit_policy, envelope)
+
+    case BridgeState.begin_operation(bridge.state_server, scope_key, dedupe_key: entry.entry_id) do
+      {:duplicate, receipt_ref} ->
         {:ok, receipt_ref, bridge}
 
-      :error ->
-        envelope = bridge.execution_intent_adapter.project!(request, entry)
-        scope_key = scope_key(bridge.circuit.policy, envelope)
+      {:error, reason} ->
+        {:error, reason, bridge}
 
-        case BridgeCircuit.allow(bridge.circuit, scope_key) do
-          {:ok, updated_circuit} ->
-            bridge = %{bridge | circuit: updated_circuit}
+      {:ok, token} ->
+        case bridge.downstream.submit_execution_intent(envelope) do
+          {:ok, receipt_ref} when is_binary(receipt_ref) ->
+            {:ok, receipt_ref} =
+              BridgeState.finish_operation(bridge.state_server, token, {:ok, receipt_ref})
 
-            case bridge.downstream.submit_execution_intent(envelope) do
-              {:ok, receipt_ref} when is_binary(receipt_ref) ->
-                bridge =
-                  bridge
-                  |> Map.update!(:receipts_by_entry_id, &Map.put(&1, entry.entry_id, receipt_ref))
-                  |> Map.put(:circuit, BridgeCircuit.record_success(bridge.circuit, scope_key))
+            {:ok, receipt_ref, bridge}
 
-                {:ok, receipt_ref, bridge}
+          {:error, reason} ->
+            {:error, reason} =
+              BridgeState.finish_operation(bridge.state_server, token, {:error, reason})
 
-              {:error, reason} ->
-                {:error, reason,
-                 %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
+            {:error, reason, bridge}
 
-              other ->
-                {:error, normalize_error(other),
-                 %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
-            end
+          other ->
+            reason = normalize_error(other)
+            {:error, reason} =
+              BridgeState.finish_operation(bridge.state_server, token, {:error, reason})
 
-          {{:error, :circuit_open}, updated_circuit} ->
-            {:error, :circuit_open, %{bridge | circuit: updated_circuit}}
+            {:error, reason, bridge}
         end
     end
   end
@@ -183,10 +197,31 @@ defmodule Citadel.InvocationBridge do
     )
   end
 
-  defp unsupported_schema_version?(%InvocationRequest{schema_version: schema_version}) do
-    schema_version not in supported_invocation_request_schema_versions()
+  defp unsupported_schema_version?(
+         %__MODULE__{supported_invocation_request_schema_versions: supported_versions},
+         %InvocationRequest{schema_version: schema_version}
+       ) do
+    schema_version not in supported_versions
   end
 
   defp normalize_error({:error, reason}) when is_atom(reason), do: reason
   defp normalize_error(_other), do: :unknown
+
+  defp validate_supported_invocation_request_schema_versions!(versions)
+       when is_list(versions) and versions != [] do
+    versions
+    |> Enum.each(fn version ->
+      unless is_integer(version) and version > 0 do
+        raise ArgumentError,
+              "supported_invocation_request_schema_versions must contain positive integers, got: #{inspect(version)}"
+      end
+    end)
+
+    Enum.uniq(versions)
+  end
+
+  defp validate_supported_invocation_request_schema_versions!(other) do
+    raise ArgumentError,
+          "supported_invocation_request_schema_versions must be a non-empty list, got: #{inspect(other)}"
+  end
 end

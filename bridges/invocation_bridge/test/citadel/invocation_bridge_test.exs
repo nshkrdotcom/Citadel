@@ -60,6 +60,50 @@ defmodule Citadel.InvocationBridgeTest do
     refute_receive {:submitted, _envelope}
   end
 
+  test "shares receipt deduplication across fresh bridge instances when state_name is reused" do
+    state_name = unique_name(:invocation_bridge_state)
+    request = invocation_request()
+    entry = outbox_entry("entry-shared")
+
+    bridge =
+      InvocationBridge.new!(
+        downstream: Downstream,
+        state_name: state_name
+      )
+
+    assert {:ok, "receipt:entry-shared", _bridge} =
+             InvocationBridge.submit(bridge, request, entry)
+
+    assert_receive {:submitted, _envelope}
+
+    fresh_bridge =
+      InvocationBridge.new!(
+        downstream: Downstream,
+        state_name: state_name
+      )
+
+    assert {:ok, "receipt:entry-shared", _fresh_bridge} =
+             InvocationBridge.submit(fresh_bridge, request, entry)
+
+    refute_receive {:submitted, _envelope}
+  end
+
+  test "allows an explicit invocation schema transition window instead of hardcoding the current schema only" do
+    bridge =
+      InvocationBridge.new!(
+        downstream: Downstream,
+        supported_invocation_request_schema_versions: [1, 2]
+      )
+
+    request = %{invocation_request() | schema_version: 2}
+
+    assert {:ok, "receipt:entry-transition", _bridge} =
+             InvocationBridge.submit(bridge, request, outbox_entry("entry-transition"))
+
+    assert_receive {:submitted, envelope}
+    assert envelope.invocation_schema_version == 2
+  end
+
   test "fast-fails once the downstream circuit is open" do
     {:ok, clock} = Agent.start_link(fn -> 0 end)
 
@@ -210,5 +254,9 @@ defmodule Citadel.InvocationBridgeTest do
         }),
       extensions: %{}
     })
+  end
+
+  defp unique_name(prefix) do
+    :"#{prefix}_#{System.unique_integer([:positive])}"
   end
 end

@@ -7,6 +7,7 @@ defmodule Citadel.Runtime.SessionServer do
 
   alias Citadel.ActionOutboxEntry
   alias Citadel.BackoffPolicy
+  alias Citadel.DecisionRejection
   alias Citadel.LocalAction
   alias Citadel.ObservabilityContract.Telemetry
   alias Citadel.ObservabilityContract.Trace
@@ -38,6 +39,10 @@ defmodule Citadel.Runtime.SessionServer do
 
   def commit_transition(server, state_changes, opts \\ []) do
     GenServer.call(server, {:commit_transition, state_changes, opts}, :infinity)
+  end
+
+  def record_rejection(server, %DecisionRejection{} = rejection, opts \\ []) do
+    commit_transition(server, %{last_rejection: rejection}, opts)
   end
 
   def replace_pending_entry(

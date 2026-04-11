@@ -82,6 +82,34 @@ defmodule Citadel.ProjectionBridgeTest do
     assert published_attachment.metadata["kind"] == "derived_summary"
   end
 
+  test "shares publication deduplication across fresh bridge instances when state_name is reused" do
+    state_name = unique_name(:projection_bridge_state)
+    entry = outbox_entry("entry-shared")
+    observation = runtime_observation()
+
+    bridge =
+      ProjectionBridge.new!(
+        downstream: Downstream,
+        state_name: state_name
+      )
+
+    assert {:ok, "review:entry-shared", _bridge} =
+             ProjectionBridge.publish_review_projection(bridge, observation, entry)
+
+    assert_receive {:review_projection, _projection, %{entry_id: "entry-shared"}}
+
+    fresh_bridge =
+      ProjectionBridge.new!(
+        downstream: Downstream,
+        state_name: state_name
+      )
+
+    assert {:ok, "review:entry-shared", _fresh_bridge} =
+             ProjectionBridge.publish_review_projection(fresh_bridge, observation, entry)
+
+    refute_receive {:review_projection, _projection, _metadata}
+  end
+
   defp runtime_observation do
     RuntimeObservation.new!(%{
       observation_id: "obs-1",
@@ -165,5 +193,9 @@ defmodule Citadel.ProjectionBridgeTest do
         }),
       extensions: %{}
     })
+  end
+
+  defp unique_name(prefix) do
+    :"#{prefix}_#{System.unique_integer([:positive])}"
   end
 end
