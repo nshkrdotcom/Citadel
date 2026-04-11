@@ -74,16 +74,14 @@ defmodule Citadel.BridgeState do
   @impl true
   def handle_call({:begin_operation, scope_key, dedupe_key}, {caller_pid, _tag}, state) do
     scope_key = Value.string!(scope_key, "Citadel.BridgeState scope_key")
-
-    state =
-      case dedupe_key do
-        nil -> state
-        value -> %{state | pending_dedupe_keys: state.pending_dedupe_keys, receipts_by_dedupe_key: state.receipts_by_dedupe_key} |> validate_dedupe_key!(value)
-      end
+    state = validate_dedupe_key!(state, dedupe_key)
 
     case dedupe_reply(state, dedupe_key) do
       {:duplicate, receipt_ref} ->
         {:reply, {:duplicate, receipt_ref}, state}
+
+      {:error, :submission_inflight} ->
+        {:reply, {:error, :submission_inflight}, state}
 
       :proceed ->
         case BridgeCircuit.allow(state.circuit, scope_key) do
@@ -152,7 +150,7 @@ defmodule Citadel.BridgeState do
     end
   end
 
-  defp dedupe_reply(state, nil), do: :proceed
+  defp dedupe_reply(_state, nil), do: :proceed
 
   defp dedupe_reply(state, dedupe_key) do
     cond do
@@ -166,6 +164,8 @@ defmodule Citadel.BridgeState do
         :proceed
     end
   end
+
+  defp validate_dedupe_key!(state, nil), do: state
 
   defp validate_dedupe_key!(state, dedupe_key) do
     Value.string!(dedupe_key, "Citadel.BridgeState dedupe_key")

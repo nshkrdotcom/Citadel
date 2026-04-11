@@ -62,6 +62,7 @@ defmodule Citadel.InvocationBridge do
     circuit_policy = Keyword.get(opts, :circuit_policy, default_circuit_policy())
     adapter = Keyword.get(opts, :execution_intent_adapter, ExecutionIntentAdapter)
     state_name = Keyword.get(opts, :state_name)
+
     supported_versions =
       opts
       |> Keyword.get(
@@ -173,6 +174,7 @@ defmodule Citadel.InvocationBridge do
 
           other ->
             reason = normalize_error(other)
+
             {:error, reason} =
               BridgeState.finish_operation(bridge.state_server, token, {:error, reason})
 

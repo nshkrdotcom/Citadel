@@ -236,16 +236,18 @@ defmodule Citadel.Apps.HostSurfaceHarnessTest do
     session_server = unique_name(:session_server)
 
     start_supervised!({ServiceCatalog, name: service_catalog, kernel_snapshot: kernel_snapshot})
-    start_supervised!({BoundaryLeaseTracker, name: boundary_tracker, kernel_snapshot: kernel_snapshot})
+
+    start_supervised!(
+      {BoundaryLeaseTracker, name: boundary_tracker, kernel_snapshot: kernel_snapshot}
+    )
+
     start_supervised!({Task.Supervisor, name: invocation_supervisor})
     start_supervised!({Task.Supervisor, name: projection_supervisor})
     start_supervised!({Task.Supervisor, name: local_supervisor})
 
     start_supervised!(
       {SignalIngress,
-       name: signal_ingress,
-       session_directory: session_directory,
-       signal_source: SignalAdapter}
+       name: signal_ingress, session_directory: session_directory, signal_source: SignalAdapter}
     )
 
     start_supervised!(
@@ -294,6 +296,7 @@ defmodule Citadel.Apps.HostSurfaceHarnessTest do
              SessionDirectory.fetch_persisted_blob(session_directory, "sess-live")
 
     assert persisted_blob.envelope.owner_incarnation == 1
+
     assert persisted_blob.envelope.last_rejection.reason_code ==
              "boundary_reuse_requires_attached_session"
   end
