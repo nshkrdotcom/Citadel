@@ -27,6 +27,12 @@ defmodule Citadel.PolicyPacks.Selector do
 
   def schema, do: @schema
 
+  def new!(%__MODULE__{} = selector) do
+    selector
+    |> dump()
+    |> new!()
+  end
+
   def new!(attrs) do
     attrs = Value.normalize_attrs!(attrs, "Citadel.PolicyPacks.Selector", @fields)
 
@@ -96,20 +102,52 @@ defmodule Citadel.PolicyPacks.Selector do
 
   def matches?(%__MODULE__{default?: true}, _attrs), do: true
 
-  def matches?(%__MODULE__{} = selector, attrs) when is_map(attrs) do
-    tenant_id = Value.string!(Map.fetch!(attrs, :tenant_id), "policy selection tenant_id")
-    scope_kind = Value.string!(Map.fetch!(attrs, :scope_kind), "policy selection scope_kind")
+  def matches?(%__MODULE__{} = selector, attrs) do
+    selector = new!(selector)
+    attrs = normalize_match_inputs!(attrs)
 
-    environment =
-      Value.optional_string!(Map.get(attrs, :environment), "policy selection environment")
-
-    match_dimension?(selector.tenant_ids, tenant_id) and
-      match_dimension?(selector.scope_kinds, scope_kind) and
-      match_dimension?(selector.environments, environment)
+    match_dimension?(selector.tenant_ids, attrs.tenant_id) and
+      match_dimension?(selector.scope_kinds, attrs.scope_kind) and
+      match_dimension?(selector.environments, attrs.environment)
   end
 
   defp match_dimension?([], _value), do: true
   defp match_dimension?(values, value), do: value in values
+
+  defp normalize_match_inputs!(attrs) do
+    attrs =
+      Value.normalize_attrs!(
+        attrs,
+        "Citadel.PolicyPacks.Selector matches input",
+        [:tenant_id, :scope_kind, :environment, :policy_epoch]
+      )
+
+    %{
+      tenant_id:
+        Value.required(attrs, :tenant_id, "Citadel.PolicyPacks.Selector matches input", fn value ->
+          Value.string!(value, "Citadel.PolicyPacks.Selector matches input.tenant_id")
+        end),
+      scope_kind:
+        Value.required(
+          attrs,
+          :scope_kind,
+          "Citadel.PolicyPacks.Selector matches input",
+          fn value ->
+            Value.string!(value, "Citadel.PolicyPacks.Selector matches input.scope_kind")
+          end
+        ),
+      environment:
+        Value.optional(
+          attrs,
+          :environment,
+          "Citadel.PolicyPacks.Selector matches input",
+          fn value ->
+            Value.string!(value, "Citadel.PolicyPacks.Selector matches input.environment")
+          end,
+          nil
+        )
+    }
+  end
 end
 
 defmodule Citadel.PolicyPacks.Profiles do
@@ -227,6 +265,12 @@ defmodule Citadel.PolicyPacks.RejectionPolicy do
   defstruct @fields
 
   def schema, do: @schema
+
+  def new!(%__MODULE__{} = policy) do
+    policy
+    |> dump()
+    |> new!()
+  end
 
   def new!(attrs) do
     attrs = Value.normalize_attrs!(attrs, "Citadel.PolicyPacks.RejectionPolicy", @fields)
@@ -346,6 +390,12 @@ defmodule Citadel.PolicyPacks.PolicyPack do
 
   def schema, do: @schema
 
+  def new!(%__MODULE__{} = pack) do
+    pack
+    |> dump()
+    |> new!()
+  end
+
   def new!(attrs) do
     attrs = Value.normalize_attrs!(attrs, "Citadel.PolicyPacks.PolicyPack", @fields)
 
@@ -410,7 +460,10 @@ defmodule Citadel.PolicyPacks.PolicyPack do
     }
   end
 
-  def matches?(%__MODULE__{} = pack, attrs), do: Selector.matches?(pack.selector, attrs)
+  def matches?(%__MODULE__{} = pack, attrs) do
+    pack = new!(pack)
+    Selector.matches?(pack.selector, attrs)
+  end
 end
 
 defmodule Citadel.PolicyPacks.Selection do

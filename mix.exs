@@ -44,6 +44,9 @@ defmodule Citadel.Workspace.MixProject do
         credo: :test,
         dialyzer: :test,
         ci: :test,
+        "hardening.pure_core": :test,
+        "hardening.pure_core.adversarial": :test,
+        "hardening.pure_core.mutation": :test,
         "lint.packet_seams": :test,
         "lint.strict": :test,
         "static.analysis": :test
@@ -68,6 +71,18 @@ defmodule Citadel.Workspace.MixProject do
     ]
 
     [
+      "hardening.pure_core.adversarial": [
+        "cmd --cd core/policy_packs mix hardening.adversarial",
+        "cmd --cd core/citadel_core mix hardening.adversarial"
+      ],
+      "hardening.pure_core.mutation": [
+        "cmd --cd core/policy_packs mix hardening.mutation",
+        "cmd --cd core/citadel_core mix hardening.mutation"
+      ],
+      "hardening.pure_core": [
+        "hardening.pure_core.adversarial",
+        "hardening.pure_core.mutation"
+      ],
       "lint.strict": ["credo --config-name strict --all"],
       "static.analysis": ["lint.packet_seams", "lint.strict", "monorepo.dialyzer"],
       ci: [

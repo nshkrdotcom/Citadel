@@ -235,6 +235,7 @@ defmodule Citadel.DecisionRejectionClassifier do
   alias Citadel.ContractCore.Value
   alias Citadel.DecisionRejection
   alias Citadel.PolicyPacks.PolicyPack
+  alias Citadel.PolicyPacks.RejectionPolicy
   alias Citadel.PolicyPacks.Selection
 
   @allowed_causes [
@@ -253,6 +254,8 @@ defmodule Citadel.DecisionRejectionClassifier do
 
   def classify!(attrs, rejection_policy) do
     attrs = Value.normalize_attrs!(attrs, "Citadel.DecisionRejectionClassifier", @input_fields)
+    rejection_policy =
+      RejectionPolicy.new!(rejection_policy)
 
     causes =
       normalize_causes!(

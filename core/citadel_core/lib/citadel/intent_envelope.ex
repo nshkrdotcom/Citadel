@@ -3,6 +3,11 @@ defmodule Citadel.IntentMappingConstraints do
   Frozen Wave 3 value-level mappings that later feed `BoundaryIntent` and `TopologyIntent`.
   """
 
+  alias Citadel.ContractCore.Value
+  alias Citadel.IntentEnvelope
+  alias Citadel.IntentEnvelope.Constraints
+  alias Citadel.IntentEnvelope.TargetHint
+
   @allowed_boundary_requirements [:reuse_existing, :fresh_or_reuse, :fresh_only, :no_boundary]
   @allowed_session_modes [:attached, :detached, :stateless]
   @allowed_coordination_modes [:single_target, :parallel_fanout, :local_only]
@@ -36,19 +41,37 @@ defmodule Citadel.IntentMappingConstraints do
   def boundary_attach_mode_for(:fresh_or_reuse), do: "fresh_or_reuse"
   def boundary_attach_mode_for(:fresh_only), do: "fresh_only"
   def boundary_attach_mode_for(:no_boundary), do: "not_applicable"
+  def boundary_attach_mode_for(value),
+    do:
+      raise(
+        ArgumentError,
+        "Citadel.IntentMappingConstraints boundary requirement is invalid: #{inspect(value)}"
+      )
 
-  def topology_session_mode_for(%{boundary_requirement: :no_boundary}, _target_hints),
-    do: :stateless
+  def topology_session_mode_for(constraints, target_hints) do
+    constraints =
+      Value.module!(
+        constraints,
+        Constraints,
+        "Citadel.IntentMappingConstraints.constraints"
+      )
 
-  def topology_session_mode_for(_constraints, target_hints) do
-    target_hints
-    |> Enum.map(& &1.session_mode_preference)
-    |> Enum.reject(&is_nil/1)
-    |> List.first()
-    |> Kernel.||(:attached)
+    target_hints = normalize_target_hints!(target_hints)
+
+    if constraints.boundary_requirement == :no_boundary do
+      :stateless
+    else
+      target_hints
+      |> Enum.map(& &1.session_mode_preference)
+      |> Enum.reject(&is_nil/1)
+      |> List.first()
+      |> Kernel.||(:attached)
+    end
   end
 
   def coordination_mode_for(target_hints) do
+    target_hints = normalize_target_hints!(target_hints)
+
     target_hints
     |> Enum.map(& &1.coordination_mode_preference)
     |> Enum.reject(&is_nil/1)
@@ -56,7 +79,9 @@ defmodule Citadel.IntentMappingConstraints do
     |> Kernel.||(:single_target)
   end
 
-  def boundary_mapping(envelope) when is_map(envelope) do
+  def boundary_mapping(envelope) do
+    envelope = normalize_envelope!(envelope)
+
     %{
       requested_attach_mode: boundary_attach_mode_for(envelope.constraints.boundary_requirement),
       preferred_boundary_class:
@@ -68,7 +93,9 @@ defmodule Citadel.IntentMappingConstraints do
     }
   end
 
-  def topology_mapping(envelope) when is_map(envelope) do
+  def topology_mapping(envelope) do
+    envelope = normalize_envelope!(envelope)
+
     %{
       session_mode: topology_session_mode_for(envelope.constraints, envelope.target_hints),
       coordination_mode: coordination_mode_for(envelope.target_hints),
@@ -89,7 +116,8 @@ defmodule Citadel.IntentMappingConstraints do
     }
   end
 
-  def planning_status(envelope) when is_map(envelope) do
+  def planning_status(envelope) do
+    envelope = normalize_envelope!(envelope)
     session_mode = topology_session_mode_for(envelope.constraints, envelope.target_hints)
 
     cond do
@@ -104,6 +132,44 @@ defmodule Citadel.IntentMappingConstraints do
       true ->
         :plannable
     end
+  end
+
+  defp normalize_envelope!(%{__struct__: IntentEnvelope} = envelope) do
+    revalidate_struct!(
+      envelope,
+      "Citadel.IntentMappingConstraints envelope",
+      &IntentEnvelope.dump/1,
+      &IntentEnvelope.new!/1
+    )
+  end
+
+  defp normalize_envelope!(value) do
+    Value.module!(value, IntentEnvelope, "Citadel.IntentMappingConstraints envelope")
+  end
+
+  defp normalize_target_hints!(value) do
+    Value.list!(value, "Citadel.IntentMappingConstraints.target_hints", fn target_hint ->
+      Value.module!(
+        target_hint,
+        TargetHint,
+        "Citadel.IntentMappingConstraints.target_hints"
+      )
+    end)
+  end
+
+  defp revalidate_struct!(value, label, dump_fun, new_fun) do
+    dump_fun.(value)
+    |> new_fun.()
+  rescue
+    error in [
+      ArgumentError,
+      ArithmeticError,
+      BadMapError,
+      FunctionClauseError,
+      KeyError,
+      Protocol.UndefinedError
+    ] ->
+      raise ArgumentError, "#{label} is invalid: #{Exception.message(error)}"
   end
 end
 

@@ -32,3 +32,17 @@ Wave 2 freezes the public carrier shapes before deeper runtime behavior:
   is not the kernel contract
 - Waves 3 and 4 may tighten ingress mappings, but incompatible carrier-shape
   changes now require an explicit `schema_version` step
+
+## Hardening
+
+Wave 10 adversarial hardening is package-local and runnable through normal Mix flows:
+
+```bash
+mix hardening.adversarial
+mix hardening.mutation
+mix hardening
+```
+
+- `mix hardening.adversarial` runs the hostile-input property suite in `test/citadel/pure_core_adversarial_test.exs`
+- `mix hardening.mutation` runs build-failing mutation checks over `intent_envelope`, `decision_values`, `kernel_values`, and `runtime_values`
+- `mix hardening` runs both gates

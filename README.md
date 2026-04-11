@@ -100,6 +100,18 @@ mix static.analysis
 mix ci
 ```
 
+Pure-core adversarial hardening commands:
+
+```bash
+mix hardening.pure_core.adversarial
+mix hardening.pure_core.mutation
+mix hardening.pure_core
+```
+
+- `mix hardening.pure_core.adversarial` runs the Wave 10 property suites in `core/citadel_core` and `core/policy_packs`
+- `mix hardening.pure_core.mutation` runs build-failing mutation checks for the same pure-core packages
+- `mix hardening.pure_core` runs both gates
+
 The Wave 9 hardening posture is enforced in code and CI:
 
 - `mix lint.packet_seams` fails on `String.to_atom/1` anywhere in packet-critical workspace paths and blocks raw `map()` or `keyword()` public seam specs on the tracked ingress, bridge, runtime, and trace modules.

@@ -239,6 +239,12 @@ defmodule Citadel.BackoffPolicy do
   def allowed_strategies, do: @allowed_strategies
   def allowed_jitter_modes, do: @allowed_jitter_modes
 
+  def new!(%__MODULE__{} = policy) do
+    policy
+    |> dump()
+    |> new!()
+  end
+
   def new!(attrs) do
     attrs = Value.normalize_attrs!(attrs, "Citadel.BackoffPolicy", @fields)
 
@@ -318,6 +324,7 @@ defmodule Citadel.BackoffPolicy do
   end
 
   def compute_delay_ms!(%__MODULE__{} = policy, entry_id, attempt_count) do
+    policy = new!(policy)
     entry_id = Value.string!(entry_id, "Citadel.BackoffPolicy entry_id")
     attempt_count = Value.non_neg_integer!(attempt_count, "Citadel.BackoffPolicy attempt_count")
 
