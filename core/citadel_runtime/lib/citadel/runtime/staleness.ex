@@ -6,9 +6,14 @@ defmodule Citadel.Runtime.Staleness do
   alias Citadel.SessionState
   alias Citadel.StalenessRequirements
 
-  def stale?(%ActionOutboxEntry{staleness_mode: :stale_exempt}, _snapshot, _session_state), do: false
+  def stale?(%ActionOutboxEntry{staleness_mode: :stale_exempt}, _snapshot, _session_state),
+    do: false
 
-  def stale?(%ActionOutboxEntry{staleness_requirements: %StalenessRequirements{} = requirements}, %DecisionSnapshot{} = snapshot, %SessionState{} = session_state) do
+  def stale?(
+        %ActionOutboxEntry{staleness_requirements: %StalenessRequirements{} = requirements},
+        %DecisionSnapshot{} = snapshot,
+        %SessionState{} = session_state
+      ) do
     epoch_mismatch?(requirements.policy_epoch, snapshot.policy_epoch) or
       epoch_mismatch?(requirements.topology_epoch, snapshot.topology_epoch) or
       epoch_mismatch?(requirements.scope_catalog_epoch, snapshot.scope_catalog_epoch) or
@@ -26,16 +31,21 @@ defmodule Citadel.Runtime.Staleness do
 
   defp binding_mismatch?(nil, _session_state), do: false
 
-  defp binding_mismatch?(required_binding_id, %SessionState{project_binding: nil}), do: true
+  defp binding_mismatch?(_required_binding_id, %SessionState{project_binding: nil}), do: true
 
   defp binding_mismatch?(required_binding_id, %SessionState{project_binding: binding}) do
     binding.binding_id != required_binding_id
   end
 
   defp boundary_mismatch?(nil, _session_state), do: false
-  defp boundary_mismatch?(_required_boundary_ref, %SessionState{boundary_lease_view: nil}), do: true
 
-  defp boundary_mismatch?(required_boundary_ref, %SessionState{boundary_lease_view: boundary_lease_view}) do
-    boundary_lease_view.boundary_ref != required_boundary_ref or boundary_lease_view.staleness_status != :fresh
+  defp boundary_mismatch?(_required_boundary_ref, %SessionState{boundary_lease_view: nil}),
+    do: true
+
+  defp boundary_mismatch?(required_boundary_ref, %SessionState{
+         boundary_lease_view: boundary_lease_view
+       }) do
+    boundary_lease_view.boundary_ref != required_boundary_ref or
+      boundary_lease_view.staleness_status != :fresh
   end
 end

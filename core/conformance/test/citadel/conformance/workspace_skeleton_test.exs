@@ -1,14 +1,21 @@
 defmodule Citadel.Conformance.WorkspaceSkeletonTest do
   use ExUnit.Case, async: true
 
-  test "tracks the packet-defined seam and policy freeze" do
+  test "tracks the packet-defined seam and wave posture" do
     assert Citadel.ContractCore.manifest().status == :wave_2_seam_frozen
     assert Citadel.AuthorityContract.manifest().status == :wave_2_seam_frozen
     assert Citadel.AuthorityContract.packet_name() == "AuthorityDecision.v1"
     assert Citadel.AuthorityContract.extensions_namespaces() == ["citadel"]
     assert :decision_hash in Citadel.AuthorityContract.required_fields()
     assert Citadel.ObservabilityContract.telemetry_prefix() == [:citadel]
-    assert Citadel.PolicyPacks.selection_inputs() == [:tenant_id, :scope_kind, :environment, :policy_epoch]
+
+    assert Citadel.PolicyPacks.selection_inputs() == [
+             :tenant_id,
+             :scope_kind,
+             :environment,
+             :policy_epoch
+           ]
+
     assert Citadel.PolicyPacks.stable_selection_ordering() == :priority_desc_then_pack_id_asc
     assert Citadel.Core.shared_contract_strategy() == :higher_order_shared_contracts_only
 
@@ -36,6 +43,9 @@ defmodule Citadel.Conformance.WorkspaceSkeletonTest do
     assert_raise ArgumentError, ~r/unsupported Citadel\.InvocationRequest\.schema_version/, fn ->
       Citadel.InvocationBridge.ensure_supported_invocation_request_schema_version!(2)
     end
+
+    assert Citadel.Apps.HostSurfaceHarness.manifest().status == :wave_7_host_surface_proof
+    assert Citadel.Conformance.manifest().status == :wave_7_black_box_conformance
 
     assert Citadel.Conformance.manifest().external_dependencies == [
              :jido_integration_v2_contracts

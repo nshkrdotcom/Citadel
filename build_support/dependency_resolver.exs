@@ -45,26 +45,34 @@ defmodule Citadel.Build.DependencyResolver do
   end
 
   defp resolve_contracts_path do
-    [
-      explicit_contracts_path(),
-      jido_integration_root_path(),
-      @default_jido_integration_contracts_path
-    ]
-    |> Enum.find_value(&existing_path/1)
+    if contracts_path_resolution_disabled?() do
+      nil
+    else
+      [
+        explicit_contracts_path(),
+        jido_integration_root_path(),
+        @default_jido_integration_contracts_path
+      ]
+      |> Enum.find_value(&existing_path/1)
+    end
   end
 
   defp resolve_aitrace_path do
-    [
-      explicit_aitrace_path(),
-      @default_aitrace_path
-    ]
-    |> Enum.find_value(&existing_path/1)
+    if aitrace_path_resolution_disabled?() do
+      nil
+    else
+      [
+        explicit_aitrace_path(),
+        @default_aitrace_path
+      ]
+      |> Enum.find_value(&existing_path/1)
+    end
   end
 
   defp explicit_contracts_path do
     case System.get_env("CITADEL_JIDO_INTEGRATION_CONTRACTS_PATH") do
       nil -> nil
-      value when value in ["", "0", "false", "disabled"] -> nil
+      value when value in ["", "0", "false", "disabled", "published"] -> nil
       value -> value
     end
   end
@@ -80,7 +88,7 @@ defmodule Citadel.Build.DependencyResolver do
   defp explicit_aitrace_path do
     case System.get_env("AITRACE_PATH") do
       nil -> nil
-      value when value in ["", "0", "false", "disabled"] -> nil
+      value when value in ["", "0", "false", "disabled", "published"] -> nil
       value -> value
     end
   end
@@ -96,4 +104,24 @@ defmodule Citadel.Build.DependencyResolver do
       nil
     end
   end
+
+  defp contracts_path_resolution_disabled? do
+    case System.get_env("CITADEL_JIDO_INTEGRATION_CONTRACTS_PATH") do
+      value when is_binary(value) and value not in ["", "0", "false", "disabled", "published"] ->
+        false
+
+      value when value in ["0", "false", "disabled", "published"] ->
+        true
+
+      _other ->
+        disabled_env?(System.get_env("JIDO_INTEGRATION_PATH"))
+    end
+  end
+
+  defp aitrace_path_resolution_disabled? do
+    disabled_env?(System.get_env("AITRACE_PATH"))
+  end
+
+  defp disabled_env?(value) when value in ["0", "false", "disabled", "published"], do: true
+  defp disabled_env?(_value), do: false
 end

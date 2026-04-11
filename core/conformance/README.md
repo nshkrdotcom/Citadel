@@ -1,18 +1,27 @@
 # Citadel Conformance
 
-Status: Wave 1 workspace skeleton.
+Status: Wave 7 black-box conformance.
 
 ## Owns
 
 - cross-package black-box fixture ownership
 - contract conformance coverage
 - bridge and app composition verification
+- frozen-seam regression guards
+- published-artifact compatibility gating for shared public contracts
 
 ## Dependencies
 
 - public `core/*`, `bridges/*`, and `apps/*` package APIs
-- explicit Wave 2 placeholder for `:jido_integration_v2_contracts`
+- public `:jido_integration_v2_contracts` fixtures and types
 
-## Wave 1 Posture
+## Wave 7 Posture
 
-The package exists from the bootstrap wave so conformance remains its own lane instead of becoming an afterthought or leaking into private test helpers across the workspace.
+Conformance stays black-box. It proves the workspace still composes through
+public seams only, exercises the host-surface harness without reaching through
+private helpers, and carries an explicit release-artifact gate so local
+path-only contract changes do not become the only verified compatibility mode.
+
+Run the published-or-staged artifact gate with:
+
+`bin/test_published_contracts.sh`

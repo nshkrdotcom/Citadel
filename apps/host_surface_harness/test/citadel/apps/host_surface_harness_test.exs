@@ -1,0 +1,380 @@
+defmodule Citadel.Apps.HostSurfaceHarnessTest do
+  use ExUnit.Case, async: false
+
+  alias Citadel.ActionOutboxEntry
+  alias Citadel.Apps.HostSurfaceHarness
+  alias Citadel.BackoffPolicy
+  alias Citadel.LocalAction
+  alias Citadel.PersistedSessionBlob
+  alias Citadel.PersistedSessionEnvelope
+  alias Citadel.ProjectionBridge
+  alias Citadel.Runtime.KernelSnapshot
+  alias Citadel.Runtime.SessionDirectory
+  alias Citadel.SignalBridge
+
+  defmodule Resolver do
+    def resolve_intent(%{"mode" => "resolved"}) do
+      {:ok, HostSurfaceHarness.valid_direct_envelope(%{intent_envelope_id: "intent/resolved"})}
+    end
+
+    def resolve_intent(_raw_input), do: {:error, :unsupported_shape}
+  end
+
+  defmodule ProjectionDownstream do
+    def publish_review_projection(projection, metadata) do
+      send(
+        Process.get(:host_surface_harness_test_pid),
+        {:review_projection, projection, metadata}
+      )
+
+      {:ok, "review:#{metadata.entry_id}"}
+    end
+
+    def publish_derived_state_attachment(attachment, metadata) do
+      send(
+        Process.get(:host_surface_harness_test_pid),
+        {:derived_state_attachment, attachment, metadata}
+      )
+
+      {:ok, "attachment:#{metadata.entry_id}"}
+    end
+  end
+
+  defmodule SignalAdapter do
+    def normalize_signal(%{session_id: session_id, signal_id: signal_id, payload: payload}) do
+      {:ok,
+       %{
+         observation_id: "obs/#{signal_id}",
+         request_id: "req/#{signal_id}",
+         session_id: session_id,
+         signal_id: signal_id,
+         signal_cursor: "cursor/#{signal_id}",
+         runtime_ref_id: "runtime/#{session_id}",
+         event_kind: "host_signal",
+         event_at: ~U[2026-04-10 10:00:00Z],
+         status: "ok",
+         output: %{},
+         artifacts: [],
+         payload: payload,
+         subject_ref: %{kind: :run, id: session_id, metadata: %{}},
+         evidence_refs: [],
+         governance_refs: [],
+         extensions: %{}
+       }}
+    end
+
+    def normalize_signal(_signal), do: {:error, :unsupported_signal}
+  end
+
+  setup do
+    Process.put(:host_surface_harness_test_pid, self())
+
+    kernel_snapshot_name = unique_name(:kernel_snapshot)
+    session_directory_name = unique_name(:session_directory)
+
+    start_supervised!({KernelSnapshot, name: kernel_snapshot_name})
+
+    start_supervised!(
+      {SessionDirectory, name: session_directory_name, kernel_snapshot: kernel_snapshot_name}
+    )
+
+    {:ok,
+     session_directory: session_directory_name,
+     signal_bridge: SignalBridge.new!(adapter: SignalAdapter)}
+  end
+
+  test "accepts direct IntentEnvelope ingress and the optional resolver seam without making resolver mandatory",
+       %{
+         session_directory: session_directory,
+         signal_bridge: signal_bridge
+       } do
+    direct_harness =
+      HostSurfaceHarness.new!(
+        session_directory: session_directory,
+        signal_bridge: signal_bridge,
+        policy_packs: [policy_pack()]
+      )
+
+    assert {:accepted, direct_result, _direct_harness} =
+             HostSurfaceHarness.submit_envelope(
+               direct_harness,
+               HostSurfaceHarness.valid_direct_envelope(),
+               request_context("req-direct", "sess-direct")
+             )
+
+    assert direct_result.ingress_path == :direct_intent_envelope
+    assert direct_result.policy_pack_id == "default"
+
+    resolved_harness =
+      HostSurfaceHarness.new!(
+        session_directory: session_directory,
+        signal_bridge: signal_bridge,
+        intent_resolver: Resolver,
+        policy_packs: [policy_pack()]
+      )
+
+    assert {:accepted, resolved_result, _resolved_harness} =
+             HostSurfaceHarness.submit_resolved_input(
+               resolved_harness,
+               %{"mode" => "resolved"},
+               request_context("req-resolved", "sess-resolved")
+             )
+
+    assert resolved_result.ingress_path == :resolved_input
+
+    assert %{raw_blob: %PersistedSessionBlob{}} =
+             HostSurfaceHarness.inspect_session(direct_harness, "sess-direct")
+
+    assert %{raw_blob: %PersistedSessionBlob{}} =
+             HostSurfaceHarness.inspect_session(resolved_harness, "sess-resolved")
+  end
+
+  test "returns a synchronous DecisionRejection and records it durably for deliberately unplannable ingress",
+       %{
+         session_directory: session_directory,
+         signal_bridge: signal_bridge
+       } do
+    harness =
+      HostSurfaceHarness.new!(
+        session_directory: session_directory,
+        signal_bridge: signal_bridge,
+        policy_packs: [policy_pack()]
+      )
+
+    assert {:rejected, result, _harness} =
+             HostSurfaceHarness.submit_envelope(
+               harness,
+               HostSurfaceHarness.unplannable_direct_envelope(),
+               request_context("req-unplannable", "sess-unplannable")
+             )
+
+    assert result.rejection.retryability == :after_input_change
+    assert result.rejection.publication_requirement == :host_only
+    assert result.publication.status == :host_only
+
+    inspected = HostSurfaceHarness.inspect_session(harness, "sess-unplannable")
+    assert %PersistedSessionBlob{} = inspected.raw_blob
+
+    assert inspected.raw_blob.envelope.last_rejection.reason_code ==
+             "boundary_reuse_requires_attached_session"
+  end
+
+  test "routes already-classified rejection publication through review projections and derived-state attachments",
+       %{
+         session_directory: session_directory,
+         signal_bridge: signal_bridge
+       } do
+    harness =
+      HostSurfaceHarness.new!(
+        session_directory: session_directory,
+        signal_bridge: signal_bridge,
+        projection_bridge: ProjectionBridge.new!(downstream: ProjectionDownstream),
+        policy_packs: [policy_pack()]
+      )
+
+    assert {:rejected, review_result, harness} =
+             HostSurfaceHarness.submit_envelope(
+               harness,
+               HostSurfaceHarness.unplannable_direct_envelope(%{
+                 intent_envelope_id: "intent/review"
+               }),
+               request_context("req-review", "sess-review"),
+               rejection: %{
+                 reason_code: "policy_denied",
+                 summary: "policy denied the request",
+                 causes: [:runtime_state, :policy_denial]
+               }
+             )
+
+    assert review_result.rejection.publication_requirement == :review_projection
+    assert review_result.publication.packet_kind == :review_projection
+
+    assert_receive {:review_projection, projection, %{entry_id: entry_id}}
+    assert projection.projection == "citadel.decision_rejection"
+    assert entry_id == "publish/#{review_result.rejection.rejection_id}"
+
+    assert {:rejected, derived_result, _harness} =
+             HostSurfaceHarness.submit_envelope(
+               harness,
+               HostSurfaceHarness.unplannable_direct_envelope(%{
+                 intent_envelope_id: "intent/derived"
+               }),
+               request_context("req-derived", "sess-derived"),
+               rejection: %{
+                 reason_code: "planning_failed",
+                 summary: "the request is valid but not plannable now",
+                 causes: [:planning]
+               }
+             )
+
+    assert derived_result.rejection.publication_requirement == :derived_state_attachment
+    assert derived_result.publication.packet_kind == :derived_state_attachment
+
+    assert_receive {:derived_state_attachment, attachment, %{entry_id: derived_entry_id}}
+    assert attachment.metadata["attachment_kind"] == "decision_rejection"
+    assert derived_entry_id == "publish/#{derived_result.rejection.rejection_id}"
+  end
+
+  test "exposes strict dead-letter maintenance and selector-based bulk recovery through host-facing wrappers",
+       %{
+         session_directory: session_directory,
+         signal_bridge: signal_bridge
+       } do
+    harness =
+      HostSurfaceHarness.new!(
+        session_directory: session_directory,
+        signal_bridge: signal_bridge,
+        policy_packs: [policy_pack()]
+      )
+
+    seed_dead_lettered_session(
+      session_directory,
+      "sess-one",
+      "entry-one",
+      "projection_backend_down"
+    )
+
+    seed_dead_lettered_session(
+      session_directory,
+      "sess-two",
+      "entry-two",
+      "projection_backend_down"
+    )
+
+    assert {:ok, 2} =
+             HostSurfaceHarness.bulk_recover_dead_letters(
+               harness,
+               [dead_letter_reason: "projection_backend_down", ordering_mode: :strict],
+               {:retry_with_override, "projection sink recovered"}
+             )
+
+    inspected_one = HostSurfaceHarness.inspect_session(harness, "sess-one")
+    inspected_two = HostSurfaceHarness.inspect_session(harness, "sess-two")
+
+    assert inspected_one.blocked_entries == %{}
+    assert inspected_two.blocked_entries == %{}
+    assert inspected_one.raw_blob.outbox_entries["entry-one"].replay_status == :pending
+    assert inspected_two.raw_blob.outbox_entries["entry-two"].replay_status == :pending
+  end
+
+  defp request_context(request_id, session_id) do
+    %{
+      request_id: request_id,
+      session_id: session_id,
+      tenant_id: "tenant-1",
+      actor_id: "actor-1",
+      trace_id: "trace/#{request_id}",
+      environment: "dev"
+    }
+  end
+
+  defp policy_pack do
+    %{
+      pack_id: "default",
+      policy_version: "policy-2026-04-09",
+      policy_epoch: 7,
+      priority: 0,
+      selector: %{
+        tenant_ids: [],
+        scope_kinds: [],
+        environments: [],
+        default?: true,
+        extensions: %{}
+      },
+      profiles: %{
+        trust_profile: "baseline",
+        approval_profile: "standard",
+        egress_profile: "restricted",
+        workspace_profile: "workspace",
+        resource_profile: "standard",
+        boundary_class: "workspace_session",
+        extensions: %{}
+      },
+      rejection_policy: %{
+        denial_audit_reason_codes: ["policy_denied", "approval_missing"],
+        derived_state_reason_codes: ["planning_failed"],
+        runtime_change_reason_codes: ["scope_unavailable", "service_hidden", "boundary_stale"],
+        governance_change_reason_codes: ["approval_missing"],
+        extensions: %{}
+      },
+      extensions: %{}
+    }
+  end
+
+  defp seed_dead_lettered_session(session_directory, session_id, entry_id, dead_letter_reason) do
+    entry = dead_letter_entry(entry_id, dead_letter_reason)
+
+    :ok =
+      SessionDirectory.seed_raw_blob(
+        session_directory,
+        session_id,
+        PersistedSessionBlob.new!(%{
+          schema_version: 1,
+          session_id: session_id,
+          envelope:
+            PersistedSessionEnvelope.new!(%{
+              schema_version: 1,
+              session_id: session_id,
+              continuity_revision: 1,
+              owner_incarnation: 1,
+              project_binding: nil,
+              scope_ref: nil,
+              signal_cursor: nil,
+              recent_signal_hashes: [],
+              lifecycle_status: :blocked,
+              last_active_at: ~U[2026-04-10 10:00:00Z],
+              active_plan: nil,
+              active_authority_decision: nil,
+              last_rejection: nil,
+              boundary_ref: nil,
+              outbox_entry_ids: [entry_id],
+              external_refs: %{},
+              extensions: %{}
+            }),
+          outbox_entries: %{entry_id => entry},
+          extensions: %{}
+        })
+      )
+  end
+
+  defp dead_letter_entry(entry_id, dead_letter_reason) do
+    ActionOutboxEntry.new!(%{
+      schema_version: 1,
+      entry_id: entry_id,
+      causal_group_id: "group/#{entry_id}",
+      action:
+        LocalAction.new!(%{
+          action_kind: "publish_projection",
+          payload: %{"entry_id" => entry_id},
+          extensions: %{}
+        }),
+      inserted_at: ~U[2026-04-10 10:00:00Z],
+      replay_status: :dead_letter,
+      durable_receipt_ref: nil,
+      attempt_count: 3,
+      max_attempts: 3,
+      backoff_policy:
+        BackoffPolicy.new!(%{
+          strategy: :fixed,
+          base_delay_ms: 100,
+          max_delay_ms: 100,
+          linear_step_ms: nil,
+          multiplier: nil,
+          jitter_mode: :none,
+          jitter_window_ms: 0,
+          extensions: %{}
+        }),
+      next_attempt_at: nil,
+      last_error_code: "sink_unavailable",
+      dead_letter_reason: dead_letter_reason,
+      ordering_mode: :strict,
+      staleness_mode: :stale_exempt,
+      staleness_requirements: nil,
+      extensions: %{}
+    })
+  end
+
+  defp unique_name(prefix) do
+    :"#{prefix}_#{System.unique_integer([:positive])}"
+  end
+end

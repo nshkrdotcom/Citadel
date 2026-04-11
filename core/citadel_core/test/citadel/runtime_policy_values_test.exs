@@ -11,7 +11,12 @@ defmodule Citadel.RuntimePolicyValuesTest do
     assert policy.max_sessions_per_batch == 64
     assert policy.batch_interval_ms == 250
     assert policy.high_priority_ready_slo_ms == 5_000
-    assert Enum.take(policy.priority_order, 3) == ["explicit_resume", "live_request", "pending_replay_safe"]
+
+    assert Enum.take(policy.priority_order, 3) == [
+             "explicit_resume",
+             "live_request",
+             "pending_replay_safe"
+           ]
   end
 
   test "signal ingress rebuild policy rejects looser than packet MVP limits" do
@@ -56,10 +61,18 @@ defmodule Citadel.RuntimePolicyValuesTest do
   end
 
   test "session activation policy rejects idle before recovery classes" do
-    assert_raise ArgumentError, ~r/must place idle after active recovery classes/, fn ->
-      SessionActivationPolicy.new!(%{
-        priority_order: ["blocked", "idle", "pending_replay_safe", "explicit_resume", "committed_signal_lag"]
-      })
-    end
+    assert_raise ArgumentError,
+                 ~r/must start with \["blocked", "pending_replay_safe", "explicit_resume", "committed_signal_lag"\]/,
+                 fn ->
+                   SessionActivationPolicy.new!(%{
+                     priority_order: [
+                       "blocked",
+                       "idle",
+                       "pending_replay_safe",
+                       "explicit_resume",
+                       "committed_signal_lag"
+                     ]
+                   })
+                 end
   end
 end

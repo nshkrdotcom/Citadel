@@ -22,6 +22,7 @@ defmodule Citadel.Runtime.SessionServer do
   alias Citadel.SessionContinuityCommit
   alias Citadel.SessionOutbox
   alias Citadel.SessionState
+  alias Citadel.ServiceDescriptor
   alias Citadel.TraceEnvelope
 
   @recent_signal_window_size 32
@@ -713,11 +714,21 @@ defmodule Citadel.Runtime.SessionServer do
   defp perform_action(state, :local, entry) do
     case entry.action.action_kind do
       "service_catalog_register" ->
-        {:ok, _epoch} = ServiceCatalog.register_service(state.service_catalog, entry.action.payload["service_descriptor"])
+        {:ok, _epoch} =
+          ServiceCatalog.register_service(
+            state.service_catalog,
+            ServiceDescriptor.new!(entry.action.payload["service_descriptor"])
+          )
+
         {:ok, "service_catalog/#{entry.entry_id}"}
 
       "service_catalog_update" ->
-        {:ok, _epoch} = ServiceCatalog.update_service(state.service_catalog, entry.action.payload["service_descriptor"])
+        {:ok, _epoch} =
+          ServiceCatalog.update_service(
+            state.service_catalog,
+            ServiceDescriptor.new!(entry.action.payload["service_descriptor"])
+          )
+
         {:ok, "service_catalog/#{entry.entry_id}"}
 
       "service_catalog_retire" ->

@@ -33,7 +33,11 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
     policy_cache_name = unique_name(:policy_cache)
 
     start_supervised!({KernelSnapshot, name: kernel_snapshot_name, policy_version: "v0"})
-    start_supervised!({PolicyCache, name: policy_cache_name, kernel_snapshot: kernel_snapshot_name, flush_interval_ms: 15})
+
+    start_supervised!(
+      {PolicyCache,
+       name: policy_cache_name, kernel_snapshot: kernel_snapshot_name, flush_interval_ms: 15}
+    )
 
     assert {:ok, 1} = PolicyCache.update_policy(policy_cache_name, "v1", %{"version" => 1})
     assert {:ok, 2} = PolicyCache.update_policy(policy_cache_name, "v2", %{"version" => 2})
@@ -55,11 +59,16 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
     session_directory_name = unique_name(:session_directory)
 
     start_supervised!({KernelSnapshot, name: kernel_snapshot_name})
-    start_supervised!({SessionDirectory, name: session_directory_name, kernel_snapshot: kernel_snapshot_name})
 
-    assert {:ok, %{blob: claimed_blob}} = SessionDirectory.claim_session(session_directory_name, "sess-1")
+    start_supervised!(
+      {SessionDirectory, name: session_directory_name, kernel_snapshot: kernel_snapshot_name}
+    )
 
-    entry = outbox_entry("entry-1", "submit_invocation", %{"target" => "compile"}, %{policy_epoch: 0})
+    assert {:ok, %{blob: claimed_blob}} =
+             SessionDirectory.claim_session(session_directory_name, "sess-1")
+
+    entry =
+      outbox_entry("entry-1", "submit_invocation", %{"target" => "compile"}, %{policy_epoch: 0})
 
     persisted_blob =
       PersistedSessionBlob.new!(%{
@@ -106,11 +115,16 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
     assert {:error, :acknowledgement_ambiguous} =
              SessionDirectory.commit_continuity(session_directory_name, commit)
 
-    assert {:ok, recovered_blob} = SessionDirectory.fetch_persisted_blob(session_directory_name, "sess-1")
-    assert recovered_blob.envelope.continuity_revision == persisted_blob.envelope.continuity_revision
+    assert {:ok, recovered_blob} =
+             SessionDirectory.fetch_persisted_blob(session_directory_name, "sess-1")
+
+    assert recovered_blob.envelope.continuity_revision ==
+             persisted_blob.envelope.continuity_revision
+
     assert Map.has_key?(recovered_blob.outbox_entries, entry.entry_id)
 
-    :ok = SessionDirectory.configure_fault_injection(session_directory_name, fn _commit -> :ok end)
+    :ok =
+      SessionDirectory.configure_fault_injection(session_directory_name, fn _commit -> :ok end)
 
     assert {:error, :stale_continuity_revision} =
              SessionDirectory.commit_continuity(session_directory_name, commit)
@@ -144,16 +158,25 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
             lease_epoch: 1,
             extensions: %{}
           })}
-       end})
+       end}
+    )
 
-    task_a = Task.async(fn -> BoundaryLeaseTracker.classify_for_resume(boundary_tracker_name, "boundary-a") end)
-    task_b = Task.async(fn -> BoundaryLeaseTracker.classify_for_resume(boundary_tracker_name, "boundary-b") end)
+    task_a =
+      Task.async(fn ->
+        BoundaryLeaseTracker.classify_for_resume(boundary_tracker_name, "boundary-a")
+      end)
+
+    task_b =
+      Task.async(fn ->
+        BoundaryLeaseTracker.classify_for_resume(boundary_tracker_name, "boundary-b")
+      end)
 
     assert {:ok, %BoundaryLeaseView{staleness_status: :missing}} = Task.await(task_a, 1_000)
     assert {:ok, %BoundaryLeaseView{staleness_status: :missing}} = Task.await(task_b, 1_000)
     assert Agent.get(counter, & &1) == 1
 
     assert :ok = BoundaryLeaseTracker.set_circuit_open(boundary_tracker_name, "blocked-key", true)
+
     assert {:error, :circuit_open} =
              BoundaryLeaseTracker.classify_for_resume(boundary_tracker_name, "blocked-boundary")
   end
@@ -164,7 +187,10 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
     signal_ingress_name = unique_name(:signal_ingress)
 
     start_supervised!({KernelSnapshot, name: kernel_snapshot_name})
-    start_supervised!({SessionDirectory, name: session_directory_name, kernel_snapshot: kernel_snapshot_name})
+
+    start_supervised!(
+      {SessionDirectory, name: session_directory_name, kernel_snapshot: kernel_snapshot_name}
+    )
 
     assert :ok =
              SessionDirectory.register_active_session(session_directory_name, "sess-explicit",
@@ -194,9 +220,15 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
            max_sessions_per_batch: 2,
            batch_interval_ms: 100,
            high_priority_ready_slo_ms: 5_000,
-           priority_order: ["explicit_resume", "live_request", "pending_replay_safe", "background"],
+           priority_order: [
+             "explicit_resume",
+             "live_request",
+             "pending_replay_safe",
+             "background"
+           ],
            extensions: %{}
-         })})
+         })}
+    )
 
     assert :ok = SignalIngress.rebuild_from_directory(signal_ingress_name)
 
@@ -225,10 +257,22 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
     local_supervisor_name = unique_name(:local_supervisor)
     session_server_name = unique_name(:session_server)
 
-    start_supervised!({KernelSnapshot, name: kernel_snapshot_name, policy_version: "v1", policy_epoch: 1})
-    start_supervised!({SessionDirectory, name: session_directory_name, kernel_snapshot: kernel_snapshot_name})
-    start_supervised!({ServiceCatalog, name: service_catalog_name, kernel_snapshot: kernel_snapshot_name})
-    start_supervised!({BoundaryLeaseTracker, name: boundary_tracker_name, kernel_snapshot: kernel_snapshot_name})
+    start_supervised!(
+      {KernelSnapshot, name: kernel_snapshot_name, policy_version: "v1", policy_epoch: 1}
+    )
+
+    start_supervised!(
+      {SessionDirectory, name: session_directory_name, kernel_snapshot: kernel_snapshot_name}
+    )
+
+    start_supervised!(
+      {ServiceCatalog, name: service_catalog_name, kernel_snapshot: kernel_snapshot_name}
+    )
+
+    start_supervised!(
+      {BoundaryLeaseTracker, name: boundary_tracker_name, kernel_snapshot: kernel_snapshot_name}
+    )
+
     start_supervised!({Task.Supervisor, name: invocation_supervisor_name, max_children: 4})
     start_supervised!({Task.Supervisor, name: projection_supervisor_name, max_children: 4})
     start_supervised!({Task.Supervisor, name: local_supervisor_name, max_children: 4})
@@ -237,9 +281,13 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
       {SignalIngress,
        name: signal_ingress_name,
        session_directory: session_directory_name,
-       signal_source: TestSignalSource})
+       signal_source: TestSignalSource}
+    )
 
-    stale_entry = outbox_entry("stale-entry", "submit_invocation", %{"target" => "compile"}, %{policy_epoch: 0})
+    stale_entry =
+      outbox_entry("stale-entry", "submit_invocation", %{"target" => "compile"}, %{
+        policy_epoch: 0
+      })
 
     :ok =
       SessionDirectory.seed_raw_blob(
@@ -282,10 +330,11 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
       )
 
     blocking_handler = fn _action, entry, _state ->
+      entry_id = entry.entry_id
       send(test_pid, {:dispatch_started, entry.entry_id, self()})
 
       receive do
-        {:continue_dispatch, ^entry.entry_id} -> {:ok, "local/#{entry.entry_id}"}
+        {:continue_dispatch, ^entry_id} -> {:ok, "local/#{entry_id}"}
       after
         1_000 -> {:error, :timeout}
       end
@@ -303,14 +352,17 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
        invocation_supervisor: invocation_supervisor_name,
        projection_supervisor: projection_supervisor_name,
        local_supervisor: local_supervisor_name,
-       local_handler: blocking_handler})
+       local_handler: blocking_handler}
+    )
 
     wait_until(fn ->
       session_state = SessionServer.snapshot(session_server_name)
       stale = Map.fetch!(session_state.outbox.entries_by_id, stale_entry.entry_id)
 
       stale.replay_status == :superseded and
-        Enum.any?(session_state.outbox.entries_by_id, fn {_entry_id, entry} -> entry.action.action_kind == "enqueue_redecision" end)
+        Enum.any?(session_state.outbox.entries_by_id, fn {_entry_id, entry} ->
+          entry.action.action_kind == "enqueue_redecision"
+        end)
     end)
 
     probe_entry =
@@ -349,14 +401,16 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
         "service_catalog_register",
         %{
           "service_descriptor" =>
-            ServiceDescriptor.new!(%{
-              service_id: "svc-1",
-              service_kind: "agent",
-              capabilities: ["code"],
-              visibility: "global",
-              admission_epoch: 0,
-              extensions: %{}
-            })
+            ServiceDescriptor.dump(
+              ServiceDescriptor.new!(%{
+                service_id: "svc-1",
+                service_kind: "agent",
+                capabilities: ["code"],
+                visibility: "global",
+                admission_epoch: 0,
+                extensions: %{}
+              })
+            )
         },
         %{policy_epoch: 1}
       )
@@ -369,7 +423,9 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
                end
              )
 
-    assert {:ok, persisted_blob} = SessionDirectory.fetch_persisted_blob(session_directory_name, "sess-runtime")
+    assert {:ok, persisted_blob} =
+             SessionDirectory.fetch_persisted_blob(session_directory_name, "sess-runtime")
+
     assert Map.has_key?(persisted_blob.outbox_entries, "service-register")
 
     wait_until(fn ->
