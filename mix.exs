@@ -108,13 +108,14 @@ defmodule Citadel.Workspace.MixProject do
         "README.md",
         "docs/README.md",
         "docs/workspace_topology.md",
+        "docs/publication.md",
         "docs/shared_contract_dependency_strategy.md",
         "CHANGELOG.md",
         "LICENSE"
       ],
       groups_for_extras: [
         Overview: ["README.md", "docs/README.md"],
-        Architecture: ["docs/workspace_topology.md"],
+        Architecture: ["docs/workspace_topology.md", "docs/publication.md"],
         Contracts: ["docs/shared_contract_dependency_strategy.md"],
         Project: ["CHANGELOG.md", "LICENSE"]
       ]

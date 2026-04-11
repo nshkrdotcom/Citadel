@@ -44,6 +44,10 @@ defmodule Citadel.Build.DependencyResolver do
     end
   end
 
+  def published_aitrace_requirement do
+    @published_aitrace_requirement
+  end
+
   defp resolve_contracts_path do
     if contracts_path_resolution_disabled?() do
       nil

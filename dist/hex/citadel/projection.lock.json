@@ -1,0 +1,684 @@
+{
+  "projection": {
+    "build_path": "/home/home/p/g/n/citadel/dist/hex/citadel",
+    "copied_files": [
+      ".formatter.exs",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/boundary_bridge/lib/citadel/boundary_bridge.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/boundary_bridge/lib/citadel/boundary_bridge/boundary_projection_adapter.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/invocation_bridge/lib/citadel/invocation_bridge.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/invocation_bridge/lib/citadel/invocation_bridge/execution_intent_adapter.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/memory_bridge/lib/citadel/memory_bridge.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/projection_bridge/lib/citadel/projection_bridge.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/projection_bridge/lib/citadel/projection_bridge/derived_state_attachment_adapter.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/projection_bridge/lib/citadel/projection_bridge/review_projection_adapter.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/query_bridge/lib/citadel/query_bridge.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/signal_bridge/lib/citadel/signal_bridge.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/trace_bridge/lib/citadel/trace_bridge.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/trace_bridge/lib/citadel/trace_bridge/aitrace_adapter.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/authority_decision/v1.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/boundary_intent.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/bridge_circuit.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/core.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/decision_hash.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/decision_values.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/execution_packets.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/intent_envelope.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/invocation_request.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/kernel_values.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/observability_values.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/ports.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/runtime_policy_values.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/runtime_values.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/topology_intent.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/application.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/boundary_lease_tracker.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/kernel_snapshot.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/policy_cache.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/scope_catalog.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/service_catalog.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/session_directory.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/session_migration.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/session_server.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/signal_ingress.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/staleness.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/system_clock.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/topology_catalog.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/trace_publisher.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/contract_core/lib/citadel/contract_core.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/contract_core/lib/citadel/contract_core/attr_map.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/contract_core/lib/citadel/contract_core/canonical_json.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/contract_core/lib/citadel/contract_core/value.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract/telemetry.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract/trace.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/policy_packs/lib/citadel/policy_packs.ex",
+      "CHANGELOG.md",
+      "LICENSE",
+      "README.md",
+      "assets/citadel.svg",
+      "config/config.exs",
+      "config/dev.exs",
+      "config/prod.exs",
+      "config/test.exs",
+      "docs/README.md",
+      "docs/publication.md",
+      "docs/shared_contract_dependency_strategy.md",
+      "docs/workspace_topology.md",
+      "lib/citadel/application.ex",
+      "test/citadel/publication_surface_test.exs",
+      "test/test_helper.exs"
+    ],
+    "package_files": [
+      ".formatter.exs",
+      "CHANGELOG.md",
+      "LICENSE",
+      "README.md",
+      "assets/citadel.svg",
+      "components/bridges/boundary_bridge",
+      "components/bridges/invocation_bridge",
+      "components/bridges/memory_bridge",
+      "components/bridges/projection_bridge",
+      "components/bridges/query_bridge",
+      "components/bridges/signal_bridge",
+      "components/bridges/trace_bridge",
+      "components/core/authority_contract",
+      "components/core/citadel_core",
+      "components/core/citadel_runtime",
+      "components/core/contract_core",
+      "components/core/observability_contract",
+      "components/core/policy_packs",
+      "config",
+      "docs/README.md",
+      "docs/publication.md",
+      "docs/shared_contract_dependency_strategy.md",
+      "docs/workspace_topology.md",
+      "lib",
+      "mix.exs",
+      "projection.lock.json"
+    ],
+    "git_revision": "f37febcad0fa4378fb1e8c2e20649c8384b245d9",
+    "tree_digest": "5132afc172f54024512a62e939ac1b9981d276475131e668cd3a3db7faf63d1c"
+  },
+  "manifest": {
+    "path": "/home/home/p/g/n/citadel/packaging/weld/citadel.exs",
+    "digest": "c45f5202b932e31d8a030b02a37147a964ff879ef8b750fd0fedc6054880e205"
+  },
+  "artifact": {
+    "id": "citadel",
+    "package": {
+      "name": "citadel",
+      "version": "0.1.0",
+      "otp_app": "citadel"
+    }
+  },
+  "workspace": {
+    "root": "/home/home/p/g/n/citadel",
+    "discovery": {
+      "source": "manifest",
+      "project_ids": [
+        ".",
+        "apps/coding_assist",
+        "apps/host_surface_harness",
+        "apps/operator_assist",
+        "bridges/boundary_bridge",
+        "bridges/invocation_bridge",
+        "bridges/memory_bridge",
+        "bridges/projection_bridge",
+        "bridges/query_bridge",
+        "bridges/signal_bridge",
+        "bridges/trace_bridge",
+        "core/authority_contract",
+        "core/citadel_core",
+        "core/citadel_runtime",
+        "core/conformance",
+        "core/contract_core",
+        "core/observability_contract",
+        "core/policy_packs"
+      ],
+      "adapter": null,
+      "globs": [
+        ".",
+        "apps/*",
+        "bridges/*",
+        "core/*"
+      ],
+      "root_project?": true
+    },
+    "project_count": 18
+  },
+  "graph": {
+    "edges": [
+      {
+        "kind": "runtime",
+        "app": "citadel_boundary_bridge",
+        "to": "bridges/boundary_bridge",
+        "requirement": null,
+        "from": "apps/coding_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_invocation_bridge",
+        "to": "bridges/invocation_bridge",
+        "requirement": null,
+        "from": "apps/coding_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_memory_bridge",
+        "to": "bridges/memory_bridge",
+        "requirement": null,
+        "from": "apps/coding_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_projection_bridge",
+        "to": "bridges/projection_bridge",
+        "requirement": null,
+        "from": "apps/coding_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_query_bridge",
+        "to": "bridges/query_bridge",
+        "requirement": null,
+        "from": "apps/coding_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_signal_bridge",
+        "to": "bridges/signal_bridge",
+        "requirement": null,
+        "from": "apps/coding_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_trace_bridge",
+        "to": "bridges/trace_bridge",
+        "requirement": null,
+        "from": "apps/coding_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "apps/coding_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_runtime",
+        "to": "core/citadel_runtime",
+        "requirement": null,
+        "from": "apps/coding_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_boundary_bridge",
+        "to": "bridges/boundary_bridge",
+        "requirement": null,
+        "from": "apps/host_surface_harness"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_projection_bridge",
+        "to": "bridges/projection_bridge",
+        "requirement": null,
+        "from": "apps/host_surface_harness"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_signal_bridge",
+        "to": "bridges/signal_bridge",
+        "requirement": null,
+        "from": "apps/host_surface_harness"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_trace_bridge",
+        "to": "bridges/trace_bridge",
+        "requirement": null,
+        "from": "apps/host_surface_harness"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "apps/host_surface_harness"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_runtime",
+        "to": "core/citadel_runtime",
+        "requirement": null,
+        "from": "apps/host_surface_harness"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_policy_packs",
+        "to": "core/policy_packs",
+        "requirement": null,
+        "from": "apps/host_surface_harness"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_boundary_bridge",
+        "to": "bridges/boundary_bridge",
+        "requirement": null,
+        "from": "apps/operator_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_invocation_bridge",
+        "to": "bridges/invocation_bridge",
+        "requirement": null,
+        "from": "apps/operator_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_memory_bridge",
+        "to": "bridges/memory_bridge",
+        "requirement": null,
+        "from": "apps/operator_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_projection_bridge",
+        "to": "bridges/projection_bridge",
+        "requirement": null,
+        "from": "apps/operator_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_query_bridge",
+        "to": "bridges/query_bridge",
+        "requirement": null,
+        "from": "apps/operator_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_signal_bridge",
+        "to": "bridges/signal_bridge",
+        "requirement": null,
+        "from": "apps/operator_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_trace_bridge",
+        "to": "bridges/trace_bridge",
+        "requirement": null,
+        "from": "apps/operator_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "apps/operator_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_runtime",
+        "to": "core/citadel_runtime",
+        "requirement": null,
+        "from": "apps/operator_assist"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_authority_contract",
+        "to": "core/authority_contract",
+        "requirement": null,
+        "from": "bridges/boundary_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "bridges/boundary_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_runtime",
+        "to": "core/citadel_runtime",
+        "requirement": null,
+        "from": "bridges/boundary_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_authority_contract",
+        "to": "core/authority_contract",
+        "requirement": null,
+        "from": "bridges/invocation_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "bridges/invocation_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_runtime",
+        "to": "core/citadel_runtime",
+        "requirement": null,
+        "from": "bridges/invocation_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_observability_contract",
+        "to": "core/observability_contract",
+        "requirement": null,
+        "from": "bridges/invocation_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "bridges/memory_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_runtime",
+        "to": "core/citadel_runtime",
+        "requirement": null,
+        "from": "bridges/memory_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_authority_contract",
+        "to": "core/authority_contract",
+        "requirement": null,
+        "from": "bridges/projection_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "bridges/projection_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_runtime",
+        "to": "core/citadel_runtime",
+        "requirement": null,
+        "from": "bridges/projection_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_observability_contract",
+        "to": "core/observability_contract",
+        "requirement": null,
+        "from": "bridges/projection_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "bridges/query_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_runtime",
+        "to": "core/citadel_runtime",
+        "requirement": null,
+        "from": "bridges/query_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "bridges/signal_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_runtime",
+        "to": "core/citadel_runtime",
+        "requirement": null,
+        "from": "bridges/signal_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_observability_contract",
+        "to": "core/observability_contract",
+        "requirement": null,
+        "from": "bridges/signal_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "bridges/trace_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_runtime",
+        "to": "core/citadel_runtime",
+        "requirement": null,
+        "from": "bridges/trace_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_observability_contract",
+        "to": "core/observability_contract",
+        "requirement": null,
+        "from": "bridges/trace_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_contract_core",
+        "to": "core/contract_core",
+        "requirement": null,
+        "from": "core/authority_contract"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_authority_contract",
+        "to": "core/authority_contract",
+        "requirement": null,
+        "from": "core/citadel_core"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_contract_core",
+        "to": "core/contract_core",
+        "requirement": null,
+        "from": "core/citadel_core"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_observability_contract",
+        "to": "core/observability_contract",
+        "requirement": null,
+        "from": "core/citadel_core"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_policy_packs",
+        "to": "core/policy_packs",
+        "requirement": null,
+        "from": "core/citadel_core"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_authority_contract",
+        "to": "core/authority_contract",
+        "requirement": null,
+        "from": "core/citadel_runtime"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "core/citadel_runtime"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_observability_contract",
+        "to": "core/observability_contract",
+        "requirement": null,
+        "from": "core/citadel_runtime"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_coding_assist",
+        "to": "apps/coding_assist",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_host_surface_harness",
+        "to": "apps/host_surface_harness",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_operator_assist",
+        "to": "apps/operator_assist",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_boundary_bridge",
+        "to": "bridges/boundary_bridge",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_invocation_bridge",
+        "to": "bridges/invocation_bridge",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_memory_bridge",
+        "to": "bridges/memory_bridge",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_projection_bridge",
+        "to": "bridges/projection_bridge",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_query_bridge",
+        "to": "bridges/query_bridge",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_signal_bridge",
+        "to": "bridges/signal_bridge",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_trace_bridge",
+        "to": "bridges/trace_bridge",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_authority_contract",
+        "to": "core/authority_contract",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_runtime",
+        "to": "core/citadel_runtime",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_contract_core",
+        "to": "core/contract_core",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_observability_contract",
+        "to": "core/observability_contract",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_policy_packs",
+        "to": "core/policy_packs",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_contract_core",
+        "to": "core/contract_core",
+        "requirement": null,
+        "from": "core/observability_contract"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_contract_core",
+        "to": "core/contract_core",
+        "requirement": null,
+        "from": "core/policy_packs"
+      }
+    ],
+    "digest": "da826f4ec177087ccb93e3e4bf346c355091da5af99d36ac6094249d008a70b5",
+    "excluded_projects": [
+      ".",
+      "apps/coding_assist",
+      "apps/host_surface_harness",
+      "apps/operator_assist",
+      "core/conformance"
+    ],
+    "selected_projects": [
+      "bridges/boundary_bridge",
+      "bridges/invocation_bridge",
+      "bridges/memory_bridge",
+      "bridges/projection_bridge",
+      "bridges/query_bridge",
+      "bridges/signal_bridge",
+      "bridges/trace_bridge",
+      "core/authority_contract",
+      "core/citadel_core",
+      "core/citadel_runtime",
+      "core/contract_core",
+      "core/observability_contract",
+      "core/policy_packs"
+    ],
+    "violations": []
+  },
+  "verification": []
+}
