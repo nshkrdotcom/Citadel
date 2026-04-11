@@ -40,6 +40,7 @@ Citadel does not own:
 citadel/
   core/
     contract_core/
+    jido_integration_v2_contracts/
     authority_contract/
     observability_contract/
     policy_packs/
@@ -90,10 +91,40 @@ mix monorepo.compile
 mix monorepo.test
 ```
 
+Static analysis and build hardening commands:
+
+```bash
+mix lint.packet_seams
+mix lint.strict
+mix monorepo.dialyzer
+mix static.analysis
+mix ci
+```
+
+Pure-core adversarial hardening commands:
+
+```bash
+mix hardening.pure_core.adversarial
+mix hardening.pure_core.mutation
+mix hardening.pure_core
+```
+
+- `mix hardening.pure_core.adversarial` runs the Wave 10 property suites in `core/citadel_core` and `core/policy_packs`
+- `mix hardening.pure_core.mutation` runs build-failing mutation checks for the same pure-core packages
+- `mix hardening.pure_core` runs both gates
+
+The Wave 9 hardening posture is enforced in code and CI:
+
+- `mix lint.packet_seams` fails on `String.to_atom/1` anywhere in packet-critical workspace paths and blocks raw `map()` or `keyword()` public seam specs on the tracked ingress, bridge, runtime, and trace modules.
+- `mix lint.strict` runs a curated high-signal Credo config across the workspace libraries instead of style-noise checks that do not protect packet seams.
+- `mix monorepo.dialyzer` fans out `mix dialyzer --halt-exit-status` across the real workspace graph through Blitz, so any Dialyzer warning fails the build.
+- `.github/workflows/ci.yml` runs format, compile, packet seam lint, strict lint, Dialyzer, and tests as separate CI steps.
+
 Publication is now finalized as a derivative workspace boundary. The repo-local
 Weld manifest lives at `packaging/weld/citadel.exs`, projects the public
 `citadel` artifact in package-projection mode, keeps `apps/*` and
-`core/conformance` out of the default artifact, and preserves package
+`core/conformance` out of the default artifact, carries the
+`core/jido_integration_v2_contracts` slice in-workspace, and preserves package
 ownership instead of flattening the workspace into a monolith.
 
 Common publication commands:
@@ -107,18 +138,21 @@ mix weld.release.archive packaging/weld/citadel.exs
 
 ## Shared Contract Strategy
 
-Wave 1 does not freeze the final public dependency strategy for `:jido_integration_v2_contracts`, but it does make the placeholder explicit in the packages that will need it first:
+Citadel now carries the higher-order `Jido.Integration.V2` lineage contract
+slice as an in-workspace package at `core/jido_integration_v2_contracts`.
 
-- `core/citadel_core`
-- `bridges/invocation_bridge`
-- `bridges/projection_bridge`
-- `core/conformance`
+That package provides the shared modules the public Citadel surface publishes
+today:
 
-Those packages resolve the dependency through `build_support/dependency_resolver.exs`. Local development prefers the packet path:
+- `Jido.Integration.V2.SubjectRef`
+- `Jido.Integration.V2.EvidenceRef`
+- `Jido.Integration.V2.GovernanceRef`
+- `Jido.Integration.V2.ReviewProjection`
+- `Jido.Integration.V2.DerivedStateAttachment`
 
-- `/home/home/p/g/n/jido_integration/core/contracts`
-
-If that path is unavailable, the resolver falls back to the published package placeholder requirement so Wave 2 can freeze the versioning rule explicitly instead of inheriting it by accident.
+Keeping that slice inside the workspace lets the welded `citadel` artifact stay
+self-contained and Hex-buildable while preserving the shared public module
+names.
 
 ## Documentation
 
@@ -141,4 +175,5 @@ The canonical Docker-based Toxiproxy harness remains at `dev/docker/toxiproxy`.
 ```bash
 docker compose -f dev/docker/toxiproxy/docker-compose.yml -p citadel-toxiproxy up -d
 dev/docker/toxiproxy/verify.sh
+mix hardening.infrastructure_faults
 ```

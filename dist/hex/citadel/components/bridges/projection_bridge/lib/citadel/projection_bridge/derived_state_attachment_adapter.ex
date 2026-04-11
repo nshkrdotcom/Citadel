@@ -5,7 +5,7 @@ defmodule Citadel.ProjectionBridge.DerivedStateAttachmentAdapter do
 
   alias Jido.Integration.V2.DerivedStateAttachment
 
-  @spec normalize!(DerivedStateAttachment.t() | map() | keyword()) :: DerivedStateAttachment.t()
-  def normalize!(%DerivedStateAttachment{} = attachment), do: DerivedStateAttachment.new!(attachment)
-  def normalize!(attrs), do: DerivedStateAttachment.new!(attrs)
+  @spec normalize!(DerivedStateAttachment.t()) :: DerivedStateAttachment.t()
+  def normalize!(%DerivedStateAttachment{} = attachment),
+    do: DerivedStateAttachment.new!(attachment)
 end

@@ -1,11 +1,5 @@
-unless Code.ensure_loaded?(Citadel.Build.DependencyResolver) do
-  Code.require_file("../../lib/citadel/build/dependency_resolver.ex", __DIR__)
-end
-
 defmodule Citadel.InvocationBridge.MixProject do
   use Mix.Project
-
-  alias Citadel.Build.DependencyResolver
 
   def project do
     [
@@ -30,7 +24,7 @@ defmodule Citadel.InvocationBridge.MixProject do
       {:citadel_runtime, path: "../../core/citadel_runtime"},
       {:citadel_authority_contract, path: "../../core/authority_contract"},
       {:citadel_observability_contract, path: "../../core/observability_contract"},
-      DependencyResolver.jido_integration_v2_contracts(),
+      {:jido_integration_v2_contracts, path: "../../core/jido_integration_v2_contracts"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end

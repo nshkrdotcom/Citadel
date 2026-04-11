@@ -59,6 +59,40 @@ defmodule Citadel.InvocationRequest do
           topology_intent: TopologyIntent.t(),
           extensions: %{required(String.t()) => CanonicalJson.value()}
         }
+  @type field_key ::
+          :schema_version
+          | :invocation_request_id
+          | :request_id
+          | :session_id
+          | :tenant_id
+          | :trace_id
+          | :actor_id
+          | :target_id
+          | :target_kind
+          | :selected_step_id
+          | :allowed_operations
+          | :authority_packet
+          | :boundary_intent
+          | :topology_intent
+          | :extensions
+  @type attrs :: %{
+          required(:schema_version) => pos_integer(),
+          required(:invocation_request_id) => String.t(),
+          required(:request_id) => String.t(),
+          required(:session_id) => String.t(),
+          required(:tenant_id) => String.t(),
+          required(:trace_id) => String.t(),
+          required(:actor_id) => String.t(),
+          required(:target_id) => String.t(),
+          required(:target_kind) => String.t(),
+          required(:selected_step_id) => String.t(),
+          required(:allowed_operations) => [String.t(), ...],
+          required(:authority_packet) => V1.t(),
+          required(:boundary_intent) => BoundaryIntent.t(),
+          required(:topology_intent) => TopologyIntent.t(),
+          required(:extensions) => %{required(String.t()) => CanonicalJson.value()}
+        }
+  @type input :: t() | attrs() | [{field_key(), term()}]
 
   @enforce_keys @required_fields
   defstruct @required_fields
@@ -81,7 +115,7 @@ defmodule Citadel.InvocationRequest do
   @spec versioning_rule() :: atom()
   def versioning_rule, do: :schema_version_bump_required_for_carrier_shape_change
 
-  @spec new(t() | map() | keyword()) :: {:ok, t()} | {:error, Exception.t()}
+  @spec new(input()) :: {:ok, t()} | {:error, Exception.t()}
   def new(%__MODULE__{} = request), do: normalize(request)
 
   def new(attrs) do
@@ -90,7 +124,7 @@ defmodule Citadel.InvocationRequest do
     error in ArgumentError -> {:error, error}
   end
 
-  @spec new!(t() | map() | keyword()) :: t()
+  @spec new!(input()) :: t()
   def new!(%__MODULE__{} = request) do
     case normalize(request) do
       {:ok, normalized} -> normalized

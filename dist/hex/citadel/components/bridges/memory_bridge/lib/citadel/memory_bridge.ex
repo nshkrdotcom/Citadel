@@ -5,6 +5,7 @@ defmodule Citadel.MemoryBridge do
 
   alias Citadel.BridgeCircuit
   alias Citadel.BridgeCircuitPolicy
+  alias Citadel.BridgeState
   alias Citadel.MemoryRecord
 
   defmodule Downstream do
@@ -13,9 +14,11 @@ defmodule Citadel.MemoryBridge do
     @callback put_memory_record(MemoryRecord.t()) ::
                 {:ok, %{write_guarantee: :stable_put_by_id | :best_effort}} | {:error, atom()}
 
-    @callback get_memory_record(String.t(), keyword()) :: {:ok, map() | nil} | {:error, atom()}
+    @callback get_memory_record(String.t(), Citadel.Ports.Memory.lookup_options()) ::
+                {:ok, MemoryRecord.t() | nil} | {:error, atom()}
 
-    @callback rank_memory_records(keyword()) :: {:ok, [map()]} | {:error, atom()}
+    @callback rank_memory_records(Citadel.Ports.Memory.rank_options()) ::
+                {:ok, [MemoryRecord.t()]} | {:error, atom()}
   end
 
   @manifest %{
@@ -29,10 +32,11 @@ defmodule Citadel.MemoryBridge do
 
   @type t :: %__MODULE__{
           downstream: module(),
-          circuit: BridgeCircuit.t()
+          circuit_policy: BridgeCircuitPolicy.t(),
+          state_ref: BridgeState.state_ref()
         }
 
-  defstruct downstream: nil, circuit: nil
+  defstruct downstream: nil, circuit_policy: nil, state_ref: nil
 
   @spec new!(keyword()) :: t()
   def new!(opts) do
@@ -46,50 +50,57 @@ defmodule Citadel.MemoryBridge do
             "Citadel.MemoryBridge.downstream must export put_memory_record/1, get_memory_record/2, and rank_memory_records/1"
     end
 
+    circuit_policy = Keyword.get(opts, :circuit_policy, default_circuit_policy())
+    state_name = Keyword.get(opts, :state_name)
+
     %__MODULE__{
       downstream: downstream,
-      circuit:
-        BridgeCircuit.new!(
-          policy: Keyword.get(opts, :circuit_policy, default_circuit_policy()),
-          now_ms_fun: Keyword.get(opts, :now_ms_fun)
+      circuit_policy: circuit_policy,
+      state_ref:
+        BridgeState.new_ref!(
+          circuit:
+            BridgeCircuit.new!(
+              policy: circuit_policy,
+              now_ms_fun: Keyword.get(opts, :now_ms_fun)
+            ),
+          name: state_name
         )
     }
   end
 
-  @spec put_memory_record(t(), MemoryRecord.t() | map() | keyword()) ::
+  @spec put_memory_record(t(), MemoryRecord.t()) ::
           {:ok, %{write_guarantee: :stable_put_by_id | :best_effort}, t()} | {:error, atom(), t()}
-  def put_memory_record(%__MODULE__{} = bridge, record) do
-    record = MemoryRecord.new!(record)
-    scope_key = scope_key(bridge.circuit.policy, record.scope_ref.scope_id)
+  def put_memory_record(%__MODULE__{} = bridge, %MemoryRecord{} = record) do
+    scope_key = scope_key(bridge.circuit_policy, record.scope_ref.scope_id)
 
     with_scope(bridge, scope_key, fn downstream ->
       downstream.put_memory_record(record)
     end)
   end
 
-  @spec get_memory_record(t(), String.t(), keyword()) ::
+  @spec get_memory_record(t(), String.t(), Citadel.Ports.Memory.lookup_options()) ::
           {:ok, MemoryRecord.t() | nil, t()} | {:error, atom(), t()}
   def get_memory_record(%__MODULE__{} = bridge, memory_id, opts \\ []) do
     memory_id = Citadel.ContractCore.Value.string!(memory_id, "Citadel.MemoryBridge memory_id")
-    scope_key = scope_key(bridge.circuit.policy, Keyword.get(opts, :scope_id, "memory_read"))
+    scope_key = scope_key(bridge.circuit_policy, Keyword.get(opts, :scope_id, "memory_read"))
 
     with_scope(bridge, scope_key, fn downstream ->
       case downstream.get_memory_record(memory_id, opts) do
         {:ok, nil} -> {:ok, nil}
-        {:ok, raw_record} -> {:ok, MemoryRecord.new!(raw_record)}
+        {:ok, %MemoryRecord{} = record} -> {:ok, record}
         {:error, reason} -> {:error, reason}
       end
     end)
   end
 
-  @spec rank_memory_records(t(), keyword()) ::
+  @spec rank_memory_records(t(), Citadel.Ports.Memory.rank_options()) ::
           {:ok, [MemoryRecord.t()], t()} | {:error, atom(), t()}
   def rank_memory_records(%__MODULE__{} = bridge, opts \\ []) do
-    scope_key = scope_key(bridge.circuit.policy, Keyword.get(opts, :scope_id, "memory_rank"))
+    scope_key = scope_key(bridge.circuit_policy, Keyword.get(opts, :scope_id, "memory_rank"))
 
     with_scope(bridge, scope_key, fn downstream ->
       case downstream.rank_memory_records(opts) do
-        {:ok, records} -> {:ok, Enum.map(records, &MemoryRecord.new!/1)}
+        {:ok, records} -> {:ok, records}
         {:error, reason} -> {:error, reason}
       end
     end)
@@ -114,24 +125,32 @@ defmodule Citadel.MemoryBridge do
   end
 
   defp with_scope(%__MODULE__{} = bridge, scope_key, fun) when is_function(fun, 1) do
-    case BridgeCircuit.allow(bridge.circuit, scope_key) do
-      {:ok, updated_circuit} ->
-        bridge = %{bridge | circuit: updated_circuit}
-
+    case BridgeState.begin_operation(bridge.state_ref, scope_key) do
+      {:ok, token} ->
         case fun.(bridge.downstream) do
           {:ok, result} ->
-            {:ok, result, %{bridge | circuit: BridgeCircuit.record_success(bridge.circuit, scope_key)}}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:ok, result}) do
+              {:ok, ^result} -> {:ok, result, bridge}
+              {:error, :operation_not_found} -> {:ok, result, bridge}
+            end
 
           {:error, reason} ->
-            {:error, reason, %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
+              {:error, ^reason} -> {:error, reason, bridge}
+              {:error, :operation_not_found} -> {:error, reason, bridge}
+            end
         end
 
-      {{:error, :circuit_open}, updated_circuit} ->
-        {:error, :circuit_open, %{bridge | circuit: updated_circuit}}
+      {:error, reason} ->
+        {:error, reason, bridge}
     end
   end
 
   defp scope_key(%BridgeCircuitPolicy{scope_key_mode: "bridge_global"}, _scope), do: "global"
-  defp scope_key(%BridgeCircuitPolicy{scope_key_mode: "tenant_partition"}, scope), do: "tenant:#{scope}"
-  defp scope_key(%BridgeCircuitPolicy{scope_key_mode: "downstream_scope"}, scope), do: "memory:#{scope}"
+
+  defp scope_key(%BridgeCircuitPolicy{scope_key_mode: "tenant_partition"}, scope),
+    do: "tenant:#{scope}"
+
+  defp scope_key(%BridgeCircuitPolicy{scope_key_mode: "downstream_scope"}, scope),
+    do: "memory:#{scope}"
 end

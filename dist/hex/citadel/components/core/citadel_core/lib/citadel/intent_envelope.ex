@@ -3,6 +3,13 @@ defmodule Citadel.IntentMappingConstraints do
   Frozen Wave 3 value-level mappings that later feed `BoundaryIntent` and `TopologyIntent`.
   """
 
+  alias Citadel.ContractCore.CanonicalJson
+  alias Citadel.ContractCore.Value
+  alias Citadel.IntentEnvelope
+  alias Citadel.IntentEnvelope.Constraints
+  alias Citadel.IntentEnvelope.TargetHint
+  alias Citadel.TopologyIntent
+
   @allowed_boundary_requirements [:reuse_existing, :fresh_or_reuse, :fresh_only, :no_boundary]
   @allowed_session_modes [:attached, :detached, :stateless]
   @allowed_coordination_modes [:single_target, :parallel_fanout, :local_only]
@@ -37,18 +44,37 @@ defmodule Citadel.IntentMappingConstraints do
   def boundary_attach_mode_for(:fresh_only), do: "fresh_only"
   def boundary_attach_mode_for(:no_boundary), do: "not_applicable"
 
-  def topology_session_mode_for(%{boundary_requirement: :no_boundary}, _target_hints),
-    do: :stateless
+  def boundary_attach_mode_for(value),
+    do:
+      raise(
+        ArgumentError,
+        "Citadel.IntentMappingConstraints boundary requirement is invalid: #{inspect(value)}"
+      )
 
-  def topology_session_mode_for(_constraints, target_hints) do
-    target_hints
-    |> Enum.map(& &1.session_mode_preference)
-    |> Enum.reject(&is_nil/1)
-    |> List.first()
-    |> Kernel.||(:attached)
+  def topology_session_mode_for(constraints, target_hints) do
+    constraints =
+      Value.module!(
+        constraints,
+        Constraints,
+        "Citadel.IntentMappingConstraints.constraints"
+      )
+
+    target_hints = normalize_target_hints!(target_hints)
+
+    if constraints.boundary_requirement == :no_boundary do
+      :stateless
+    else
+      target_hints
+      |> Enum.map(& &1.session_mode_preference)
+      |> Enum.reject(&is_nil/1)
+      |> List.first()
+      |> Kernel.||(:attached)
+    end
   end
 
   def coordination_mode_for(target_hints) do
+    target_hints = normalize_target_hints!(target_hints)
+
     target_hints
     |> Enum.map(& &1.coordination_mode_preference)
     |> Enum.reject(&is_nil/1)
@@ -56,7 +82,9 @@ defmodule Citadel.IntentMappingConstraints do
     |> Kernel.||(:single_target)
   end
 
-  def boundary_mapping(envelope) when is_map(envelope) do
+  def boundary_mapping(envelope) do
+    envelope = normalize_envelope!(envelope)
+
     %{
       requested_attach_mode: boundary_attach_mode_for(envelope.constraints.boundary_requirement),
       preferred_boundary_class:
@@ -68,7 +96,9 @@ defmodule Citadel.IntentMappingConstraints do
     }
   end
 
-  def topology_mapping(envelope) when is_map(envelope) do
+  def topology_mapping(envelope) do
+    envelope = normalize_envelope!(envelope)
+
     %{
       session_mode: topology_session_mode_for(envelope.constraints, envelope.target_hints),
       coordination_mode: coordination_mode_for(envelope.target_hints),
@@ -89,11 +119,35 @@ defmodule Citadel.IntentMappingConstraints do
     }
   end
 
-  def planning_status(envelope) when is_map(envelope) do
+  @spec topology_intent(IntentEnvelope.t() | map() | keyword(), keyword()) :: TopologyIntent.t()
+  def topology_intent(envelope, opts \\ []) do
+    envelope = normalize_envelope!(envelope)
+    mapping = topology_mapping(envelope)
+    topology_epoch = Keyword.get(opts, :topology_epoch, 0)
+    extensions = Keyword.get(opts, :extensions, %{})
+
+    TopologyIntent.new!(%{
+      topology_intent_id:
+        Keyword.get(
+          opts,
+          :topology_intent_id,
+          generated_topology_intent_id(envelope, mapping, topology_epoch, extensions)
+        ),
+      session_mode: Atom.to_string(mapping.session_mode),
+      coordination_mode: Atom.to_string(mapping.coordination_mode),
+      routing_hints: mapping.routing_hints,
+      topology_epoch: topology_epoch,
+      extensions: extensions
+    })
+  end
+
+  def planning_status(envelope) do
+    envelope = normalize_envelope!(envelope)
     session_mode = topology_session_mode_for(envelope.constraints, envelope.target_hints)
 
     cond do
-      envelope.constraints.boundary_requirement == :reuse_existing and session_mode in [:detached, :stateless] ->
+      envelope.constraints.boundary_requirement == :reuse_existing and
+          session_mode in [:detached, :stateless] ->
         {:unplannable, "boundary_reuse_requires_attached_session"}
 
       envelope.desired_outcome.outcome_kind == :inspect_scope and
@@ -103,6 +157,65 @@ defmodule Citadel.IntentMappingConstraints do
       true ->
         :plannable
     end
+  end
+
+  defp normalize_envelope!(%{__struct__: IntentEnvelope} = envelope) do
+    revalidate_struct!(
+      envelope,
+      "Citadel.IntentMappingConstraints envelope",
+      &IntentEnvelope.dump/1,
+      &IntentEnvelope.new!/1
+    )
+  end
+
+  defp normalize_envelope!(value) do
+    Value.module!(value, IntentEnvelope, "Citadel.IntentMappingConstraints envelope")
+  end
+
+  defp normalize_target_hints!(value) do
+    Value.list!(value, "Citadel.IntentMappingConstraints.target_hints", fn target_hint ->
+      Value.module!(
+        target_hint,
+        TargetHint,
+        "Citadel.IntentMappingConstraints.target_hints"
+      )
+    end)
+  end
+
+  defp revalidate_struct!(value, label, dump_fun, new_fun) do
+    dump_fun.(value)
+    |> new_fun.()
+  rescue
+    error in [
+      ArgumentError,
+      ArithmeticError,
+      BadMapError,
+      FunctionClauseError,
+      KeyError,
+      Protocol.UndefinedError
+    ] ->
+      reraise ArgumentError.exception("#{label} is invalid: #{Exception.message(error)}"),
+              __STACKTRACE__
+  end
+
+  defp generated_topology_intent_id(envelope, mapping, topology_epoch, extensions) do
+    payload =
+      %{
+        intent_envelope_id: envelope.intent_envelope_id,
+        topology_epoch: topology_epoch,
+        mapping: mapping,
+        extensions: extensions
+      }
+      |> CanonicalJson.normalize!()
+      |> Jason.encode!()
+
+    digest =
+      :sha256
+      |> :crypto.hash(payload)
+      |> Base.encode16(case: :lower)
+      |> binary_part(0, 16)
+
+    "topology/#{digest}"
   end
 end
 
@@ -163,41 +276,95 @@ defmodule Citadel.ResolutionProvenance do
           Value.string!(value, "Citadel.ResolutionProvenance.source_kind")
         end),
       resolver_kind:
-        Value.optional(attrs, :resolver_kind, "Citadel.ResolutionProvenance", fn value ->
-          Value.string!(value, "Citadel.ResolutionProvenance.resolver_kind")
-        end, nil),
+        Value.optional(
+          attrs,
+          :resolver_kind,
+          "Citadel.ResolutionProvenance",
+          fn value ->
+            Value.string!(value, "Citadel.ResolutionProvenance.resolver_kind")
+          end,
+          nil
+        ),
       resolver_version:
-        Value.optional(attrs, :resolver_version, "Citadel.ResolutionProvenance", fn value ->
-          Value.string!(value, "Citadel.ResolutionProvenance.resolver_version")
-        end, nil),
+        Value.optional(
+          attrs,
+          :resolver_version,
+          "Citadel.ResolutionProvenance",
+          fn value ->
+            Value.string!(value, "Citadel.ResolutionProvenance.resolver_version")
+          end,
+          nil
+        ),
       prompt_version:
-        Value.optional(attrs, :prompt_version, "Citadel.ResolutionProvenance", fn value ->
-          Value.string!(value, "Citadel.ResolutionProvenance.prompt_version")
-        end, nil),
+        Value.optional(
+          attrs,
+          :prompt_version,
+          "Citadel.ResolutionProvenance",
+          fn value ->
+            Value.string!(value, "Citadel.ResolutionProvenance.prompt_version")
+          end,
+          nil
+        ),
       policy_version:
-        Value.optional(attrs, :policy_version, "Citadel.ResolutionProvenance", fn value ->
-          Value.string!(value, "Citadel.ResolutionProvenance.policy_version")
-        end, nil),
+        Value.optional(
+          attrs,
+          :policy_version,
+          "Citadel.ResolutionProvenance",
+          fn value ->
+            Value.string!(value, "Citadel.ResolutionProvenance.policy_version")
+          end,
+          nil
+        ),
       confidence:
-        Value.optional(attrs, :confidence, "Citadel.ResolutionProvenance", fn value ->
-          Value.confidence!(value, "Citadel.ResolutionProvenance.confidence")
-        end, nil),
+        Value.optional(
+          attrs,
+          :confidence,
+          "Citadel.ResolutionProvenance",
+          fn value ->
+            Value.confidence!(value, "Citadel.ResolutionProvenance.confidence")
+          end,
+          nil
+        ),
       ambiguity_flags:
-        Value.optional(attrs, :ambiguity_flags, "Citadel.ResolutionProvenance", fn value ->
-          Value.unique_strings!(value, "Citadel.ResolutionProvenance.ambiguity_flags")
-        end, []),
+        Value.optional(
+          attrs,
+          :ambiguity_flags,
+          "Citadel.ResolutionProvenance",
+          fn value ->
+            Value.unique_strings!(value, "Citadel.ResolutionProvenance.ambiguity_flags")
+          end,
+          []
+        ),
       raw_input_refs:
-        Value.optional(attrs, :raw_input_refs, "Citadel.ResolutionProvenance", fn value ->
-          Value.unique_strings!(value, "Citadel.ResolutionProvenance.raw_input_refs")
-        end, []),
+        Value.optional(
+          attrs,
+          :raw_input_refs,
+          "Citadel.ResolutionProvenance",
+          fn value ->
+            Value.unique_strings!(value, "Citadel.ResolutionProvenance.raw_input_refs")
+          end,
+          []
+        ),
       raw_input_hashes:
-        Value.optional(attrs, :raw_input_hashes, "Citadel.ResolutionProvenance", fn value ->
-          Value.unique_strings!(value, "Citadel.ResolutionProvenance.raw_input_hashes")
-        end, []),
+        Value.optional(
+          attrs,
+          :raw_input_hashes,
+          "Citadel.ResolutionProvenance",
+          fn value ->
+            Value.unique_strings!(value, "Citadel.ResolutionProvenance.raw_input_hashes")
+          end,
+          []
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.ResolutionProvenance", fn value ->
-          Value.json_object!(value, "Citadel.ResolutionProvenance.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.ResolutionProvenance",
+          fn value ->
+            Value.json_object!(value, "Citadel.ResolutionProvenance.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -263,25 +430,59 @@ defmodule Citadel.IntentEnvelope.ScopeSelector do
           Value.string!(value, "Citadel.IntentEnvelope.ScopeSelector.scope_kind")
         end),
       scope_id:
-        Value.optional(attrs, :scope_id, "Citadel.IntentEnvelope.ScopeSelector", fn value ->
-          Value.string!(value, "Citadel.IntentEnvelope.ScopeSelector.scope_id")
-        end, nil),
+        Value.optional(
+          attrs,
+          :scope_id,
+          "Citadel.IntentEnvelope.ScopeSelector",
+          fn value ->
+            Value.string!(value, "Citadel.IntentEnvelope.ScopeSelector.scope_id")
+          end,
+          nil
+        ),
       workspace_root:
-        Value.optional(attrs, :workspace_root, "Citadel.IntentEnvelope.ScopeSelector", fn value ->
-          Value.string!(value, "Citadel.IntentEnvelope.ScopeSelector.workspace_root")
-        end, nil),
+        Value.optional(
+          attrs,
+          :workspace_root,
+          "Citadel.IntentEnvelope.ScopeSelector",
+          fn value ->
+            Value.string!(value, "Citadel.IntentEnvelope.ScopeSelector.workspace_root")
+          end,
+          nil
+        ),
       environment:
-        Value.optional(attrs, :environment, "Citadel.IntentEnvelope.ScopeSelector", fn value ->
-          Value.string!(value, "Citadel.IntentEnvelope.ScopeSelector.environment")
-        end, nil),
+        Value.optional(
+          attrs,
+          :environment,
+          "Citadel.IntentEnvelope.ScopeSelector",
+          fn value ->
+            Value.string!(value, "Citadel.IntentEnvelope.ScopeSelector.environment")
+          end,
+          nil
+        ),
       preference:
-        Value.optional(attrs, :preference, "Citadel.IntentEnvelope.ScopeSelector", fn value ->
-          Value.enum!(value, @allowed_preferences, "Citadel.IntentEnvelope.ScopeSelector.preference")
-        end, :required),
+        Value.optional(
+          attrs,
+          :preference,
+          "Citadel.IntentEnvelope.ScopeSelector",
+          fn value ->
+            Value.enum!(
+              value,
+              @allowed_preferences,
+              "Citadel.IntentEnvelope.ScopeSelector.preference"
+            )
+          end,
+          :required
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.IntentEnvelope.ScopeSelector", fn value ->
-          Value.json_object!(value, "Citadel.IntentEnvelope.ScopeSelector.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.IntentEnvelope.ScopeSelector",
+          fn value ->
+            Value.json_object!(value, "Citadel.IntentEnvelope.ScopeSelector.extensions")
+          end,
+          %{}
+        )
     }
 
     if is_nil(selector.scope_id) and is_nil(selector.workspace_root) do
@@ -345,24 +546,51 @@ defmodule Citadel.IntentEnvelope.DesiredOutcome do
     outcome = %__MODULE__{
       outcome_kind:
         Value.required(attrs, :outcome_kind, "Citadel.IntentEnvelope.DesiredOutcome", fn value ->
-          Value.enum!(value, @allowed_outcome_kinds, "Citadel.IntentEnvelope.DesiredOutcome.outcome_kind")
+          Value.enum!(
+            value,
+            @allowed_outcome_kinds,
+            "Citadel.IntentEnvelope.DesiredOutcome.outcome_kind"
+          )
         end),
       requested_capabilities:
-        Value.required(attrs, :requested_capabilities, "Citadel.IntentEnvelope.DesiredOutcome", fn value ->
-          Value.unique_strings!(value, "Citadel.IntentEnvelope.DesiredOutcome.requested_capabilities")
-        end),
+        Value.required(
+          attrs,
+          :requested_capabilities,
+          "Citadel.IntentEnvelope.DesiredOutcome",
+          fn value ->
+            Value.unique_strings!(
+              value,
+              "Citadel.IntentEnvelope.DesiredOutcome.requested_capabilities"
+            )
+          end
+        ),
       result_kind:
         Value.required(attrs, :result_kind, "Citadel.IntentEnvelope.DesiredOutcome", fn value ->
           Value.string!(value, "Citadel.IntentEnvelope.DesiredOutcome.result_kind")
         end),
       subject_selectors:
-        Value.optional(attrs, :subject_selectors, "Citadel.IntentEnvelope.DesiredOutcome", fn value ->
-          Value.unique_strings!(value, "Citadel.IntentEnvelope.DesiredOutcome.subject_selectors")
-        end, []),
+        Value.optional(
+          attrs,
+          :subject_selectors,
+          "Citadel.IntentEnvelope.DesiredOutcome",
+          fn value ->
+            Value.unique_strings!(
+              value,
+              "Citadel.IntentEnvelope.DesiredOutcome.subject_selectors"
+            )
+          end,
+          []
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.IntentEnvelope.DesiredOutcome", fn value ->
-          Value.json_object!(value, "Citadel.IntentEnvelope.DesiredOutcome.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.IntentEnvelope.DesiredOutcome",
+          fn value ->
+            Value.json_object!(value, "Citadel.IntentEnvelope.DesiredOutcome.extensions")
+          end,
+          %{}
+        )
     }
 
     if outcome.outcome_kind == :invoke_capability and outcome.requested_capabilities == [] do
@@ -429,21 +657,54 @@ defmodule Citadel.IntentEnvelope.Constraints do
 
     %__MODULE__{
       boundary_requirement:
-        Value.required(attrs, :boundary_requirement, "Citadel.IntentEnvelope.Constraints", fn value ->
-          Value.enum!(value, IntentMappingConstraints.allowed_boundary_requirements(), "Citadel.IntentEnvelope.Constraints.boundary_requirement")
-        end),
+        Value.required(
+          attrs,
+          :boundary_requirement,
+          "Citadel.IntentEnvelope.Constraints",
+          fn value ->
+            Value.enum!(
+              value,
+              IntentMappingConstraints.allowed_boundary_requirements(),
+              "Citadel.IntentEnvelope.Constraints.boundary_requirement"
+            )
+          end
+        ),
       allowed_boundary_classes:
-        Value.optional(attrs, :allowed_boundary_classes, "Citadel.IntentEnvelope.Constraints", fn value ->
-          Value.unique_strings!(value, "Citadel.IntentEnvelope.Constraints.allowed_boundary_classes")
-        end, []),
+        Value.optional(
+          attrs,
+          :allowed_boundary_classes,
+          "Citadel.IntentEnvelope.Constraints",
+          fn value ->
+            Value.unique_strings!(
+              value,
+              "Citadel.IntentEnvelope.Constraints.allowed_boundary_classes"
+            )
+          end,
+          []
+        ),
       allowed_service_ids:
-        Value.optional(attrs, :allowed_service_ids, "Citadel.IntentEnvelope.Constraints", fn value ->
-          Value.unique_strings!(value, "Citadel.IntentEnvelope.Constraints.allowed_service_ids")
-        end, []),
+        Value.optional(
+          attrs,
+          :allowed_service_ids,
+          "Citadel.IntentEnvelope.Constraints",
+          fn value ->
+            Value.unique_strings!(value, "Citadel.IntentEnvelope.Constraints.allowed_service_ids")
+          end,
+          []
+        ),
       forbidden_service_ids:
-        Value.optional(attrs, :forbidden_service_ids, "Citadel.IntentEnvelope.Constraints", fn value ->
-          Value.unique_strings!(value, "Citadel.IntentEnvelope.Constraints.forbidden_service_ids")
-        end, []),
+        Value.optional(
+          attrs,
+          :forbidden_service_ids,
+          "Citadel.IntentEnvelope.Constraints",
+          fn value ->
+            Value.unique_strings!(
+              value,
+              "Citadel.IntentEnvelope.Constraints.forbidden_service_ids"
+            )
+          end,
+          []
+        ),
       max_steps:
         Value.required(attrs, :max_steps, "Citadel.IntentEnvelope.Constraints", fn value ->
           Value.positive_integer!(value, "Citadel.IntentEnvelope.Constraints.max_steps")
@@ -453,9 +714,15 @@ defmodule Citadel.IntentEnvelope.Constraints do
           Value.boolean!(value, "Citadel.IntentEnvelope.Constraints.review_required")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.IntentEnvelope.Constraints", fn value ->
-          Value.json_object!(value, "Citadel.IntentEnvelope.Constraints.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.IntentEnvelope.Constraints",
+          fn value ->
+            Value.json_object!(value, "Citadel.IntentEnvelope.Constraints.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -517,9 +784,15 @@ defmodule Citadel.IntentEnvelope.RiskHint do
           Value.boolean!(value, "Citadel.IntentEnvelope.RiskHint.requires_governance")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.IntentEnvelope.RiskHint", fn value ->
-          Value.json_object!(value, "Citadel.IntentEnvelope.RiskHint.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.IntentEnvelope.RiskHint",
+          fn value ->
+            Value.json_object!(value, "Citadel.IntentEnvelope.RiskHint.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -568,9 +841,18 @@ defmodule Citadel.IntentEnvelope.SuccessCriterion do
 
     %__MODULE__{
       criterion_kind:
-        Value.required(attrs, :criterion_kind, "Citadel.IntentEnvelope.SuccessCriterion", fn value ->
-          Value.enum!(value, @allowed_kinds, "Citadel.IntentEnvelope.SuccessCriterion.criterion_kind")
-        end),
+        Value.required(
+          attrs,
+          :criterion_kind,
+          "Citadel.IntentEnvelope.SuccessCriterion",
+          fn value ->
+            Value.enum!(
+              value,
+              @allowed_kinds,
+              "Citadel.IntentEnvelope.SuccessCriterion.criterion_kind"
+            )
+          end
+        ),
       metric:
         Value.required(attrs, :metric, "Citadel.IntentEnvelope.SuccessCriterion", fn value ->
           Value.string!(value, "Citadel.IntentEnvelope.SuccessCriterion.metric")
@@ -584,9 +866,15 @@ defmodule Citadel.IntentEnvelope.SuccessCriterion do
           Value.boolean!(value, "Citadel.IntentEnvelope.SuccessCriterion.required")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.IntentEnvelope.SuccessCriterion", fn value ->
-          Value.json_object!(value, "Citadel.IntentEnvelope.SuccessCriterion.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.IntentEnvelope.SuccessCriterion",
+          fn value ->
+            Value.json_object!(value, "Citadel.IntentEnvelope.SuccessCriterion.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -653,33 +941,83 @@ defmodule Citadel.IntentEnvelope.TargetHint do
           Value.string!(value, "Citadel.IntentEnvelope.TargetHint.target_kind")
         end),
       preferred_target_id:
-        Value.optional(attrs, :preferred_target_id, "Citadel.IntentEnvelope.TargetHint", fn value ->
-          Value.string!(value, "Citadel.IntentEnvelope.TargetHint.preferred_target_id")
-        end, nil),
+        Value.optional(
+          attrs,
+          :preferred_target_id,
+          "Citadel.IntentEnvelope.TargetHint",
+          fn value ->
+            Value.string!(value, "Citadel.IntentEnvelope.TargetHint.preferred_target_id")
+          end,
+          nil
+        ),
       preferred_service_id:
-        Value.optional(attrs, :preferred_service_id, "Citadel.IntentEnvelope.TargetHint", fn value ->
-          Value.string!(value, "Citadel.IntentEnvelope.TargetHint.preferred_service_id")
-        end, nil),
+        Value.optional(
+          attrs,
+          :preferred_service_id,
+          "Citadel.IntentEnvelope.TargetHint",
+          fn value ->
+            Value.string!(value, "Citadel.IntentEnvelope.TargetHint.preferred_service_id")
+          end,
+          nil
+        ),
       preferred_boundary_class:
-        Value.optional(attrs, :preferred_boundary_class, "Citadel.IntentEnvelope.TargetHint", fn value ->
-          Value.string!(value, "Citadel.IntentEnvelope.TargetHint.preferred_boundary_class")
-        end, nil),
+        Value.optional(
+          attrs,
+          :preferred_boundary_class,
+          "Citadel.IntentEnvelope.TargetHint",
+          fn value ->
+            Value.string!(value, "Citadel.IntentEnvelope.TargetHint.preferred_boundary_class")
+          end,
+          nil
+        ),
       session_mode_preference:
-        Value.optional(attrs, :session_mode_preference, "Citadel.IntentEnvelope.TargetHint", fn value ->
-          Value.enum!(value, IntentMappingConstraints.allowed_session_modes(), "Citadel.IntentEnvelope.TargetHint.session_mode_preference")
-        end, nil),
+        Value.optional(
+          attrs,
+          :session_mode_preference,
+          "Citadel.IntentEnvelope.TargetHint",
+          fn value ->
+            Value.enum!(
+              value,
+              IntentMappingConstraints.allowed_session_modes(),
+              "Citadel.IntentEnvelope.TargetHint.session_mode_preference"
+            )
+          end,
+          nil
+        ),
       coordination_mode_preference:
-        Value.optional(attrs, :coordination_mode_preference, "Citadel.IntentEnvelope.TargetHint", fn value ->
-          Value.enum!(value, IntentMappingConstraints.allowed_coordination_modes(), "Citadel.IntentEnvelope.TargetHint.coordination_mode_preference")
-        end, nil),
+        Value.optional(
+          attrs,
+          :coordination_mode_preference,
+          "Citadel.IntentEnvelope.TargetHint",
+          fn value ->
+            Value.enum!(
+              value,
+              IntentMappingConstraints.allowed_coordination_modes(),
+              "Citadel.IntentEnvelope.TargetHint.coordination_mode_preference"
+            )
+          end,
+          nil
+        ),
       routing_tags:
-        Value.optional(attrs, :routing_tags, "Citadel.IntentEnvelope.TargetHint", fn value ->
-          Value.unique_strings!(value, "Citadel.IntentEnvelope.TargetHint.routing_tags")
-        end, []),
+        Value.optional(
+          attrs,
+          :routing_tags,
+          "Citadel.IntentEnvelope.TargetHint",
+          fn value ->
+            Value.unique_strings!(value, "Citadel.IntentEnvelope.TargetHint.routing_tags")
+          end,
+          []
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.IntentEnvelope.TargetHint", fn value ->
-          Value.json_object!(value, "Citadel.IntentEnvelope.TargetHint.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.IntentEnvelope.TargetHint",
+          fn value ->
+            Value.json_object!(value, "Citadel.IntentEnvelope.TargetHint.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -741,9 +1079,15 @@ defmodule Citadel.PlanHints.CandidateStep do
           Value.unique_strings!(value, "Citadel.PlanHints.CandidateStep.allowed_operations")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.PlanHints.CandidateStep", fn value ->
-          Value.json_object!(value, "Citadel.PlanHints.CandidateStep.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.PlanHints.CandidateStep",
+          fn value ->
+            Value.json_object!(value, "Citadel.PlanHints.CandidateStep.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -801,9 +1145,15 @@ defmodule Citadel.PlanHints.BudgetHints do
           Value.non_neg_integer!(value, "Citadel.PlanHints.BudgetHints.max_reviews")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.PlanHints.BudgetHints", fn value ->
-          Value.json_object!(value, "Citadel.PlanHints.BudgetHints.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.PlanHints.BudgetHints",
+          fn value ->
+            Value.json_object!(value, "Citadel.PlanHints.BudgetHints.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -854,20 +1204,39 @@ defmodule Citadel.PlanHints.PreferredTopology do
     %__MODULE__{
       session_mode:
         Value.required(attrs, :session_mode, "Citadel.PlanHints.PreferredTopology", fn value ->
-          Value.enum!(value, IntentMappingConstraints.allowed_session_modes(), "Citadel.PlanHints.PreferredTopology.session_mode")
+          Value.enum!(
+            value,
+            IntentMappingConstraints.allowed_session_modes(),
+            "Citadel.PlanHints.PreferredTopology.session_mode"
+          )
         end),
       coordination_mode:
-        Value.required(attrs, :coordination_mode, "Citadel.PlanHints.PreferredTopology", fn value ->
-          Value.enum!(value, IntentMappingConstraints.allowed_coordination_modes(), "Citadel.PlanHints.PreferredTopology.coordination_mode")
-        end),
+        Value.required(
+          attrs,
+          :coordination_mode,
+          "Citadel.PlanHints.PreferredTopology",
+          fn value ->
+            Value.enum!(
+              value,
+              IntentMappingConstraints.allowed_coordination_modes(),
+              "Citadel.PlanHints.PreferredTopology.coordination_mode"
+            )
+          end
+        ),
       routing_hints:
         Value.required(attrs, :routing_hints, "Citadel.PlanHints.PreferredTopology", fn value ->
           Value.json_object!(value, "Citadel.PlanHints.PreferredTopology.routing_hints")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.PlanHints.PreferredTopology", fn value ->
-          Value.json_object!(value, "Citadel.PlanHints.PreferredTopology.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.PlanHints.PreferredTopology",
+          fn value ->
+            Value.json_object!(value, "Citadel.PlanHints.PreferredTopology.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -923,29 +1292,59 @@ defmodule Citadel.PlanHints do
 
     %__MODULE__{
       candidate_steps:
-        Value.optional(attrs, :candidate_steps, "Citadel.PlanHints", fn value ->
-          Value.list!(value, "Citadel.PlanHints.candidate_steps", fn item ->
-            Value.module!(item, CandidateStep, "Citadel.PlanHints.candidate_steps")
-          end)
-        end, []),
+        Value.optional(
+          attrs,
+          :candidate_steps,
+          "Citadel.PlanHints",
+          fn value ->
+            Value.list!(value, "Citadel.PlanHints.candidate_steps", fn item ->
+              Value.module!(item, CandidateStep, "Citadel.PlanHints.candidate_steps")
+            end)
+          end,
+          []
+        ),
       preferred_targets:
-        Value.optional(attrs, :preferred_targets, "Citadel.PlanHints", fn value ->
-          Value.list!(value, "Citadel.PlanHints.preferred_targets", fn item ->
-            Value.module!(item, TargetHint, "Citadel.PlanHints.preferred_targets")
-          end)
-        end, []),
+        Value.optional(
+          attrs,
+          :preferred_targets,
+          "Citadel.PlanHints",
+          fn value ->
+            Value.list!(value, "Citadel.PlanHints.preferred_targets", fn item ->
+              Value.module!(item, TargetHint, "Citadel.PlanHints.preferred_targets")
+            end)
+          end,
+          []
+        ),
       preferred_topology:
-        Value.optional(attrs, :preferred_topology, "Citadel.PlanHints", fn value ->
-          Value.module!(value, PreferredTopology, "Citadel.PlanHints.preferred_topology")
-        end, nil),
+        Value.optional(
+          attrs,
+          :preferred_topology,
+          "Citadel.PlanHints",
+          fn value ->
+            Value.module!(value, PreferredTopology, "Citadel.PlanHints.preferred_topology")
+          end,
+          nil
+        ),
       budget_hints:
-        Value.optional(attrs, :budget_hints, "Citadel.PlanHints", fn value ->
-          Value.module!(value, BudgetHints, "Citadel.PlanHints.budget_hints")
-        end, nil),
+        Value.optional(
+          attrs,
+          :budget_hints,
+          "Citadel.PlanHints",
+          fn value ->
+            Value.module!(value, BudgetHints, "Citadel.PlanHints.budget_hints")
+          end,
+          nil
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.PlanHints", fn value ->
-          Value.json_object!(value, "Citadel.PlanHints.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.PlanHints",
+          fn value ->
+            Value.json_object!(value, "Citadel.PlanHints.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -1041,9 +1440,14 @@ defmodule Citadel.IntentEnvelope do
         end),
       scope_selectors:
         Value.required(attrs, :scope_selectors, "Citadel.IntentEnvelope", fn value ->
-          Value.list!(value, "Citadel.IntentEnvelope.scope_selectors", fn item ->
-            Value.module!(item, ScopeSelector, "Citadel.IntentEnvelope.scope_selectors")
-          end, allow_empty?: false)
+          Value.list!(
+            value,
+            "Citadel.IntentEnvelope.scope_selectors",
+            fn item ->
+              Value.module!(item, ScopeSelector, "Citadel.IntentEnvelope.scope_selectors")
+            end,
+            allow_empty?: false
+          )
         end),
       desired_outcome:
         Value.required(attrs, :desired_outcome, "Citadel.IntentEnvelope", fn value ->
@@ -1061,9 +1465,14 @@ defmodule Citadel.IntentEnvelope do
         end),
       success_criteria:
         Value.required(attrs, :success_criteria, "Citadel.IntentEnvelope", fn value ->
-          Value.list!(value, "Citadel.IntentEnvelope.success_criteria", fn item ->
-            Value.module!(item, SuccessCriterion, "Citadel.IntentEnvelope.success_criteria")
-          end, allow_empty?: false)
+          Value.list!(
+            value,
+            "Citadel.IntentEnvelope.success_criteria",
+            fn item ->
+              Value.module!(item, SuccessCriterion, "Citadel.IntentEnvelope.success_criteria")
+            end,
+            allow_empty?: false
+          )
         end),
       target_hints:
         Value.required(attrs, :target_hints, "Citadel.IntentEnvelope", fn value ->
@@ -1072,21 +1481,44 @@ defmodule Citadel.IntentEnvelope do
           end)
         end),
       plan_hints:
-        Value.optional(attrs, :plan_hints, "Citadel.IntentEnvelope", fn value ->
-          Value.module!(value, PlanHints, "Citadel.IntentEnvelope.plan_hints")
-        end, nil),
+        Value.optional(
+          attrs,
+          :plan_hints,
+          "Citadel.IntentEnvelope",
+          fn value ->
+            Value.module!(value, PlanHints, "Citadel.IntentEnvelope.plan_hints")
+          end,
+          nil
+        ),
       resolution_provenance:
-        Value.optional(attrs, :resolution_provenance, "Citadel.IntentEnvelope", fn value ->
-          Value.module!(value, ResolutionProvenance, "Citadel.IntentEnvelope.resolution_provenance")
-        end, nil),
+        Value.optional(
+          attrs,
+          :resolution_provenance,
+          "Citadel.IntentEnvelope",
+          fn value ->
+            Value.module!(
+              value,
+              ResolutionProvenance,
+              "Citadel.IntentEnvelope.resolution_provenance"
+            )
+          end,
+          nil
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.IntentEnvelope", fn value ->
-          Value.json_object!(value, "Citadel.IntentEnvelope.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.IntentEnvelope",
+          fn value ->
+            Value.json_object!(value, "Citadel.IntentEnvelope.extensions")
+          end,
+          %{}
+        )
     }
 
     if Map.has_key?(attrs, "intent") do
-      raise ArgumentError, "Citadel.IntentEnvelope must not carry raw intent strings at the kernel boundary"
+      raise ArgumentError,
+            "Citadel.IntentEnvelope must not carry raw intent strings at the kernel boundary"
     end
 
     envelope

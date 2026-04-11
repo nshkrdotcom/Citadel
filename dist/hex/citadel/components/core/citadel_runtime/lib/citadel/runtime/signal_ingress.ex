@@ -7,7 +7,9 @@ defmodule Citadel.Runtime.SignalIngress do
 
   alias Citadel.ObservabilityContract.Telemetry
   alias Citadel.Runtime.SessionDirectory
+  alias Citadel.Runtime.SessionServer
   alias Citadel.Runtime.SystemClock
+  alias Citadel.RuntimeObservation
   alias Citadel.SignalIngressRebuildPolicy
 
   @rebuild_message :rebuild_batch
@@ -37,6 +39,10 @@ defmodule Citadel.Runtime.SignalIngress do
     GenServer.call(server, {:deliver_signal, raw_signal})
   end
 
+  def deliver_observation(server \\ __MODULE__, %RuntimeObservation{} = observation) do
+    deliver_signal(server, observation)
+  end
+
   def subscription_state(server \\ __MODULE__, session_id) do
     GenServer.call(server, {:subscription_state, session_id})
   end
@@ -52,8 +58,10 @@ defmodule Citadel.Runtime.SignalIngress do
       signal_source: Keyword.fetch!(opts, :signal_source),
       clock: Keyword.get(opts, :clock, SystemClock),
       rebuild_policy: Keyword.get(opts, :rebuild_policy, SignalIngressRebuildPolicy.new!(%{})),
-      transport_partition_fun: Keyword.get(opts, :transport_partition_fun, fn _cursor_info -> :default end),
-      transport_reposition_fun: Keyword.get(opts, :transport_reposition_fun, fn _groups -> :ok end),
+      transport_partition_fun:
+        Keyword.get(opts, :transport_partition_fun, fn _cursor_info -> :default end),
+      transport_reposition_fun:
+        Keyword.get(opts, :transport_reposition_fun, fn _groups -> :ok end),
       subscriptions: %{},
       consumers: %{},
       rebuild_queue: %{},
@@ -95,7 +103,12 @@ defmodule Citadel.Runtime.SignalIngress do
   end
 
   def handle_call({:unregister_subscription, session_id}, _from, state) do
-    {:reply, :ok, %{state | subscriptions: Map.delete(state.subscriptions, session_id), consumers: Map.delete(state.consumers, session_id)}}
+    {:reply, :ok,
+     %{
+       state
+       | subscriptions: Map.delete(state.subscriptions, session_id),
+         consumers: Map.delete(state.consumers, session_id)
+     }}
   end
 
   def handle_call({:register_consumer, session_id, pid}, _from, state) do
@@ -143,12 +156,16 @@ defmodule Citadel.Runtime.SignalIngress do
     else
       {batch, remaining_queue} = take_rebuild_batch(state.rebuild_queue, state.rebuild_policy)
       started_at = System.monotonic_time(:millisecond)
-      cursor_map = SessionDirectory.batch_load_committed_cursors(state.session_directory, Map.keys(batch))
+
+      cursor_map =
+        SessionDirectory.batch_load_committed_cursors(state.session_directory, Map.keys(batch))
+
       grouped = group_for_transport(cursor_map, state.transport_partition_fun)
       _ = state.transport_reposition_fun.(grouped)
 
       subscriptions =
-        Enum.reduce(cursor_map, state.subscriptions, fn {session_id, cursor_info}, subscriptions ->
+        Enum.reduce(cursor_map, state.subscriptions, fn {session_id, cursor_info},
+                                                        subscriptions ->
           Map.put(subscriptions, session_id, %{
             session_id: session_id,
             subscription_ref: "subscription/#{session_id}",
@@ -172,7 +189,11 @@ defmodule Citadel.Runtime.SignalIngress do
       )
 
       Enum.each(cursor_map, fn {_session_id, cursor_info} ->
-        maybe_emit_high_priority_ready_latency(state, cursor_info.priority_class, cursor_info.registered_at)
+        maybe_emit_high_priority_ready_latency(
+          state,
+          cursor_info.priority_class,
+          cursor_info.registered_at
+        )
       end)
 
       state =
@@ -219,7 +240,14 @@ defmodule Citadel.Runtime.SignalIngress do
         state
 
       pid ->
-        send(pid, {:runtime_observation, observation})
+        _ =
+          try do
+            SessionServer.record_runtime_observation(pid, observation)
+          catch
+            :exit, {:noproc, _details} -> :ok
+            :exit, :noproc -> :ok
+          end
+
         state
     end
   end
@@ -234,7 +262,8 @@ defmodule Citadel.Runtime.SignalIngress do
   defp take_rebuild_batch(rebuild_queue, %SignalIngressRebuildPolicy{} = rebuild_policy) do
     rebuild_queue
     |> Enum.sort_by(fn {_session_id, cursor_info} ->
-      {SignalIngressRebuildPolicy.priority_rank(rebuild_policy, cursor_info.priority_class), cursor_info.registered_at}
+      {SignalIngressRebuildPolicy.priority_rank(rebuild_policy, cursor_info.priority_class),
+       cursor_info.registered_at}
     end)
     |> Enum.split(rebuild_policy.max_sessions_per_batch)
     |> then(fn {selected, remaining} -> {Map.new(selected), Map.new(remaining)} end)
@@ -249,7 +278,10 @@ defmodule Citadel.Runtime.SignalIngress do
   defp batch_priority_class(batch, %SignalIngressRebuildPolicy{} = rebuild_policy) do
     batch
     |> Map.values()
-    |> Enum.min_by(&SignalIngressRebuildPolicy.priority_rank(rebuild_policy, &1.priority_class), fn -> %{priority_class: "background"} end)
+    |> Enum.min_by(
+      &SignalIngressRebuildPolicy.priority_rank(rebuild_policy, &1.priority_class),
+      fn -> %{priority_class: "background"} end
+    )
     |> Map.get(:priority_class)
   end
 
@@ -268,7 +300,8 @@ defmodule Citadel.Runtime.SignalIngress do
 
   defp maybe_emit_high_priority_ready_latency(state, priority_class, registered_at) do
     if priority_class in ["explicit_resume", "live_request", "pending_replay_safe"] do
-      duration_ms = DateTime.diff(state.clock.utc_now(), registered_at || state.restarted_at, :millisecond)
+      duration_ms =
+        DateTime.diff(state.clock.utc_now(), registered_at || state.restarted_at, :millisecond)
 
       :telemetry.execute(
         Telemetry.event_name(:signal_ingress_high_priority_ready_latency),

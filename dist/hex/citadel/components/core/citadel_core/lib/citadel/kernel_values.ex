@@ -78,9 +78,15 @@ defmodule Citadel.DecisionSnapshot do
           Value.non_neg_integer!(value, "Citadel.DecisionSnapshot.boundary_epoch")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.DecisionSnapshot", fn value ->
-          Value.json_object!(value, "Citadel.DecisionSnapshot.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.DecisionSnapshot",
+          fn value ->
+            Value.json_object!(value, "Citadel.DecisionSnapshot.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -168,9 +174,15 @@ defmodule Citadel.KernelEpochUpdate do
           Value.datetime!(value, "Citadel.KernelEpochUpdate.updated_at")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.KernelEpochUpdate", fn value ->
-          Value.json_object!(value, "Citadel.KernelEpochUpdate.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.KernelEpochUpdate",
+          fn value ->
+            Value.json_object!(value, "Citadel.KernelEpochUpdate.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -241,9 +253,15 @@ defmodule Citadel.ScopeRef do
           Value.non_neg_integer!(value, "Citadel.ScopeRef.catalog_epoch")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.ScopeRef", fn value ->
-          Value.json_object!(value, "Citadel.ScopeRef.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.ScopeRef",
+          fn value ->
+            Value.json_object!(value, "Citadel.ScopeRef.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -321,9 +339,15 @@ defmodule Citadel.TargetResolution do
           Value.non_neg_integer!(value, "Citadel.TargetResolution.catalog_epoch")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.TargetResolution", fn value ->
-          Value.json_object!(value, "Citadel.TargetResolution.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.TargetResolution",
+          fn value ->
+            Value.json_object!(value, "Citadel.TargetResolution.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -396,9 +420,15 @@ defmodule Citadel.ProjectBinding do
           Value.non_neg_integer!(value, "Citadel.ProjectBinding.binding_epoch")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.ProjectBinding", fn value ->
-          Value.json_object!(value, "Citadel.ProjectBinding.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.ProjectBinding",
+          fn value ->
+            Value.json_object!(value, "Citadel.ProjectBinding.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -470,9 +500,15 @@ defmodule Citadel.ServiceDescriptor do
           Value.non_neg_integer!(value, "Citadel.ServiceDescriptor.admission_epoch")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.ServiceDescriptor", fn value ->
-          Value.json_object!(value, "Citadel.ServiceDescriptor.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.ServiceDescriptor",
+          fn value ->
+            Value.json_object!(value, "Citadel.ServiceDescriptor.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -548,9 +584,15 @@ defmodule Citadel.ExtensionAdmission do
           Value.non_neg_integer!(value, "Citadel.ExtensionAdmission.admission_epoch")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.ExtensionAdmission", fn value ->
-          Value.json_object!(value, "Citadel.ExtensionAdmission.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.ExtensionAdmission",
+          fn value ->
+            Value.json_object!(value, "Citadel.ExtensionAdmission.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -622,22 +664,40 @@ defmodule Citadel.BoundaryLeaseView do
     lease_view = %__MODULE__{
       boundary_ref: boundary_ref,
       last_heartbeat_at:
-        Value.optional(attrs, :last_heartbeat_at, "Citadel.BoundaryLeaseView", fn value ->
-          Value.datetime!(value, "Citadel.BoundaryLeaseView.last_heartbeat_at")
-        end, nil),
+        Value.optional(
+          attrs,
+          :last_heartbeat_at,
+          "Citadel.BoundaryLeaseView",
+          fn value ->
+            Value.datetime!(value, "Citadel.BoundaryLeaseView.last_heartbeat_at")
+          end,
+          nil
+        ),
       expires_at:
-        Value.optional(attrs, :expires_at, "Citadel.BoundaryLeaseView", fn value ->
-          Value.datetime!(value, "Citadel.BoundaryLeaseView.expires_at")
-        end, nil),
+        Value.optional(
+          attrs,
+          :expires_at,
+          "Citadel.BoundaryLeaseView",
+          fn value ->
+            Value.datetime!(value, "Citadel.BoundaryLeaseView.expires_at")
+          end,
+          nil
+        ),
       staleness_status: staleness_status,
       lease_epoch:
         Value.required(attrs, :lease_epoch, "Citadel.BoundaryLeaseView", fn value ->
           Value.non_neg_integer!(value, "Citadel.BoundaryLeaseView.lease_epoch")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.BoundaryLeaseView", fn value ->
-          Value.json_object!(value, "Citadel.BoundaryLeaseView.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.BoundaryLeaseView",
+          fn value ->
+            Value.json_object!(value, "Citadel.BoundaryLeaseView.extensions")
+          end,
+          %{}
+        )
     }
 
     validate_missing_boundary_fields!(lease_view)
@@ -828,37 +888,85 @@ defmodule Citadel.KernelContext do
           Value.string!(value, "Citadel.KernelContext.boundary_class")
         end),
       decision_snapshot:
-        Value.optional(attrs, :decision_snapshot, "Citadel.KernelContext", fn value ->
-          Value.module!(value, DecisionSnapshot, "Citadel.KernelContext.decision_snapshot")
-        end, nil),
+        Value.optional(
+          attrs,
+          :decision_snapshot,
+          "Citadel.KernelContext",
+          fn value ->
+            Value.module!(value, DecisionSnapshot, "Citadel.KernelContext.decision_snapshot")
+          end,
+          nil
+        ),
       project_binding:
-        Value.optional(attrs, :project_binding, "Citadel.KernelContext", fn value ->
-          Value.module!(value, ProjectBinding, "Citadel.KernelContext.project_binding")
-        end, nil),
+        Value.optional(
+          attrs,
+          :project_binding,
+          "Citadel.KernelContext",
+          fn value ->
+            Value.module!(value, ProjectBinding, "Citadel.KernelContext.project_binding")
+          end,
+          nil
+        ),
       selected_target:
-        Value.optional(attrs, :selected_target, "Citadel.KernelContext", fn value ->
-          Value.module!(value, TargetResolution, "Citadel.KernelContext.selected_target")
-        end, nil),
+        Value.optional(
+          attrs,
+          :selected_target,
+          "Citadel.KernelContext",
+          fn value ->
+            Value.module!(value, TargetResolution, "Citadel.KernelContext.selected_target")
+          end,
+          nil
+        ),
       selected_service:
-        Value.optional(attrs, :selected_service, "Citadel.KernelContext", fn value ->
-          Value.module!(value, ServiceDescriptor, "Citadel.KernelContext.selected_service")
-        end, nil),
+        Value.optional(
+          attrs,
+          :selected_service,
+          "Citadel.KernelContext",
+          fn value ->
+            Value.module!(value, ServiceDescriptor, "Citadel.KernelContext.selected_service")
+          end,
+          nil
+        ),
       existing_boundary_ref:
-        Value.optional(attrs, :existing_boundary_ref, "Citadel.KernelContext", fn value ->
-          Value.string!(value, "Citadel.KernelContext.existing_boundary_ref")
-        end, nil),
+        Value.optional(
+          attrs,
+          :existing_boundary_ref,
+          "Citadel.KernelContext",
+          fn value ->
+            Value.string!(value, "Citadel.KernelContext.existing_boundary_ref")
+          end,
+          nil
+        ),
       signal_cursor:
-        Value.optional(attrs, :signal_cursor, "Citadel.KernelContext", fn value ->
-          Value.string!(value, "Citadel.KernelContext.signal_cursor")
-        end, nil),
+        Value.optional(
+          attrs,
+          :signal_cursor,
+          "Citadel.KernelContext",
+          fn value ->
+            Value.string!(value, "Citadel.KernelContext.signal_cursor")
+          end,
+          nil
+        ),
       external_refs:
-        Value.optional(attrs, :external_refs, "Citadel.KernelContext", fn value ->
-          Value.json_object!(value, "Citadel.KernelContext.external_refs")
-        end, %{}),
+        Value.optional(
+          attrs,
+          :external_refs,
+          "Citadel.KernelContext",
+          fn value ->
+            Value.json_object!(value, "Citadel.KernelContext.external_refs")
+          end,
+          %{}
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.KernelContext", fn value ->
-          Value.json_object!(value, "Citadel.KernelContext.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.KernelContext",
+          fn value ->
+            Value.json_object!(value, "Citadel.KernelContext.extensions")
+          end,
+          %{}
+        )
     }
   end
 

@@ -28,10 +28,11 @@ mix weld.release.archive packaging/weld/citadel.exs
 
 `mix weld.verify` is the packet-facing publication gate. It projects the
 artifact, runs verification against the generated package, and confirms that
-path-local dependencies are canonicalized to publishable dependency
-declarations. When the workspace is using the local `jido_integration`
-contracts path, the welded artifact canonicalizes that dependency to a public
-GitHub sparse checkout pinned to the currently verified contracts revision.
+workspace-external dependencies are canonicalized to publishable dependency
+declarations. The higher-order `Jido.Integration.V2` contract slice is carried
+as the in-workspace `core/jido_integration_v2_contracts` package, so the
+generated `citadel` artifact does not leak a path, git, or unpublished Hex
+dependency for those modules.
 
 ## Ownership Rule
 

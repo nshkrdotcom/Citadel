@@ -63,11 +63,11 @@ defmodule Citadel.Runtime.KernelSnapshot do
     publish_read_surface(read_surface_key, snapshot)
 
     {:ok,
-     %{
+     ensure_invariants!(%{
        clock: clock,
        read_surface_key: read_surface_key,
        snapshot: snapshot
-     }}
+     })}
   end
 
   @impl true
@@ -87,7 +87,7 @@ defmodule Citadel.Runtime.KernelSnapshot do
 
       {:updated, snapshot} ->
         publish_read_surface(state.read_surface_key, snapshot)
-        {:noreply, %{state | snapshot: snapshot}}
+        {:noreply, ensure_invariants!(%{state | snapshot: snapshot})}
     end
   end
 
@@ -100,23 +100,40 @@ defmodule Citadel.Runtime.KernelSnapshot do
     current_epoch = Map.fetch!(snapshot, update.constituent)
     updated_policy_version = policy_version(snapshot, update)
 
-    if current_epoch == update.epoch and updated_policy_version == snapshot.policy_version do
-      {:unchanged, snapshot}
-    else
-      updated_snapshot =
-        snapshot
-        |> DecisionSnapshot.dump()
-        |> Map.put(update.constituent, update.epoch)
-        |> Map.put(:policy_version, updated_policy_version)
-        |> Map.put(:snapshot_seq, snapshot.snapshot_seq + 1)
-        |> Map.put(:captured_at, captured_at)
-        |> DecisionSnapshot.new!()
+    cond do
+      update.epoch < current_epoch ->
+        invariant_failure!(
+          "received epoch regression for #{inspect(update.constituent)}: current=#{current_epoch} update=#{update.epoch}"
+        )
 
-      {:updated, updated_snapshot}
+      update.constituent == :policy_epoch and
+        update.epoch == current_epoch and
+          updated_policy_version != snapshot.policy_version ->
+        invariant_failure!(
+          "received policy version drift without policy_epoch advancement: current=#{inspect(snapshot.policy_version)} update=#{inspect(updated_policy_version)}"
+        )
+
+      current_epoch == update.epoch and updated_policy_version == snapshot.policy_version ->
+        {:unchanged, snapshot}
+
+      true ->
+        updated_snapshot =
+          snapshot
+          |> DecisionSnapshot.dump()
+          |> Map.put(update.constituent, update.epoch)
+          |> Map.put(:policy_version, updated_policy_version)
+          |> Map.put(:snapshot_seq, snapshot.snapshot_seq + 1)
+          |> Map.put(:captured_at, captured_at)
+          |> DecisionSnapshot.new!()
+
+        {:updated, updated_snapshot}
     end
   end
 
-  defp policy_version(snapshot, %KernelEpochUpdate{constituent: :policy_epoch, extensions: extensions}) do
+  defp policy_version(snapshot, %KernelEpochUpdate{
+         constituent: :policy_epoch,
+         extensions: extensions
+       }) do
     Map.get(extensions, "policy_version", snapshot.policy_version)
   end
 
@@ -124,6 +141,24 @@ defmodule Citadel.Runtime.KernelSnapshot do
 
   defp publish_read_surface(read_surface_key, snapshot) do
     :persistent_term.put(read_surface_key, snapshot)
+  end
+
+  defp ensure_invariants!(
+         %{read_surface_key: read_surface_key, snapshot: %DecisionSnapshot{} = snapshot} = state
+       ) do
+    case :persistent_term.get(read_surface_key, :missing) do
+      ^snapshot ->
+        state
+
+      published_snapshot ->
+        invariant_failure!(
+          "read surface drifted from owner snapshot: expected=#{inspect(snapshot)} got=#{inspect(published_snapshot)}"
+        )
+    end
+  end
+
+  defp invariant_failure!(reason) do
+    raise RuntimeError, "Citadel.Runtime.KernelSnapshot invariant failure: #{reason}"
   end
 
   defp mailbox_depth do

@@ -2,6 +2,7 @@
   "projection": {
     "build_path": "/home/home/p/g/n/citadel/dist/hex/citadel",
     "copied_files": [
+      ".credo.exs",
       ".formatter.exs",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/boundary_bridge/lib/citadel/boundary_bridge.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/boundary_bridge/lib/citadel/boundary_bridge/boundary_projection_adapter.ex",
@@ -19,6 +20,7 @@
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/authority_decision/v1.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/boundary_intent.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/bridge_circuit.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/bridge_state.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/core.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/decision_hash.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_core/lib/citadel/decision_values.ex",
@@ -35,6 +37,7 @@
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/application.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/boundary_lease_tracker.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/kernel_snapshot.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/observation_signal_source.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/policy_cache.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/scope_catalog.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_runtime/lib/citadel/runtime/service_catalog.ex",
@@ -50,6 +53,12 @@
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/contract_core/lib/citadel/contract_core/attr_map.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/contract_core/lib/citadel/contract_core/canonical_json.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/contract_core/lib/citadel/contract_core/value.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/derived_state_attachment.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/evidence_ref.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/governance_ref.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/review_projection.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/subject_ref.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/support.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract/telemetry.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract/trace.ex",
@@ -71,6 +80,7 @@
       "test/test_helper.exs"
     ],
     "package_files": [
+      ".credo.exs",
       ".formatter.exs",
       "CHANGELOG.md",
       "LICENSE",
@@ -87,6 +97,7 @@
       "components/core/citadel_core",
       "components/core/citadel_runtime",
       "components/core/contract_core",
+      "components/core/jido_integration_v2_contracts",
       "components/core/observability_contract",
       "components/core/policy_packs",
       "config",
@@ -98,12 +109,12 @@
       "mix.exs",
       "projection.lock.json"
     ],
-    "git_revision": "f37febcad0fa4378fb1e8c2e20649c8384b245d9",
-    "tree_digest": "5132afc172f54024512a62e939ac1b9981d276475131e668cd3a3db7faf63d1c"
+    "git_revision": "ca6b8205952f50aaab3b6c5e58e4bc88ccc5181e",
+    "tree_digest": "ea1d04142af3269811312559dc97ae60894c81dbaaf2f42666e1400708768ad3"
   },
   "manifest": {
     "path": "/home/home/p/g/n/citadel/packaging/weld/citadel.exs",
-    "digest": "c45f5202b932e31d8a030b02a37147a964ff879ef8b750fd0fedc6054880e205"
+    "digest": "50257e2b932ffa7d4300ec0ddc0e034d8cf81a10fcaf5b6736b2e6e90c499cd4"
   },
   "artifact": {
     "id": "citadel",
@@ -134,6 +145,7 @@
         "core/citadel_runtime",
         "core/conformance",
         "core/contract_core",
+        "core/jido_integration_v2_contracts",
         "core/observability_contract",
         "core/policy_packs"
       ],
@@ -146,7 +158,7 @@
       ],
       "root_project?": true
     },
-    "project_count": 18
+    "project_count": 19
   },
   "graph": {
     "edges": [
@@ -369,6 +381,13 @@
       },
       {
         "kind": "runtime",
+        "app": "jido_integration_v2_contracts",
+        "to": "core/jido_integration_v2_contracts",
+        "requirement": null,
+        "from": "bridges/invocation_bridge"
+      },
+      {
+        "kind": "runtime",
         "app": "citadel_observability_contract",
         "to": "core/observability_contract",
         "requirement": null,
@@ -406,6 +425,13 @@
         "kind": "runtime",
         "app": "citadel_runtime",
         "to": "core/citadel_runtime",
+        "requirement": null,
+        "from": "bridges/projection_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "jido_integration_v2_contracts",
+        "to": "core/jido_integration_v2_contracts",
         "requirement": null,
         "from": "bridges/projection_bridge"
       },
@@ -490,6 +516,13 @@
         "kind": "runtime",
         "app": "citadel_contract_core",
         "to": "core/contract_core",
+        "requirement": null,
+        "from": "core/citadel_core"
+      },
+      {
+        "kind": "runtime",
+        "app": "jido_integration_v2_contracts",
+        "to": "core/jido_integration_v2_contracts",
         "requirement": null,
         "from": "core/citadel_core"
       },
@@ -628,6 +661,13 @@
       },
       {
         "kind": "runtime",
+        "app": "jido_integration_v2_contracts",
+        "to": "core/jido_integration_v2_contracts",
+        "requirement": null,
+        "from": "core/conformance"
+      },
+      {
+        "kind": "runtime",
         "app": "citadel_observability_contract",
         "to": "core/observability_contract",
         "requirement": null,
@@ -655,7 +695,7 @@
         "from": "core/policy_packs"
       }
     ],
-    "digest": "da826f4ec177087ccb93e3e4bf346c355091da5af99d36ac6094249d008a70b5",
+    "digest": "cb42c62bcf7b15055ee8c3438216a31eb291e7127d4f8d893eeba5de327b3dd4",
     "excluded_projects": [
       ".",
       "apps/coding_assist",
@@ -675,10 +715,49 @@
       "core/citadel_core",
       "core/citadel_runtime",
       "core/contract_core",
+      "core/jido_integration_v2_contracts",
       "core/observability_contract",
       "core/policy_packs"
     ],
     "violations": []
   },
-  "verification": []
+  "verification": [
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.get"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.compile"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "compile --warnings-as-errors --no-compile-deps"
+    },
+    {
+      "env": "test",
+      "status": "ok",
+      "task": "test",
+      "failure_count": 0,
+      "test_count": 2
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "docs --warnings-as-errors"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "hex.build"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "hex.publish --dry-run --yes"
+    }
+  ]
 }

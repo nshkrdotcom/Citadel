@@ -6,8 +6,10 @@ defmodule Citadel.Ports.InvocationSink do
   alias Citadel.ActionOutboxEntry
   alias Citadel.InvocationRequest
 
+  @type submission_result :: {:ok, String.t()} | {:error, atom()}
+
   @callback submit_invocation(InvocationRequest.t(), ActionOutboxEntry.t()) ::
-              {:ok, String.t()} | {:error, atom()}
+              submission_result()
 end
 
 defmodule Citadel.Ports.RuntimeQuery do
@@ -18,11 +20,29 @@ defmodule Citadel.Ports.RuntimeQuery do
   alias Citadel.BoundarySessionDescriptor.V1
   alias Citadel.RuntimeObservation
 
-  @callback fetch_runtime_observation(map()) ::
-              {:ok, RuntimeObservation.t()} | {:error, atom()}
+  @type runtime_observation_query :: %{
+          required(:downstream_scope) => String.t(),
+          optional(:request_id) => String.t(),
+          optional(:session_id) => String.t(),
+          optional(:signal_id) => String.t(),
+          optional(:signal_cursor) => String.t(),
+          optional(:runtime_ref_id) => String.t()
+        }
+  @type boundary_session_query :: %{
+          required(:downstream_scope) => String.t(),
+          optional(:boundary_ref) => String.t(),
+          optional(:boundary_session_id) => String.t(),
+          optional(:session_id) => String.t(),
+          optional(:tenant_id) => String.t(),
+          optional(:target_id) => String.t()
+        }
+  @type runtime_observation_result :: {:ok, RuntimeObservation.t()} | {:error, atom()}
+  @type boundary_session_result :: {:ok, V1.t()} | {:error, atom()}
 
-  @callback fetch_boundary_session(map()) ::
-              {:ok, V1.t()} | {:error, atom()}
+  @callback fetch_runtime_observation(runtime_observation_query()) ::
+              runtime_observation_result()
+
+  @callback fetch_boundary_session(boundary_session_query()) :: boundary_session_result()
 end
 
 defmodule Citadel.Ports.SignalSource do
@@ -32,7 +52,9 @@ defmodule Citadel.Ports.SignalSource do
 
   alias Citadel.RuntimeObservation
 
-  @callback normalize_signal(term()) :: {:ok, RuntimeObservation.t()} | {:error, atom()}
+  @type raw_signal :: %{optional(atom() | String.t()) => term()}
+
+  @callback normalize_signal(raw_signal()) :: {:ok, RuntimeObservation.t()} | {:error, atom()}
 end
 
 defmodule Citadel.Ports.BoundaryLifecycle do
@@ -41,19 +63,70 @@ defmodule Citadel.Ports.BoundaryLifecycle do
   """
 
   alias Citadel.AttachGrant.V1
+  alias Citadel.AuthorityContract.AuthorityDecision.V1, as: AuthorityDecisionV1
   alias Citadel.BoundaryIntent
   alias Citadel.BoundaryLeaseView
   alias Citadel.BoundarySessionDescriptor.V1, as: BoundarySessionDescriptorV1
+  alias Citadel.ContractCore.CanonicalJson
 
-  @callback submit_boundary_intent(BoundaryIntent.t(), map()) ::
-              {:ok, String.t()} | {:error, atom()}
+  @type boundary_intent_metadata :: %{
+          required(:session_id) => String.t(),
+          required(:tenant_id) => String.t(),
+          required(:target_id) => String.t(),
+          optional(:authority_packet) => AuthorityDecisionV1.t(),
+          optional(:downstream_scope) => String.t(),
+          optional(:extensions) => %{optional(String.t()) => CanonicalJson.value()}
+        }
+  @type boundary_session_source ::
+          BoundarySessionDescriptorV1.t()
+          | %{
+              required(:contract_version) => String.t(),
+              required(:boundary_session_id) => String.t(),
+              required(:boundary_ref) => String.t(),
+              required(:session_id) => String.t(),
+              required(:tenant_id) => String.t(),
+              required(:target_id) => String.t(),
+              required(:boundary_class) => String.t(),
+              required(:status) => String.t(),
+              required(:attach_mode) => String.t(),
+              optional(:lease_expires_at) => DateTime.t() | String.t() | nil,
+              optional(:last_heartbeat_at) => DateTime.t() | String.t() | nil,
+              optional(:extensions) => %{optional(String.t()) => CanonicalJson.value()}
+            }
+  @type attach_grant_source ::
+          V1.t()
+          | %{
+              required(:contract_version) => String.t(),
+              required(:attach_grant_id) => String.t(),
+              required(:boundary_session_id) => String.t(),
+              required(:boundary_ref) => String.t(),
+              required(:session_id) => String.t(),
+              required(:granted_at) => DateTime.t() | String.t(),
+              optional(:expires_at) => DateTime.t() | String.t() | nil,
+              optional(:credential_handle_refs) => [term()],
+              optional(:extensions) => %{optional(String.t()) => CanonicalJson.value()}
+            }
+  @type boundary_lease_source ::
+          BoundaryLeaseView.t()
+          | %{
+              required(:boundary_ref) => String.t(),
+              optional(:last_heartbeat_at) => DateTime.t() | String.t() | nil,
+              optional(:expires_at) => DateTime.t() | String.t() | nil,
+              required(:staleness_status) => BoundaryLeaseView.staleness_status(),
+              required(:lease_epoch) => non_neg_integer(),
+              optional(:extensions) => %{optional(String.t()) => CanonicalJson.value()}
+            }
+  @type lifecycle_submission_result :: {:ok, String.t()} | {:error, atom()}
 
-  @callback normalize_boundary_session(term()) ::
+  @callback submit_boundary_intent(BoundaryIntent.t(), boundary_intent_metadata()) ::
+              lifecycle_submission_result()
+
+  @callback normalize_boundary_session(boundary_session_source()) ::
               {:ok, BoundarySessionDescriptorV1.t()} | {:error, atom()}
 
-  @callback normalize_attach_grant(term()) :: {:ok, V1.t()} | {:error, atom()}
+  @callback normalize_attach_grant(attach_grant_source()) :: {:ok, V1.t()} | {:error, atom()}
 
-  @callback normalize_boundary_lease(term()) ::
+  @callback normalize_boundary_lease(boundary_lease_source()) ::
               {:ok, BoundaryLeaseView.t()} | {:error, atom()}
 end
 
@@ -93,14 +166,22 @@ defmodule Citadel.Ports.Memory do
 
   alias Citadel.MemoryRecord
 
+  @type lookup_option :: {:scope_id, String.t()}
+  @type rank_option ::
+          {:scope_id, String.t()}
+          | {:session_id, String.t()}
+          | {:kind, String.t()}
+          | {:limit, pos_integer()}
+  @type lookup_options :: [lookup_option()]
+  @type rank_options :: [rank_option()]
+
   @callback put_memory_record(MemoryRecord.t()) ::
               {:ok, %{write_guarantee: :stable_put_by_id | :best_effort}} | {:error, atom()}
 
-  @callback get_memory_record(String.t(), keyword()) ::
+  @callback get_memory_record(String.t(), lookup_options()) ::
               {:ok, MemoryRecord.t() | nil} | {:error, atom()}
 
-  @callback rank_memory_records(keyword()) ::
-              {:ok, [MemoryRecord.t()]} | {:error, atom()}
+  @callback rank_memory_records(rank_options()) :: {:ok, [MemoryRecord.t()]} | {:error, atom()}
 end
 
 defmodule Citadel.Ports.Clock do

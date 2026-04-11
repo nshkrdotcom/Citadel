@@ -2,8 +2,8 @@ defmodule Citadel.Runtime.TracePublisher do
   @moduledoc """
   Best-effort bounded trace publisher used after commit.
 
-  The module is intentionally not wired into the application tree yet. Runtime
-  owners can start it explicitly in later waves without redefining the seam.
+  The runtime owns the process in the default application tree and session
+  startup wires it by default through `Citadel.Runtime.start_session/1`.
   """
 
   use GenServer
@@ -47,7 +47,8 @@ defmodule Citadel.Runtime.TracePublisher do
       regular_capacity = total_capacity - protected_capacity
 
       if total_capacity <= 0 do
-        raise ArgumentError, "Citadel.Runtime.TracePublisher buffer total_capacity must be positive"
+        raise ArgumentError,
+              "Citadel.Runtime.TracePublisher buffer total_capacity must be positive"
       end
 
       %__MODULE__{
@@ -81,7 +82,11 @@ defmodule Citadel.Runtime.TracePublisher do
     @spec depth(t()) :: non_neg_integer()
     def depth(%__MODULE__{} = buffer), do: buffer.protected_len + buffer.regular_len
 
-    @spec depths(t()) :: %{depth: non_neg_integer(), protected_depth: non_neg_integer(), regular_depth: non_neg_integer()}
+    @spec depths(t()) :: %{
+            depth: non_neg_integer(),
+            protected_depth: non_neg_integer(),
+            regular_depth: non_neg_integer()
+          }
     def depths(%__MODULE__{} = buffer) do
       %{
         depth: depth(buffer),
@@ -135,8 +140,10 @@ defmodule Citadel.Runtime.TracePublisher do
     end
 
     defp do_take_batch(%__MODULE__{} = buffer, 0, acc), do: {Enum.reverse(acc), buffer}
-    defp do_take_batch(%__MODULE__{} = buffer, _remaining, acc) when buffer.protected_len == 0 and buffer.regular_len == 0,
-      do: {Enum.reverse(acc), buffer}
+
+    defp do_take_batch(%__MODULE__{} = buffer, _remaining, acc)
+         when buffer.protected_len == 0 and buffer.regular_len == 0,
+         do: {Enum.reverse(acc), buffer}
 
     defp do_take_batch(%__MODULE__{} = buffer, remaining, acc) do
       {queued_envelope, buffer} = pop_oldest(buffer)
@@ -144,14 +151,18 @@ defmodule Citadel.Runtime.TracePublisher do
       do_take_batch(buffer, remaining - 1, [envelope | acc])
     end
 
-    defp pop_oldest(%__MODULE__{protected_len: 0, regular_len: regular_len} = buffer) when regular_len > 0 do
+    defp pop_oldest(%__MODULE__{protected_len: 0, regular_len: regular_len} = buffer)
+         when regular_len > 0 do
       {{:value, queued_envelope}, queue} = :queue.out(buffer.regular_queue)
       {queued_envelope, %{buffer | regular_queue: queue, regular_len: buffer.regular_len - 1}}
     end
 
-    defp pop_oldest(%__MODULE__{regular_len: 0, protected_len: protected_len} = buffer) when protected_len > 0 do
+    defp pop_oldest(%__MODULE__{regular_len: 0, protected_len: protected_len} = buffer)
+         when protected_len > 0 do
       {{:value, queued_envelope}, queue} = :queue.out(buffer.protected_queue)
-      {queued_envelope, %{buffer | protected_queue: queue, protected_len: buffer.protected_len - 1}}
+
+      {queued_envelope,
+       %{buffer | protected_queue: queue, protected_len: buffer.protected_len - 1}}
     end
 
     defp pop_oldest(%__MODULE__{} = buffer) do
@@ -160,10 +171,14 @@ defmodule Citadel.Runtime.TracePublisher do
 
       if protected_seq <= regular_seq do
         {{:value, queued_envelope}, queue} = :queue.out(buffer.protected_queue)
-        {queued_envelope || protected_head, %{buffer | protected_queue: queue, protected_len: buffer.protected_len - 1}}
+
+        {queued_envelope || protected_head,
+         %{buffer | protected_queue: queue, protected_len: buffer.protected_len - 1}}
       else
         {{:value, queued_envelope}, queue} = :queue.out(buffer.regular_queue)
-        {queued_envelope || regular_head, %{buffer | regular_queue: queue, regular_len: buffer.regular_len - 1}}
+
+        {queued_envelope || regular_head,
+         %{buffer | regular_queue: queue, regular_len: buffer.regular_len - 1}}
       end
     end
   end
@@ -175,6 +190,11 @@ defmodule Citadel.Runtime.TracePublisher do
           flush_interval_ms: non_neg_integer(),
           drain_scheduled?: boolean
         }
+  @type buffer_depths :: %{
+          depth: non_neg_integer(),
+          protected_depth: non_neg_integer(),
+          regular_depth: non_neg_integer()
+        }
 
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
@@ -182,17 +202,17 @@ defmodule Citadel.Runtime.TracePublisher do
     GenServer.start_link(__MODULE__, opts, name: name)
   end
 
-  @spec publish_trace(GenServer.server(), TraceEnvelope.t() | map() | keyword()) :: :ok | {:error, atom()}
-  def publish_trace(server, envelope) do
+  @spec publish_trace(GenServer.server(), TraceEnvelope.t()) :: :ok | {:error, atom()}
+  def publish_trace(server, %TraceEnvelope{} = envelope) do
     GenServer.call(server, {:publish_trace, envelope})
   end
 
-  @spec publish_traces(GenServer.server(), [TraceEnvelope.t() | map() | keyword()]) :: :ok | {:error, atom()}
-  def publish_traces(server, envelopes) do
+  @spec publish_traces(GenServer.server(), [TraceEnvelope.t()]) :: :ok | {:error, atom()}
+  def publish_traces(server, envelopes) when is_list(envelopes) do
     GenServer.call(server, {:publish_traces, envelopes})
   end
 
-  @spec snapshot(GenServer.server()) :: map()
+  @spec snapshot(GenServer.server()) :: buffer_depths()
   def snapshot(server), do: GenServer.call(server, :snapshot)
 
   @impl true
@@ -214,38 +234,24 @@ defmodule Citadel.Runtime.TracePublisher do
   end
 
   @impl true
-  def handle_call({:publish_trace, envelope}, _from, state) do
-    case TraceEnvelope.new(envelope) do
-      {:ok, normalized_envelope} ->
-        {state, dropped} = enqueue_envelope(state, normalized_envelope)
-        maybe_emit_drop_telemetry(dropped)
-        emit_depth_telemetry(state.buffer)
-        {:reply, :ok, maybe_schedule_drain(state)}
-
-      {:error, _error} ->
-        {:reply, {:error, :invalid_envelope}, state}
-    end
+  def handle_call({:publish_trace, %TraceEnvelope{} = envelope}, _from, state) do
+    {state, dropped} = enqueue_envelope(state, envelope)
+    maybe_emit_drop_telemetry(dropped)
+    emit_depth_telemetry(state.buffer)
+    {:reply, :ok, maybe_schedule_drain(state)}
   end
 
   def handle_call({:publish_traces, envelopes}, _from, state) when is_list(envelopes) do
-    case Enum.reduce_while(envelopes, {state, []}, fn envelope, {state_acc, dropped_acc} ->
-           case TraceEnvelope.new(envelope) do
-             {:ok, normalized_envelope} ->
-               {state_acc, dropped} = enqueue_envelope(state_acc, normalized_envelope)
-               {:cont, {state_acc, [dropped | dropped_acc]}}
+    {state, dropped} =
+      Enum.reduce(envelopes, {state, []}, fn %TraceEnvelope{} = envelope,
+                                             {state_acc, dropped_acc} ->
+        {state_acc, dropped} = enqueue_envelope(state_acc, envelope)
+        {state_acc, [dropped | dropped_acc]}
+      end)
 
-             {:error, _error} ->
-               {:halt, {:error, :invalid_envelope}}
-           end
-         end) do
-      {:error, :invalid_envelope} ->
-        {:reply, {:error, :invalid_envelope}, state}
-
-      {state, dropped} ->
-        Enum.each(dropped, &maybe_emit_drop_telemetry/1)
-        emit_depth_telemetry(state.buffer)
-        {:reply, :ok, maybe_schedule_drain(state)}
-    end
+    Enum.each(dropped, &maybe_emit_drop_telemetry/1)
+    emit_depth_telemetry(state.buffer)
+    {:reply, :ok, maybe_schedule_drain(state)}
   end
 
   def handle_call(:snapshot, _from, state) do

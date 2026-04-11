@@ -63,7 +63,8 @@ defmodule Citadel.Runtime.ServiceCatalog do
     if descriptors == state.descriptors do
       {:reply, {:ok, state.service_admission_epoch}, state}
     else
-      {:reply, {:ok, state.service_admission_epoch + 1}, bump_epoch(%{state | descriptors: descriptors})}
+      {:reply, {:ok, state.service_admission_epoch + 1},
+       bump_epoch(%{state | descriptors: descriptors})}
     end
   end
 
@@ -73,7 +74,8 @@ defmodule Citadel.Runtime.ServiceCatalog do
     if descriptors == state.descriptors do
       {:reply, {:ok, state.service_admission_epoch}, state}
     else
-      {:reply, {:ok, state.service_admission_epoch + 1}, bump_epoch(%{state | descriptors: descriptors})}
+      {:reply, {:ok, state.service_admission_epoch + 1},
+       bump_epoch(%{state | descriptors: descriptors})}
     end
   end
 
@@ -83,7 +85,8 @@ defmodule Citadel.Runtime.ServiceCatalog do
     if descriptors == state.descriptors do
       {:reply, {:ok, state.service_admission_epoch}, state}
     else
-      {:reply, {:ok, state.service_admission_epoch + 1}, bump_epoch(%{state | descriptors: descriptors})}
+      {:reply, {:ok, state.service_admission_epoch + 1},
+       bump_epoch(%{state | descriptors: descriptors})}
     end
   end
 
@@ -101,7 +104,9 @@ defmodule Citadel.Runtime.ServiceCatalog do
   end
 
   def handle_call(:snapshot, _from, state) do
-    {:reply, %{descriptors: state.descriptors, service_admission_epoch: state.service_admission_epoch}, state}
+    {:reply,
+     %{descriptors: state.descriptors, service_admission_epoch: state.service_admission_epoch},
+     state}
   end
 
   @impl true

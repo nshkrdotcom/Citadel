@@ -6,15 +6,16 @@ defmodule Citadel.QueryBridge do
   alias Citadel.BoundarySessionDescriptor.V1, as: BoundarySessionDescriptorV1
   alias Citadel.BridgeCircuit
   alias Citadel.BridgeCircuitPolicy
+  alias Citadel.BridgeState
   alias Citadel.RuntimeObservation
-
-  @behaviour Citadel.Ports.RuntimeQuery
 
   defmodule Downstream do
     @moduledoc false
 
-    @callback fetch_runtime_observation(map()) :: {:ok, map()} | {:error, atom()}
-    @callback fetch_boundary_session(map()) :: {:ok, map()} | {:error, atom()}
+    @callback fetch_runtime_observation(Citadel.Ports.RuntimeQuery.runtime_observation_query()) ::
+                {:ok, map()} | {:error, atom()}
+    @callback fetch_boundary_session(Citadel.Ports.RuntimeQuery.boundary_session_query()) ::
+                {:ok, map()} | {:error, atom()}
   end
 
   @manifest %{
@@ -28,10 +29,11 @@ defmodule Citadel.QueryBridge do
 
   @type t :: %__MODULE__{
           downstream: module(),
-          circuit: BridgeCircuit.t()
+          circuit_policy: BridgeCircuitPolicy.t(),
+          state_ref: BridgeState.state_ref()
         }
 
-  defstruct downstream: nil, circuit: nil
+  defstruct downstream: nil, circuit_policy: nil, state_ref: nil
 
   @spec new!(keyword()) :: t()
   def new!(opts) do
@@ -44,29 +46,25 @@ defmodule Citadel.QueryBridge do
             "Citadel.QueryBridge.downstream must export fetch_runtime_observation/1 and fetch_boundary_session/1"
     end
 
+    circuit_policy = Keyword.get(opts, :circuit_policy, default_circuit_policy())
+    state_name = Keyword.get(opts, :state_name)
+
     %__MODULE__{
       downstream: downstream,
-      circuit:
-        BridgeCircuit.new!(
-          policy: Keyword.get(opts, :circuit_policy, default_circuit_policy()),
-          now_ms_fun: Keyword.get(opts, :now_ms_fun)
+      circuit_policy: circuit_policy,
+      state_ref:
+        BridgeState.new_ref!(
+          circuit:
+            BridgeCircuit.new!(
+              policy: circuit_policy,
+              now_ms_fun: Keyword.get(opts, :now_ms_fun)
+            ),
+          name: state_name
         )
     }
   end
 
-  @impl true
-  def fetch_runtime_observation(_query) do
-    raise ArgumentError,
-          "Citadel.QueryBridge.fetch_runtime_observation/1 requires an initialized bridge instance; use fetch_runtime_observation/2"
-  end
-
-  @impl true
-  def fetch_boundary_session(_query) do
-    raise ArgumentError,
-          "Citadel.QueryBridge.fetch_boundary_session/1 requires an initialized bridge instance; use fetch_boundary_session/2"
-  end
-
-  @spec fetch_runtime_observation(t(), map()) ::
+  @spec fetch_runtime_observation(t(), Citadel.Ports.RuntimeQuery.runtime_observation_query()) ::
           {:ok, RuntimeObservation.t(), t()} | {:error, atom(), t()}
   def fetch_runtime_observation(%__MODULE__{} = bridge, query) when is_map(query) do
     with_scope(bridge, query, fn downstream, normalized_query ->
@@ -77,7 +75,7 @@ defmodule Citadel.QueryBridge do
     end)
   end
 
-  @spec fetch_boundary_session(t(), map()) ::
+  @spec fetch_boundary_session(t(), Citadel.Ports.RuntimeQuery.boundary_session_query()) ::
           {:ok, BoundarySessionDescriptorV1.t(), t()} | {:error, atom(), t()}
   def fetch_boundary_session(%__MODULE__{} = bridge, query) when is_map(query) do
     with_scope(bridge, query, fn downstream, normalized_query ->
@@ -104,23 +102,29 @@ defmodule Citadel.QueryBridge do
   end
 
   defp with_scope(%__MODULE__{} = bridge, query, fun) when is_function(fun, 2) do
-    scope_key = Map.get(query, "downstream_scope", Map.get(query, :downstream_scope, "runtime_query"))
+    scope_key =
+      Map.get(query, "downstream_scope", Map.get(query, :downstream_scope, "runtime_query"))
+
     normalized_query = Map.new(query)
 
-    case BridgeCircuit.allow(bridge.circuit, scope_key) do
-      {:ok, updated_circuit} ->
-        bridge = %{bridge | circuit: updated_circuit}
-
+    case BridgeState.begin_operation(bridge.state_ref, scope_key) do
+      {:ok, token} ->
         case fun.(bridge.downstream, normalized_query) do
           {:ok, result} ->
-            {:ok, result, %{bridge | circuit: BridgeCircuit.record_success(bridge.circuit, scope_key)}}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:ok, result}) do
+              {:ok, ^result} -> {:ok, result, bridge}
+              {:error, :operation_not_found} -> {:ok, result, bridge}
+            end
 
           {:error, reason} ->
-            {:error, reason, %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
+              {:error, ^reason} -> {:error, reason, bridge}
+              {:error, :operation_not_found} -> {:error, reason, bridge}
+            end
         end
 
-      {{:error, :circuit_open}, updated_circuit} ->
-        {:error, :circuit_open, %{bridge | circuit: updated_circuit}}
+      {:error, reason} ->
+        {:error, reason, bridge}
     end
   end
 end

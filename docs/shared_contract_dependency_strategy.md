@@ -1,44 +1,34 @@
 # Shared Contract Dependency Strategy
 
-Wave 2 freezes which shared seams are consumed directly and which remain
-Citadel-owned until later waves.
+Citadel carries the higher-order `Jido.Integration.V2` lineage contract slice
+as a workspace package at `core/jido_integration_v2_contracts`.
 
-## Packages Carrying The Shared Contract Dependency
+## Packages Using The Shared Contract Slice
 
-The packages that consume already-existing higher-order shared contracts declare
-the dependency explicitly in their `mix.exs` files:
+The public Citadel packages that rely on these shared modules resolve them
+through the in-workspace package:
 
 - `core/citadel_core`
 - `bridges/invocation_bridge`
 - `bridges/projection_bridge`
 - `core/conformance`
 
-## Resolution Order
+## Included Modules
 
-`build_support/dependency_resolver.exs` resolves `:jido_integration_v2_contracts` in this order:
+The workspace package currently carries the shared modules Citadel publishes
+across its runtime-facing seams:
 
-1. `CITADEL_JIDO_INTEGRATION_CONTRACTS_PATH`
-2. `JIDO_INTEGRATION_PATH/core/contracts`
-3. `/home/home/p/g/n/jido_integration/core/contracts`
-4. published placeholder requirement `~> 0.1.0`
+- `Jido.Integration.V2.SubjectRef`
+- `Jido.Integration.V2.EvidenceRef`
+- `Jido.Integration.V2.GovernanceRef`
+- `Jido.Integration.V2.ReviewProjection`
+- `Jido.Integration.V2.DerivedStateAttachment`
 
-That keeps local cross-repo iteration easy while preserving the published
-fallback requirement `~> 0.1.0` for release-facing compatibility verification.
+## Publication Rule
 
-## Wave 2 Boundary
+The welded `citadel` artifact includes `core/jido_integration_v2_contracts` as
+an internal package instead of emitting `:jido_integration_v2_contracts` as an
+external Hex, git, or path dependency.
 
-Wave 2 freezes:
-
-- `core/citadel_core` consumes higher-order lineage shapes such as
-  `SubjectRef`, `EvidenceRef`, `GovernanceRef`, `ReviewProjection`, and
-  `DerivedStateAttachment`
-- `core/authority_contract` keeps `AuthorityDecision.v1` local to Citadel while
-  matching the Brain baseline
-- `core/citadel_core` keeps `InvocationRequest`, `BoundaryIntent`, and
-  `TopologyIntent` local to Citadel until the later lower-envelope freeze
-- `bridges/invocation_bridge` consumes that Citadel-owned `InvocationRequest`
-  seam explicitly instead of assuming downstream `Jido.Integration.V2.InvocationRequest`
-  equivalence
-
-No Wave 2 package may assume the lower execution packet family already exists
-downstream as concrete modules.
+That keeps the projected package self-contained and Hex-buildable while
+preserving the shared public module names and package ownership boundaries.

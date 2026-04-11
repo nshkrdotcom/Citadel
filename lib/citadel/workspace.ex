@@ -10,6 +10,7 @@ defmodule Citadel.Workspace do
 
   @package_paths [
     "core/contract_core",
+    "core/jido_integration_v2_contracts",
     "core/authority_contract",
     "core/observability_contract",
     "core/policy_packs",
@@ -69,7 +70,6 @@ defmodule Citadel.Workspace do
   @publication_artifact_id "citadel"
   @publication_manifest_path "packaging/weld/citadel.exs"
   @publication_root_projects ["core/citadel_runtime"]
-  @jido_integration_public_repo "https://github.com/agentjido/jido_integration.git"
   @publication_output_docs [
     "README.md",
     "docs/README.md",
@@ -147,7 +147,6 @@ defmodule Citadel.Workspace do
   @spec publication_dependency_declarations() :: keyword()
   def publication_dependency_declarations do
     [
-      jido_integration_v2_contracts: publication_shared_contract_dependency_declaration(),
       aitrace: [
         requirement: DependencyResolver.published_aitrace_requirement(),
         opts: []
@@ -201,46 +200,5 @@ defmodule Citadel.Workspace do
         ]
       ]
     ]
-  end
-
-  defp publication_shared_contract_dependency_declaration do
-    case shared_contract_dependency_source() do
-      {:hex, requirement} ->
-        [requirement: requirement, opts: []]
-
-      {:path, _path} ->
-        [
-          requirement: nil,
-          opts: [
-            github: "agentjido/jido_integration",
-            sparse: "core/contracts",
-            ref: public_git_head!(@jido_integration_public_repo)
-          ]
-        ]
-    end
-  end
-
-  defp public_git_head!(remote_url) do
-    case System.cmd("git", ["ls-remote", remote_url, "HEAD"],
-           env: [{"GIT_TERMINAL_PROMPT", "0"}, {"GIT_ASKPASS", "echo"}],
-           stderr_to_stdout: true
-         ) do
-      {output, 0} ->
-        output
-        |> String.split()
-        |> List.first()
-        |> case do
-          nil ->
-            raise ArgumentError,
-                  "git ls-remote did not return a HEAD revision for #{remote_url}"
-
-          sha ->
-            sha
-        end
-
-      {output, status} ->
-        raise ArgumentError,
-              "unable to resolve public git HEAD for #{remote_url} while building the Weld manifest (exit #{status}): #{String.trim(output)}"
-    end
   end
 end

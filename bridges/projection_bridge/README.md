@@ -14,7 +14,7 @@ Status: Wave 5 contract frozen, published through the Wave 8 welded artifact bou
 - `core/citadel_runtime`
 - `core/authority_contract`
 - `core/observability_contract`
-- explicit Wave 2 placeholder for `:jido_integration_v2_contracts`
+- `core/jido_integration_v2_contracts`
 
 ## Current Posture
 

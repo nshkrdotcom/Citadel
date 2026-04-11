@@ -21,6 +21,7 @@ defmodule Citadel.MixProject do
         "components/core/citadel_core/src",
         "components/core/citadel_runtime/src",
         "components/core/contract_core/src",
+        "components/core/jido_integration_v2_contracts/src",
         "components/core/observability_contract/src",
         "components/core/policy_packs/src"
       ],
@@ -51,6 +52,7 @@ defmodule Citadel.MixProject do
       "components/core/citadel_core/lib",
       "components/core/citadel_runtime/lib",
       "components/core/contract_core/lib",
+      "components/core/jido_integration_v2_contracts/lib",
       "components/core/observability_contract/lib",
       "components/core/policy_packs/lib"
     ]
@@ -77,6 +79,7 @@ defmodule Citadel.MixProject do
       "components/core/citadel_core/lib",
       "components/core/citadel_runtime/lib",
       "components/core/contract_core/lib",
+      "components/core/jido_integration_v2_contracts/lib",
       "components/core/observability_contract/lib",
       "components/core/policy_packs/lib"
     ]
@@ -85,12 +88,6 @@ defmodule Citadel.MixProject do
     [
       {:aitrace, "~> 0.1.0"},
       {:jcs, "~> 0.2.0"},
-      {:jido_integration_v2_contracts,
-       [
-         github: "agentjido/jido_integration",
-         sparse: "core/contracts",
-         ref: "09a83075aea4aa536708aa565da30d64f569c05a"
-       ]},
       {:telemetry, "~> 1.3"},
       {:ex_doc, "~> 0.40", [only: :dev, runtime: false]}
     ]
@@ -107,6 +104,7 @@ defmodule Citadel.MixProject do
           "https://github.com/nshkrdotcom/citadel/blob/main/docs/publication.md"
       },
       files: [
+        ".credo.exs",
         ".formatter.exs",
         "CHANGELOG.md",
         "LICENSE",
@@ -123,6 +121,7 @@ defmodule Citadel.MixProject do
         "components/core/citadel_core",
         "components/core/citadel_runtime",
         "components/core/contract_core",
+        "components/core/jido_integration_v2_contracts",
         "components/core/observability_contract",
         "components/core/policy_packs",
         "config",

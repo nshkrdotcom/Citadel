@@ -19,27 +19,17 @@ defmodule Citadel.PublicationSurfaceTest do
     refute Code.ensure_loaded?(Citadel.Apps.OperatorAssist)
 
     assert File.dir?("components/core/citadel_runtime")
+    assert File.dir?("components/core/jido_integration_v2_contracts")
     assert File.dir?("components/bridges/trace_bridge")
     refute File.dir?("components/core/conformance")
     refute File.dir?("components/apps/host_surface_harness")
   end
 
-  test "welded artifact canonicalizes publishable bridge dependencies" do
+  test "welded artifact only retains publishable external dependencies" do
     deps = Mix.Project.config()[:deps]
 
     assert dependency_tuple(deps, :aitrace) == {:aitrace, "~> 0.1.0", []}
-
-    case dependency_tuple(deps, :jido_integration_v2_contracts) do
-      {:jido_integration_v2_contracts, requirement, []} when is_binary(requirement) ->
-        :ok
-
-      {:jido_integration_v2_contracts, nil, opts} ->
-        assert opts[:github] == "agentjido/jido_integration"
-        assert opts[:sparse] == "core/contracts"
-        assert is_binary(opts[:ref])
-        assert byte_size(opts[:ref]) == 40
-        refute Keyword.has_key?(opts, :path)
-    end
+    refute dependency_tuple(deps, :jido_integration_v2_contracts)
   end
 
   defp dependency_tuple(deps, app) do

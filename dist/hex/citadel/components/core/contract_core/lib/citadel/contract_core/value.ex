@@ -78,7 +78,9 @@ defmodule Citadel.ContractCore.Value do
 
   @spec confidence!(term(), String.t()) :: float()
   def confidence!(value, _label) when is_float(value) and value >= 0.0 and value <= 1.0, do: value
-  def confidence!(value, _label) when is_integer(value) and value >= 0 and value <= 1, do: value / 1
+
+  def confidence!(value, _label) when is_integer(value) and value >= 0 and value <= 1,
+    do: value / 1
 
   def confidence!(value, label) do
     raise ArgumentError, "#{label} must be between 0.0 and 1.0, got: #{inspect(value)}"
@@ -171,8 +173,11 @@ defmodule Citadel.ContractCore.Value do
 
   def datetime!(value, label) when is_binary(value) do
     case DateTime.from_iso8601(value) do
-      {:ok, datetime, _offset} -> datetime
-      {:error, reason} -> raise ArgumentError, "#{label} must be ISO8601 datetime, got: #{inspect(reason)}"
+      {:ok, datetime, _offset} ->
+        datetime
+
+      {:error, reason} ->
+        raise ArgumentError, "#{label} must be ISO8601 datetime, got: #{inspect(reason)}"
     end
   end
 
@@ -191,7 +196,9 @@ defmodule Citadel.ContractCore.Value do
     module.new!(value)
   rescue
     error in ArgumentError ->
-      raise ArgumentError, "#{label} is invalid: #{Exception.message(error)}"
+      reraise ArgumentError,
+              [message: "#{label} is invalid: #{Exception.message(error)}"],
+              __STACKTRACE__
   end
 
   def module!(value, module, label) do
@@ -231,7 +238,9 @@ defmodule Citadel.ContractCore.Value do
         item_fun.(value)
       rescue
         error in ArgumentError ->
-          raise ArgumentError, "#{label}[#{index}] is invalid: #{Exception.message(error)}"
+          reraise ArgumentError,
+                  [message: "#{label}[#{index}] is invalid: #{Exception.message(error)}"],
+                  __STACKTRACE__
       end
     end
   end

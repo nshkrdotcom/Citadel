@@ -13,10 +13,10 @@ Status: Wave 2 seam freeze.
 ## Dependencies
 
 - `core/contract_core`
+- `core/jido_integration_v2_contracts`
 - `core/authority_contract`
 - `core/observability_contract`
 - `core/policy_packs`
-- `:jido_integration_v2_contracts` for higher-order lineage shapes only
 
 ## Wave 2 Posture
 

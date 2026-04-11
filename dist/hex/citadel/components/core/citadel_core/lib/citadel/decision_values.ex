@@ -75,13 +75,25 @@ defmodule Citadel.Objective do
           Value.enum!(value, @allowed_priorities, "Citadel.Objective.priority")
         end),
       provenance:
-        Value.optional(attrs, :provenance, "Citadel.Objective", fn value ->
-          Value.module!(value, ResolutionProvenance, "Citadel.Objective.provenance")
-        end, nil),
+        Value.optional(
+          attrs,
+          :provenance,
+          "Citadel.Objective",
+          fn value ->
+            Value.module!(value, ResolutionProvenance, "Citadel.Objective.provenance")
+          end,
+          nil
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.Objective", fn value ->
-          Value.json_object!(value, "Citadel.Objective.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.Objective",
+          fn value ->
+            Value.json_object!(value, "Citadel.Objective.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -117,7 +129,12 @@ defmodule Citadel.DecisionRejection do
     :authority_compilation,
     :projection
   ]
-  @allowed_retryability [:terminal, :after_input_change, :after_runtime_change, :after_governance_change]
+  @allowed_retryability [
+    :terminal,
+    :after_input_change,
+    :after_runtime_change,
+    :after_governance_change
+  ]
   @allowed_publication [:host_only, :review_projection, :derived_state_attachment]
   @schema [
     rejection_id: :string,
@@ -178,12 +195,22 @@ defmodule Citadel.DecisionRejection do
         end),
       publication_requirement:
         Value.required(attrs, :publication_requirement, "Citadel.DecisionRejection", fn value ->
-          Value.enum!(value, @allowed_publication, "Citadel.DecisionRejection.publication_requirement")
+          Value.enum!(
+            value,
+            @allowed_publication,
+            "Citadel.DecisionRejection.publication_requirement"
+          )
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.DecisionRejection", fn value ->
-          Value.json_object!(value, "Citadel.DecisionRejection.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.DecisionRejection",
+          fn value ->
+            Value.json_object!(value, "Citadel.DecisionRejection.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -208,6 +235,7 @@ defmodule Citadel.DecisionRejectionClassifier do
   alias Citadel.ContractCore.Value
   alias Citadel.DecisionRejection
   alias Citadel.PolicyPacks.PolicyPack
+  alias Citadel.PolicyPacks.RejectionPolicy
   alias Citadel.PolicyPacks.Selection
 
   @allowed_causes [
@@ -226,7 +254,14 @@ defmodule Citadel.DecisionRejectionClassifier do
 
   def classify!(attrs, rejection_policy) do
     attrs = Value.normalize_attrs!(attrs, "Citadel.DecisionRejectionClassifier", @input_fields)
-    causes = normalize_causes!(Value.optional(attrs, :causes, "Citadel.DecisionRejectionClassifier", & &1, []))
+
+    rejection_policy =
+      RejectionPolicy.new!(rejection_policy)
+
+    causes =
+      normalize_causes!(
+        Value.optional(attrs, :causes, "Citadel.DecisionRejectionClassifier", & &1, [])
+      )
 
     reason_code =
       Value.required(attrs, :reason_code, "Citadel.DecisionRejectionClassifier", fn value ->
@@ -240,14 +275,18 @@ defmodule Citadel.DecisionRejectionClassifier do
         end),
       stage:
         Value.required(attrs, :stage, "Citadel.DecisionRejectionClassifier", fn value ->
-          Value.enum!(value, [
-            :ingress_normalization,
-            :scope_resolution,
-            :service_admission,
-            :planning,
-            :authority_compilation,
-            :projection
-          ], "Citadel.DecisionRejectionClassifier.stage")
+          Value.enum!(
+            value,
+            [
+              :ingress_normalization,
+              :scope_resolution,
+              :service_admission,
+              :planning,
+              :authority_compilation,
+              :projection
+            ],
+            "Citadel.DecisionRejectionClassifier.stage"
+          )
         end),
       reason_code: reason_code,
       summary:
@@ -255,11 +294,18 @@ defmodule Citadel.DecisionRejectionClassifier do
           Value.string!(value, "Citadel.DecisionRejectionClassifier.summary")
         end),
       retryability: classify_retryability(causes, reason_code, rejection_policy),
-      publication_requirement: classify_publication_requirement(causes, reason_code, rejection_policy),
+      publication_requirement:
+        classify_publication_requirement(causes, reason_code, rejection_policy),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.DecisionRejectionClassifier", fn value ->
-          Value.json_object!(value, "Citadel.DecisionRejectionClassifier.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.DecisionRejectionClassifier",
+          fn value ->
+            Value.json_object!(value, "Citadel.DecisionRejectionClassifier.extensions")
+          end,
+          %{}
+        )
     })
   end
 
@@ -270,7 +316,8 @@ defmodule Citadel.DecisionRejectionClassifier do
   end
 
   defp normalize_causes!(value) do
-    raise ArgumentError, "Citadel.DecisionRejectionClassifier.causes must be a list, got: #{inspect(value)}"
+    raise ArgumentError,
+          "Citadel.DecisionRejectionClassifier.causes must be a list, got: #{inspect(value)}"
   end
 
   defp classify_retryability(causes, reason_code, rejection_policy) do
@@ -406,9 +453,15 @@ defmodule Citadel.AuthorityDecision do
           Value.string!(value, "Citadel.AuthorityDecision.decision_hash")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.AuthorityDecision", fn value ->
-          Value.json_object!(value, "Citadel.AuthorityDecision.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.AuthorityDecision",
+          fn value ->
+            Value.json_object!(value, "Citadel.AuthorityDecision.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -493,19 +546,37 @@ defmodule Citadel.Step do
           Value.unique_strings!(value, "Citadel.Step.allowed_operations")
         end),
       target_hints:
-        Value.optional(attrs, :target_hints, "Citadel.Step", fn value ->
-          Value.list!(value, "Citadel.Step.target_hints", fn item ->
-            Value.module!(item, TargetHint, "Citadel.Step.target_hints")
-          end)
-        end, []),
+        Value.optional(
+          attrs,
+          :target_hints,
+          "Citadel.Step",
+          fn value ->
+            Value.list!(value, "Citadel.Step.target_hints", fn item ->
+              Value.module!(item, TargetHint, "Citadel.Step.target_hints")
+            end)
+          end,
+          []
+        ),
       boundary_intent:
-        Value.optional(attrs, :boundary_intent, "Citadel.Step", fn value ->
-          Value.module!(value, BoundaryIntent, "Citadel.Step.boundary_intent")
-        end, nil),
+        Value.optional(
+          attrs,
+          :boundary_intent,
+          "Citadel.Step",
+          fn value ->
+            Value.module!(value, BoundaryIntent, "Citadel.Step.boundary_intent")
+          end,
+          nil
+        ),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.Step", fn value ->
-          Value.json_object!(value, "Citadel.Step.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.Step",
+          fn value ->
+            Value.json_object!(value, "Citadel.Step.extensions")
+          end,
+          %{}
+        )
     }
   end
 
@@ -576,9 +647,14 @@ defmodule Citadel.Plan do
         end),
       steps:
         Value.required(attrs, :steps, "Citadel.Plan", fn value ->
-          Value.list!(value, "Citadel.Plan.steps", fn item ->
-            Value.module!(item, Step, "Citadel.Plan.steps")
-          end, allow_empty?: false)
+          Value.list!(
+            value,
+            "Citadel.Plan.steps",
+            fn item ->
+              Value.module!(item, Step, "Citadel.Plan.steps")
+            end,
+            allow_empty?: false
+          )
         end),
       selection_mode:
         Value.required(attrs, :selection_mode, "Citadel.Plan", fn value ->
@@ -589,9 +665,15 @@ defmodule Citadel.Plan do
           Value.json_object!(value, "Citadel.Plan.budget_policy")
         end),
       extensions:
-        Value.optional(attrs, :extensions, "Citadel.Plan", fn value ->
-          Value.json_object!(value, "Citadel.Plan.extensions")
-        end, %{})
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.Plan",
+          fn value ->
+            Value.json_object!(value, "Citadel.Plan.extensions")
+          end,
+          %{}
+        )
     }
   end
 

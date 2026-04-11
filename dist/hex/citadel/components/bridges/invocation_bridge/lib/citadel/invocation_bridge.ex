@@ -7,11 +7,10 @@ defmodule Citadel.InvocationBridge do
   alias Citadel.ActionOutboxEntry
   alias Citadel.BridgeCircuit
   alias Citadel.BridgeCircuitPolicy
+  alias Citadel.BridgeState
   alias Citadel.ExecutionIntentEnvelope.V1, as: ExecutionIntentEnvelopeV1
   alias Citadel.InvocationBridge.ExecutionIntentAdapter
   alias Citadel.InvocationRequest
-
-  @behaviour Citadel.Ports.InvocationSink
 
   defmodule Downstream do
     @moduledoc false
@@ -37,15 +36,17 @@ defmodule Citadel.InvocationBridge do
 
   @type t :: %__MODULE__{
           downstream: module(),
-          circuit: BridgeCircuit.t(),
+          circuit_policy: BridgeCircuitPolicy.t(),
+          state_ref: BridgeState.state_ref(),
           execution_intent_adapter: module(),
-          receipts_by_entry_id: %{required(String.t()) => String.t()}
+          supported_invocation_request_schema_versions: [pos_integer(), ...]
         }
 
   defstruct downstream: nil,
-            circuit: nil,
+            circuit_policy: nil,
+            state_ref: nil,
             execution_intent_adapter: ExecutionIntentAdapter,
-            receipts_by_entry_id: %{}
+            supported_invocation_request_schema_versions: []
 
   @spec new!(keyword()) :: t()
   def new!(opts) do
@@ -58,6 +59,15 @@ defmodule Citadel.InvocationBridge do
 
     circuit_policy = Keyword.get(opts, :circuit_policy, default_circuit_policy())
     adapter = Keyword.get(opts, :execution_intent_adapter, ExecutionIntentAdapter)
+    state_name = Keyword.get(opts, :state_name)
+
+    supported_versions =
+      opts
+      |> Keyword.get(
+        :supported_invocation_request_schema_versions,
+        supported_invocation_request_schema_versions()
+      )
+      |> validate_supported_invocation_request_schema_versions!()
 
     unless is_atom(adapter) and Code.ensure_loaded?(adapter) and
              function_exported?(adapter, :project!, 2) do
@@ -67,10 +77,15 @@ defmodule Citadel.InvocationBridge do
 
     %__MODULE__{
       downstream: downstream,
-      circuit:
-        BridgeCircuit.new!(policy: circuit_policy, now_ms_fun: Keyword.get(opts, :now_ms_fun)),
+      circuit_policy: circuit_policy,
+      state_ref:
+        BridgeState.new_ref!(
+          circuit:
+            BridgeCircuit.new!(policy: circuit_policy, now_ms_fun: Keyword.get(opts, :now_ms_fun)),
+          name: state_name
+        ),
       execution_intent_adapter: adapter,
-      receipts_by_entry_id: %{}
+      supported_invocation_request_schema_versions: supported_versions
     }
   end
 
@@ -90,28 +105,32 @@ defmodule Citadel.InvocationBridge do
     end
   end
 
-  @impl true
-  @spec submit_invocation(InvocationRequest.t(), ActionOutboxEntry.t()) ::
-          {:ok, String.t()} | {:error, atom()}
-  def submit_invocation(_request, _entry) do
-    raise ArgumentError,
-          "Citadel.InvocationBridge.submit_invocation/2 requires an initialized bridge instance; use submit/3"
-  end
-
   @spec submit(
           t(),
-          InvocationRequest.t() | map() | keyword(),
-          ActionOutboxEntry.t() | map() | keyword()
+          InvocationRequest.t(),
+          ActionOutboxEntry.t()
         ) ::
           {:ok, String.t(), t()} | {:error, atom(), t()}
-  def submit(%__MODULE__{} = bridge, request, entry) do
-    if unsupported_schema_version?(request) do
+  def submit(%__MODULE__{} = bridge, %InvocationRequest{} = request, %ActionOutboxEntry{} = entry) do
+    if unsupported_schema_version?(bridge, request) do
       {:error, :unsupported_schema_version, bridge}
     else
-      request = InvocationRequest.new!(request)
-      entry = normalize_outbox_entry(entry)
       do_submit(bridge, request, entry)
     end
+  end
+
+  @spec submit_invocation(
+          t(),
+          InvocationRequest.t(),
+          ActionOutboxEntry.t()
+        ) ::
+          {:ok, String.t(), t()} | {:error, atom(), t()}
+  def submit_invocation(
+        %__MODULE__{} = bridge,
+        %InvocationRequest{} = request,
+        %ActionOutboxEntry{} = entry
+      ) do
+    submit(bridge, request, entry)
   end
 
   @spec manifest() :: map()
@@ -134,38 +153,37 @@ defmodule Citadel.InvocationBridge do
          %InvocationRequest{} = request,
          %ActionOutboxEntry{} = entry
        ) do
-    case Map.fetch(bridge.receipts_by_entry_id, entry.entry_id) do
-      {:ok, receipt_ref} ->
+    envelope = bridge.execution_intent_adapter.project!(request, entry)
+    scope_key = scope_key(bridge.circuit_policy, envelope)
+
+    case BridgeState.begin_operation(bridge.state_ref, scope_key, dedupe_key: entry.entry_id) do
+      {:duplicate, receipt_ref} ->
         {:ok, receipt_ref, bridge}
 
-      :error ->
-        envelope = bridge.execution_intent_adapter.project!(request, entry)
-        scope_key = scope_key(bridge.circuit.policy, envelope)
+      {:error, reason} ->
+        {:error, reason, bridge}
 
-        case BridgeCircuit.allow(bridge.circuit, scope_key) do
-          {:ok, updated_circuit} ->
-            bridge = %{bridge | circuit: updated_circuit}
-
-            case bridge.downstream.submit_execution_intent(envelope) do
-              {:ok, receipt_ref} when is_binary(receipt_ref) ->
-                bridge =
-                  bridge
-                  |> Map.update!(:receipts_by_entry_id, &Map.put(&1, entry.entry_id, receipt_ref))
-                  |> Map.put(:circuit, BridgeCircuit.record_success(bridge.circuit, scope_key))
-
-                {:ok, receipt_ref, bridge}
-
-              {:error, reason} ->
-                {:error, reason,
-                 %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
-
-              other ->
-                {:error, normalize_error(other),
-                 %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
+      {:ok, token} ->
+        case bridge.downstream.submit_execution_intent(envelope) do
+          {:ok, receipt_ref} when is_binary(receipt_ref) ->
+            case BridgeState.finish_operation(bridge.state_ref, token, {:ok, receipt_ref}) do
+              {:ok, ^receipt_ref} -> {:ok, receipt_ref, bridge}
+              {:error, :operation_not_found} -> {:ok, receipt_ref, bridge}
             end
 
-          {{:error, :circuit_open}, updated_circuit} ->
-            {:error, :circuit_open, %{bridge | circuit: updated_circuit}}
+          {:error, reason} ->
+            case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
+              {:error, ^reason} -> {:error, reason, bridge}
+              {:error, :operation_not_found} -> {:error, reason, bridge}
+            end
+
+          other ->
+            reason = normalize_error(other)
+
+            case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
+              {:error, ^reason} -> {:error, reason, bridge}
+              {:error, :operation_not_found} -> {:error, reason, bridge}
+            end
         end
     end
   end
@@ -186,31 +204,31 @@ defmodule Citadel.InvocationBridge do
     )
   end
 
-  defp unsupported_schema_version?(%InvocationRequest{schema_version: schema_version}) do
-    schema_version not in supported_invocation_request_schema_versions()
+  defp unsupported_schema_version?(
+         %__MODULE__{supported_invocation_request_schema_versions: supported_versions},
+         %InvocationRequest{schema_version: schema_version}
+       ) do
+    schema_version not in supported_versions
   end
-
-  defp unsupported_schema_version?(request) when is_list(request) do
-    request
-    |> Map.new()
-    |> unsupported_schema_version?()
-  end
-
-  defp unsupported_schema_version?(request) when is_map(request) do
-    case Map.get(request, :schema_version, Map.get(request, "schema_version")) do
-      schema_version when is_integer(schema_version) ->
-        schema_version not in supported_invocation_request_schema_versions()
-
-      _other ->
-        false
-    end
-  end
-
-  defp unsupported_schema_version?(_request), do: false
-
-  defp normalize_outbox_entry(%ActionOutboxEntry{} = entry), do: entry
-  defp normalize_outbox_entry(entry), do: ActionOutboxEntry.new!(entry)
 
   defp normalize_error({:error, reason}) when is_atom(reason), do: reason
   defp normalize_error(_other), do: :unknown
+
+  defp validate_supported_invocation_request_schema_versions!(versions)
+       when is_list(versions) and versions != [] do
+    versions
+    |> Enum.each(fn version ->
+      unless is_integer(version) and version > 0 do
+        raise ArgumentError,
+              "supported_invocation_request_schema_versions must contain positive integers, got: #{inspect(version)}"
+      end
+    end)
+
+    Enum.uniq(versions)
+  end
+
+  defp validate_supported_invocation_request_schema_versions!(other) do
+    raise ArgumentError,
+          "supported_invocation_request_schema_versions must be a non-empty list, got: #{inspect(other)}"
+  end
 end

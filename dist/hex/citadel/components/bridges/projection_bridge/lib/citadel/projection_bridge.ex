@@ -6,12 +6,17 @@ defmodule Citadel.ProjectionBridge do
   alias Citadel.ActionOutboxEntry
   alias Citadel.BridgeCircuit
   alias Citadel.BridgeCircuitPolicy
+  alias Citadel.BridgeState
   alias Citadel.ProjectionBridge.DerivedStateAttachmentAdapter
   alias Citadel.ProjectionBridge.ReviewProjectionAdapter
   alias Jido.Integration.V2.DerivedStateAttachment
   alias Jido.Integration.V2.ReviewProjection
 
-  @behaviour Citadel.Ports.ProjectionSink
+  @type downstream_metadata :: %{
+          required(:entry_id) => String.t(),
+          required(:payload_kind) => String.t(),
+          optional(:causal_group_id) => String.t()
+        }
 
   defmodule Downstream do
     @moduledoc false
@@ -19,10 +24,16 @@ defmodule Citadel.ProjectionBridge do
     alias Jido.Integration.V2.DerivedStateAttachment
     alias Jido.Integration.V2.ReviewProjection
 
-    @callback publish_review_projection(ReviewProjection.t(), map()) ::
+    @callback publish_review_projection(
+                ReviewProjection.t(),
+                Citadel.ProjectionBridge.downstream_metadata()
+              ) ::
                 {:ok, String.t()} | {:error, atom()}
 
-    @callback publish_derived_state_attachment(DerivedStateAttachment.t(), map()) ::
+    @callback publish_derived_state_attachment(
+                DerivedStateAttachment.t(),
+                Citadel.ProjectionBridge.downstream_metadata()
+              ) ::
                 {:ok, String.t()} | {:error, atom()}
   end
 
@@ -42,17 +53,17 @@ defmodule Citadel.ProjectionBridge do
 
   @type t :: %__MODULE__{
           downstream: module(),
-          circuit: BridgeCircuit.t(),
+          circuit_policy: BridgeCircuitPolicy.t(),
+          state_ref: BridgeState.state_ref(),
           review_projection_adapter: module(),
-          derived_state_attachment_adapter: module(),
-          receipts_by_entry_id: %{required(String.t()) => String.t()}
+          derived_state_attachment_adapter: module()
         }
 
   defstruct downstream: nil,
-            circuit: nil,
+            circuit_policy: nil,
+            state_ref: nil,
             review_projection_adapter: ReviewProjectionAdapter,
-            derived_state_attachment_adapter: DerivedStateAttachmentAdapter,
-            receipts_by_entry_id: %{}
+            derived_state_attachment_adapter: DerivedStateAttachmentAdapter
 
   @spec new!(keyword()) :: t()
   def new!(opts) do
@@ -65,59 +76,72 @@ defmodule Citadel.ProjectionBridge do
             "Citadel.ProjectionBridge.downstream must export publish_review_projection/2 and publish_derived_state_attachment/2"
     end
 
+    circuit_policy = Keyword.get(opts, :circuit_policy, default_circuit_policy())
+    state_name = Keyword.get(opts, :state_name)
+
     %__MODULE__{
       downstream: downstream,
-      circuit:
-        BridgeCircuit.new!(
-          policy: Keyword.get(opts, :circuit_policy, default_circuit_policy()),
-          now_ms_fun: Keyword.get(opts, :now_ms_fun)
+      circuit_policy: circuit_policy,
+      state_ref:
+        BridgeState.new_ref!(
+          circuit:
+            BridgeCircuit.new!(
+              policy: circuit_policy,
+              now_ms_fun: Keyword.get(opts, :now_ms_fun)
+            ),
+          name: state_name
         ),
       review_projection_adapter:
         Keyword.get(opts, :review_projection_adapter, ReviewProjectionAdapter),
       derived_state_attachment_adapter:
-        Keyword.get(opts, :derived_state_attachment_adapter, DerivedStateAttachmentAdapter),
-      receipts_by_entry_id: %{}
+        Keyword.get(opts, :derived_state_attachment_adapter, DerivedStateAttachmentAdapter)
     }
-  end
-
-  @impl true
-  def publish_review_projection(_projection, _entry) do
-    raise ArgumentError,
-          "Citadel.ProjectionBridge.publish_review_projection/2 requires an initialized bridge instance; use publish_review_projection/3"
-  end
-
-  @impl true
-  def publish_derived_state_attachment(_attachment, _entry) do
-    raise ArgumentError,
-          "Citadel.ProjectionBridge.publish_derived_state_attachment/2 requires an initialized bridge instance; use publish_derived_state_attachment/3"
   end
 
   @spec publish_review_projection(
           t(),
-          ReviewProjection.t() | Citadel.RuntimeObservation.t() | map() | keyword(),
-          ActionOutboxEntry.t() | map() | keyword()
+          ReviewProjection.t() | Citadel.RuntimeObservation.t(),
+          ActionOutboxEntry.t()
         ) :: {:ok, String.t(), t()} | {:error, atom(), t()}
-  def publish_review_projection(%__MODULE__{} = bridge, projection_or_observation, entry) do
-    entry = ActionOutboxEntry.new!(entry)
+  def publish_review_projection(
+        %__MODULE__{} = bridge,
+        projection_or_observation,
+        %ActionOutboxEntry{} = entry
+      ) do
     projection = bridge.review_projection_adapter.normalize!(projection_or_observation)
 
-    publish(bridge, entry, projection, fn downstream, payload, metadata ->
-      downstream.publish_review_projection(payload, metadata)
-    end, "review_projection")
+    publish(
+      bridge,
+      entry,
+      projection,
+      fn downstream, payload, metadata ->
+        downstream.publish_review_projection(payload, metadata)
+      end,
+      "review_projection"
+    )
   end
 
   @spec publish_derived_state_attachment(
           t(),
-          DerivedStateAttachment.t() | map() | keyword(),
-          ActionOutboxEntry.t() | map() | keyword()
+          DerivedStateAttachment.t(),
+          ActionOutboxEntry.t()
         ) :: {:ok, String.t(), t()} | {:error, atom(), t()}
-  def publish_derived_state_attachment(%__MODULE__{} = bridge, attachment, entry) do
-    entry = ActionOutboxEntry.new!(entry)
+  def publish_derived_state_attachment(
+        %__MODULE__{} = bridge,
+        %DerivedStateAttachment{} = attachment,
+        %ActionOutboxEntry{} = entry
+      ) do
     attachment = bridge.derived_state_attachment_adapter.normalize!(attachment)
 
-    publish(bridge, entry, attachment, fn downstream, payload, metadata ->
-      downstream.publish_derived_state_attachment(payload, metadata)
-    end, "derived_state_attachment")
+    publish(
+      bridge,
+      entry,
+      attachment,
+      fn downstream, payload, metadata ->
+        downstream.publish_derived_state_attachment(payload, metadata)
+      end,
+      "derived_state_attachment"
+    )
   end
 
   @spec manifest() :: map()
@@ -138,43 +162,54 @@ defmodule Citadel.ProjectionBridge do
     })
   end
 
-  defp publish(%__MODULE__{} = bridge, %ActionOutboxEntry{} = entry, payload, publish_fun, payload_kind)
+  defp publish(
+         %__MODULE__{} = bridge,
+         %ActionOutboxEntry{} = entry,
+         payload,
+         publish_fun,
+         payload_kind
+       )
        when is_function(publish_fun, 3) do
-    case Map.fetch(bridge.receipts_by_entry_id, entry.entry_id) do
-      {:ok, receipt_ref} ->
+    scope_key = scope_key(bridge.circuit_policy, payload, payload_kind)
+
+    case BridgeState.begin_operation(bridge.state_ref, scope_key, dedupe_key: entry.entry_id) do
+      {:duplicate, receipt_ref} ->
         {:ok, receipt_ref, bridge}
 
-      :error ->
-        scope_key = scope_key(bridge.circuit.policy, payload, payload_kind)
+      {:error, reason} ->
+        {:error, reason, bridge}
 
-        case BridgeCircuit.allow(bridge.circuit, scope_key) do
-          {:ok, updated_circuit} ->
-            bridge = %{bridge | circuit: updated_circuit}
-            metadata = %{entry_id: entry.entry_id, causal_group_id: entry.causal_group_id, payload_kind: payload_kind}
+      {:ok, token} ->
+        metadata = %{
+          entry_id: entry.entry_id,
+          causal_group_id: entry.causal_group_id,
+          payload_kind: payload_kind
+        }
 
-            case publish_fun.(bridge.downstream, payload, metadata) do
-              {:ok, receipt_ref} when is_binary(receipt_ref) ->
-                bridge =
-                  bridge
-                  |> Map.update!(:receipts_by_entry_id, &Map.put(&1, entry.entry_id, receipt_ref))
-                  |> Map.put(:circuit, BridgeCircuit.record_success(bridge.circuit, scope_key))
-
-                {:ok, receipt_ref, bridge}
-
-              {:error, reason} ->
-                {:error, reason, %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
-
-              _other ->
-                {:error, :unknown, %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
+        case publish_fun.(bridge.downstream, payload, metadata) do
+          {:ok, receipt_ref} when is_binary(receipt_ref) ->
+            case BridgeState.finish_operation(bridge.state_ref, token, {:ok, receipt_ref}) do
+              {:ok, ^receipt_ref} -> {:ok, receipt_ref, bridge}
+              {:error, :operation_not_found} -> {:ok, receipt_ref, bridge}
             end
 
-          {{:error, :circuit_open}, updated_circuit} ->
-            {:error, :circuit_open, %{bridge | circuit: updated_circuit}}
+          {:error, reason} ->
+            case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
+              {:error, ^reason} -> {:error, reason, bridge}
+              {:error, :operation_not_found} -> {:error, reason, bridge}
+            end
+
+          _other ->
+            case BridgeState.finish_operation(bridge.state_ref, token, {:error, :unknown}) do
+              {:error, :unknown} -> {:error, :unknown, bridge}
+              {:error, :operation_not_found} -> {:error, :unknown, bridge}
+            end
         end
     end
   end
 
-  defp scope_key(%BridgeCircuitPolicy{scope_key_mode: "bridge_global"}, _payload, _payload_kind), do: "global"
+  defp scope_key(%BridgeCircuitPolicy{scope_key_mode: "bridge_global"}, _payload, _payload_kind),
+    do: "global"
 
   defp scope_key(%BridgeCircuitPolicy{scope_key_mode: "tenant_partition"}, payload, payload_kind) do
     case payload do

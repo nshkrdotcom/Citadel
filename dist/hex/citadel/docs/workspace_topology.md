@@ -5,6 +5,7 @@ Citadel is a non-umbrella Elixir monorepo with explicit package ownership.
 ## Core Packages
 
 - `core/contract_core`: neutral identifiers, host-local refs, and RFC 8785 / JCS canonicalization helpers
+- `core/jido_integration_v2_contracts`: workspace-carried higher-order lineage contract slice
 - `core/authority_contract`: Brain-authored `AuthorityDecision.v1` schema ownership
 - `core/observability_contract`: trace and telemetry vocabulary ownership
 - `core/policy_packs`: policy pack definitions and normalization helpers
@@ -45,5 +46,6 @@ public artifact is now explicit:
 - excluded by default: `apps/*`, `core/conformance`, and the root tooling project
 
 The welded artifact keeps the source workspace authoritative. It projects the
-runtime-facing core packages and selected bridges without collapsing ownership
-or turning proof packages into runtime dependencies.
+runtime-facing core packages, the in-workspace shared contract slice, and
+selected bridges without collapsing ownership or turning proof packages into
+runtime dependencies.

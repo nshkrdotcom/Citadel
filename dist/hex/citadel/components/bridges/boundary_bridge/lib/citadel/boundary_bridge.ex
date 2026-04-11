@@ -10,11 +10,15 @@ defmodule Citadel.BoundaryBridge do
   alias Citadel.BoundarySessionDescriptor.V1, as: BoundarySessionDescriptorV1
   alias Citadel.BridgeCircuit
   alias Citadel.BridgeCircuitPolicy
+  alias Citadel.BridgeState
 
   defmodule Downstream do
     @moduledoc false
 
-    @callback submit_boundary_intent(map()) :: {:ok, String.t()} | {:error, atom()}
+    @callback submit_boundary_intent(
+                Citadel.BoundaryBridge.BoundaryProjectionAdapter.projection()
+              ) ::
+                {:ok, String.t()} | {:error, atom()}
   end
 
   @manifest %{
@@ -28,11 +32,15 @@ defmodule Citadel.BoundaryBridge do
 
   @type t :: %__MODULE__{
           downstream: module(),
-          circuit: BridgeCircuit.t(),
+          circuit_policy: BridgeCircuitPolicy.t(),
+          state_ref: BridgeState.state_ref(),
           projection_adapter: module()
         }
 
-  defstruct downstream: nil, circuit: nil, projection_adapter: BoundaryProjectionAdapter
+  defstruct downstream: nil,
+            circuit_policy: nil,
+            state_ref: nil,
+            projection_adapter: BoundaryProjectionAdapter
 
   @spec new!(keyword()) :: t()
   def new!(opts) do
@@ -43,54 +51,80 @@ defmodule Citadel.BoundaryBridge do
             "Citadel.BoundaryBridge.downstream must export submit_boundary_intent/1"
     end
 
+    circuit_policy = Keyword.get(opts, :circuit_policy, default_circuit_policy())
+    state_name = Keyword.get(opts, :state_name)
+
     %__MODULE__{
       downstream: downstream,
-      circuit:
-        BridgeCircuit.new!(
-          policy: Keyword.get(opts, :circuit_policy, default_circuit_policy()),
-          now_ms_fun: Keyword.get(opts, :now_ms_fun)
+      circuit_policy: circuit_policy,
+      state_ref:
+        BridgeState.new_ref!(
+          circuit:
+            BridgeCircuit.new!(
+              policy: circuit_policy,
+              now_ms_fun: Keyword.get(opts, :now_ms_fun)
+            ),
+          name: state_name
         ),
       projection_adapter: Keyword.get(opts, :projection_adapter, BoundaryProjectionAdapter)
     }
   end
 
-  @spec submit_boundary_intent(t(), BoundaryIntent.t() | map() | keyword(), map()) ::
+  @spec submit_boundary_intent(
+          t(),
+          BoundaryIntent.t(),
+          Citadel.Ports.BoundaryLifecycle.boundary_intent_metadata()
+        ) ::
           {:ok, String.t(), t()} | {:error, atom(), t()}
-  def submit_boundary_intent(%__MODULE__{} = bridge, boundary_intent, metadata) when is_map(metadata) do
-    boundary_intent = BoundaryIntent.new!(boundary_intent)
+  def submit_boundary_intent(
+        %__MODULE__{} = bridge,
+        %BoundaryIntent{} = boundary_intent,
+        metadata
+      )
+      when is_map(metadata) do
     projection = bridge.projection_adapter.project!(boundary_intent, metadata)
     scope_key = Map.get(projection, "downstream_scope", "boundary_lifecycle")
 
-    case BridgeCircuit.allow(bridge.circuit, scope_key) do
-      {:ok, updated_circuit} ->
-        bridge = %{bridge | circuit: updated_circuit}
-
+    case BridgeState.begin_operation(bridge.state_ref, scope_key) do
+      {:ok, token} ->
         case bridge.downstream.submit_boundary_intent(projection) do
           {:ok, receipt_ref} ->
-            {:ok, receipt_ref, %{bridge | circuit: BridgeCircuit.record_success(bridge.circuit, scope_key)}}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:ok, receipt_ref}) do
+              {:ok, ^receipt_ref} -> {:ok, receipt_ref, bridge}
+              {:error, :operation_not_found} -> {:ok, receipt_ref, bridge}
+            end
 
           {:error, reason} ->
-            {:error, reason, %{bridge | circuit: BridgeCircuit.record_failure(bridge.circuit, scope_key)}}
+            case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
+              {:error, ^reason} -> {:error, reason, bridge}
+              {:error, :operation_not_found} -> {:error, reason, bridge}
+            end
         end
 
-      {{:error, :circuit_open}, updated_circuit} ->
-        {:error, :circuit_open, %{bridge | circuit: updated_circuit}}
+      {:error, reason} ->
+        {:error, reason, bridge}
     end
   end
 
-  @spec normalize_boundary_session(t(), BoundarySessionDescriptorV1.t() | map() | keyword()) ::
+  @spec normalize_boundary_session(
+          t(),
+          Citadel.Ports.BoundaryLifecycle.boundary_session_source()
+        ) ::
           {:ok, BoundarySessionDescriptorV1.t(), t()}
   def normalize_boundary_session(%__MODULE__{} = bridge, raw_descriptor) do
     {:ok, BoundarySessionDescriptorV1.new!(raw_descriptor), bridge}
   end
 
-  @spec normalize_attach_grant(t(), AttachGrantV1.t() | map() | keyword()) ::
+  @spec normalize_attach_grant(t(), Citadel.Ports.BoundaryLifecycle.attach_grant_source()) ::
           {:ok, AttachGrantV1.t(), t()}
   def normalize_attach_grant(%__MODULE__{} = bridge, raw_grant) do
     {:ok, AttachGrantV1.new!(raw_grant), bridge}
   end
 
-  @spec normalize_boundary_lease(t(), BoundaryLeaseView.t() | map() | keyword()) ::
+  @spec normalize_boundary_lease(
+          t(),
+          Citadel.Ports.BoundaryLifecycle.boundary_lease_source()
+        ) ::
           {:ok, BoundaryLeaseView.t(), t()}
   def normalize_boundary_lease(%__MODULE__{} = bridge, raw_lease_view) do
     {:ok, BoundaryLeaseView.new!(raw_lease_view), bridge}
@@ -100,7 +134,8 @@ defmodule Citadel.BoundaryBridge do
   def manifest, do: @manifest
 
   @spec boundary_metadata_fields() :: [atom()]
-  def boundary_metadata_fields, do: [:boundary_ref, :boundary_class, :attach_mode, :lease_expires_at]
+  def boundary_metadata_fields,
+    do: [:boundary_ref, :boundary_class, :attach_mode, :lease_expires_at]
 
   @spec default_circuit_policy() :: BridgeCircuitPolicy.t()
   def default_circuit_policy do

@@ -5,9 +5,10 @@ defmodule Citadel.WorkspaceTest do
   alias Weld
 
   test "tracks the packet workspace package contract on disk" do
-    assert Workspace.package_count() == 17
+    assert Workspace.package_count() == 18
     assert Workspace.package_count() == length(Workspace.package_paths())
     assert "apps/host_surface_harness" in Workspace.package_paths()
+    assert "core/jido_integration_v2_contracts" in Workspace.package_paths()
     assert Workspace.missing_package_paths() == []
 
     assert Enum.all?(Workspace.package_paths(), fn path ->
@@ -26,6 +27,8 @@ defmodule Citadel.WorkspaceTest do
   end
 
   test "defines a derivative welded publication boundary" do
+    publication_deps = Workspace.publication_dependency_declarations()
+
     assert Workspace.proof_package_paths() == [
              "core/conformance",
              "apps/coding_assist",
@@ -45,6 +48,10 @@ defmodule Citadel.WorkspaceTest do
 
     refute "core/conformance" in Workspace.public_package_paths()
     refute "apps/host_surface_harness" in Workspace.public_package_paths()
+
+    refute Keyword.has_key?(publication_deps, :jido_integration_v2_contracts)
+    assert publication_deps[:aitrace][:opts] == []
+    assert is_binary(publication_deps[:aitrace][:requirement])
   end
 
   test "weld manifest keeps publication derivative of the workspace architecture" do
@@ -59,12 +66,26 @@ defmodule Citadel.WorkspaceTest do
     assert "apps/host_surface_harness" in result.classifications.proof
 
     assert "core/citadel_runtime" in result.artifact.selected_projects
+    assert "core/jido_integration_v2_contracts" in result.artifact.selected_projects
     assert "bridges/trace_bridge" in result.artifact.selected_projects
     assert "bridges/projection_bridge" in result.artifact.selected_projects
     refute "core/conformance" in result.artifact.selected_projects
     refute "apps/host_surface_harness" in result.artifact.selected_projects
 
     assert "aitrace" in result.artifact.external_deps
-    assert "jido_integration_v2_contracts" in result.artifact.external_deps
+    refute "jido_integration_v2_contracts" in result.artifact.external_deps
+  end
+
+  test "weld manifest can be inspected through the mix task entrypoint" do
+    {output, 0} =
+      System.cmd("mix", ["weld.inspect", Workspace.publication_manifest_path()],
+        env: [
+          {"CITADEL_JIDO_INTEGRATION_CONTRACTS_PATH", "published"},
+          {"AITRACE_PATH", "published"}
+        ],
+        stderr_to_stdout: true
+      )
+
+    assert output =~ "citadel"
   end
 end

@@ -18,7 +18,7 @@ defmodule Citadel.BridgeCircuit do
   @type t :: %__MODULE__{
           policy: BridgeCircuitPolicy.t(),
           scope_states: %{required(String.t()) => scope_state()},
-          now_ms_fun: (() -> non_neg_integer())
+          now_ms_fun: (-> non_neg_integer())
         }
 
   defstruct [:policy, :scope_states, :now_ms_fun]
@@ -56,7 +56,12 @@ defmodule Citadel.BridgeCircuit do
       :open ->
         if cooldown_elapsed?(state, circuit.policy, now_ms) do
           if state.half_open_inflight < circuit.policy.half_open_max_inflight do
-            updated_state = %{state | status: :half_open, half_open_inflight: state.half_open_inflight + 1}
+            updated_state = %{
+              state
+              | status: :half_open,
+                half_open_inflight: state.half_open_inflight + 1
+            }
+
             {:ok, put_scope_state(circuit, scope_key, updated_state)}
           else
             {{:error, :circuit_open}, circuit}
@@ -102,7 +107,7 @@ defmodule Citadel.BridgeCircuit do
 
         _other ->
           failures =
-            ([now_ms | state.failure_timestamps])
+            [now_ms | state.failure_timestamps]
             |> Enum.filter(&(now_ms - &1 <= circuit.policy.window_ms))
 
           if length(failures) >= circuit.policy.failure_threshold do
@@ -139,5 +144,7 @@ defmodule Citadel.BridgeCircuit do
   end
 
   defp cooldown_elapsed?(%{opened_at_ms: nil}, _policy, _now_ms), do: true
-  defp cooldown_elapsed?(%{opened_at_ms: opened_at_ms}, policy, now_ms), do: now_ms - opened_at_ms >= policy.cooldown_ms
+
+  defp cooldown_elapsed?(%{opened_at_ms: opened_at_ms}, policy, now_ms),
+    do: now_ms - opened_at_ms >= policy.cooldown_ms
 end

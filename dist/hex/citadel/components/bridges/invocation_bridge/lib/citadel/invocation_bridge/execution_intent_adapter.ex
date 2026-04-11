@@ -73,7 +73,11 @@ defmodule Citadel.InvocationBridge.ExecutionIntentAdapter do
       execution_intent_family: execution_intent_family,
       execution_intent:
         execution_intent_module.new!(
-          Map.put_new(execution_intent_payload, "contract_version", execution_intent_module.contract_version())
+          Map.put_new(
+            execution_intent_payload,
+            "contract_version",
+            execution_intent_module.contract_version()
+          )
         ),
       extensions: envelope_extensions
     })

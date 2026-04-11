@@ -118,8 +118,7 @@ defmodule Citadel.BoundaryIntent do
        workspace_profile:
          validate_non_empty_string!(intent.workspace_profile, :workspace_profile),
        resource_profile: validate_non_empty_string!(intent.resource_profile, :resource_profile),
-       requested_attach_mode:
-         validate_attach_mode!(intent.requested_attach_mode),
+       requested_attach_mode: validate_attach_mode!(intent.requested_attach_mode),
        requested_ttl_ms: validate_non_neg_integer!(intent.requested_ttl_ms, :requested_ttl_ms),
        extensions: validate_json_object!(intent.extensions, "Citadel.BoundaryIntent.extensions")
      }}
