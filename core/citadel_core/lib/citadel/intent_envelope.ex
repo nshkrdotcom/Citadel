@@ -41,6 +41,7 @@ defmodule Citadel.IntentMappingConstraints do
   def boundary_attach_mode_for(:fresh_or_reuse), do: "fresh_or_reuse"
   def boundary_attach_mode_for(:fresh_only), do: "fresh_only"
   def boundary_attach_mode_for(:no_boundary), do: "not_applicable"
+
   def boundary_attach_mode_for(value),
     do:
       raise(
@@ -169,7 +170,8 @@ defmodule Citadel.IntentMappingConstraints do
       KeyError,
       Protocol.UndefinedError
     ] ->
-      raise ArgumentError, "#{label} is invalid: #{Exception.message(error)}"
+      reraise ArgumentError.exception("#{label} is invalid: #{Exception.message(error)}"),
+              __STACKTRACE__
   end
 end
 

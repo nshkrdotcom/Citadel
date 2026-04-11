@@ -10,10 +10,16 @@ defmodule Citadel.PolicyPacksAdversarialTest do
   alias Citadel.PolicyPacks.Selector
 
   property "selector adversarial variants never escape as generic crashes" do
-    check all(selector_attrs <- selector_candidate(), selection_input <- selection_input_candidate()) do
+    check all(
+            selector_attrs <- selector_candidate(),
+            selection_input <- selection_input_candidate()
+          ) do
       case safe_call(fn -> Selector.new!(selector_attrs) end) do
         {:ok, %Selector{} = selector} ->
-          assert_packet_safe(fn -> Selector.matches?(selector, selection_input) end, &is_boolean/1)
+          assert_packet_safe(
+            fn -> Selector.matches?(selector, selection_input) end,
+            &is_boolean/1
+          )
 
         {:error, %ArgumentError{}} ->
           :ok
@@ -63,7 +69,9 @@ defmodule Citadel.PolicyPacksAdversarialTest do
         :ok
 
       {:error, error} ->
-        flunk("unexpected generic crash: #{inspect(error.__struct__)} #{Exception.message(error)}")
+        flunk(
+          "unexpected generic crash: #{inspect(error.__struct__)} #{Exception.message(error)}"
+        )
     end
   end
 
@@ -86,9 +94,15 @@ defmodule Citadel.PolicyPacksAdversarialTest do
   defp policy_pack_candidate do
     one_of([
       valid_policy_pack_attrs(),
-      map(valid_policy_pack_attrs(), &put_in(&1, [:selector, :tenant_ids], ["tenant-1", "tenant-1"])),
+      map(
+        valid_policy_pack_attrs(),
+        &put_in(&1, [:selector, :tenant_ids], ["tenant-1", "tenant-1"])
+      ),
       map(valid_policy_pack_attrs(), &put_in(&1, [:profiles, :boundary_class], "   ")),
-      map(valid_policy_pack_attrs(), &put_in(&1, [:rejection_policy, :extensions], %{"bad" => {:tuple, 1}})),
+      map(
+        valid_policy_pack_attrs(),
+        &put_in(&1, [:rejection_policy, :extensions], %{"bad" => {:tuple, 1}})
+      ),
       map(valid_policy_pack_attrs(), &Map.put(&1, :priority, -1))
     ])
   end

@@ -2,6 +2,10 @@ defmodule Citadel.Runtime.SessionMigrationTest do
   use ExUnit.Case, async: false
   use ExUnitProperties
 
+  @moduletag capture_log: true
+
+  import ExUnit.CaptureLog
+
   alias Citadel.ActionOutboxEntry
   alias Citadel.BackoffPolicy
   alias Citadel.LocalAction
@@ -79,13 +83,15 @@ defmodule Citadel.Runtime.SessionMigrationTest do
       extensions: %{"legacy" => true}
     }
 
-    assert catch_exit(
-             SessionDirectory.seed_raw_blob(
-               session_directory_name,
-               impossible_blob.session_id,
-               impossible_blob
+    capture_log(fn ->
+      assert catch_exit(
+               SessionDirectory.seed_raw_blob(
+                 session_directory_name,
+                 impossible_blob.session_id,
+                 impossible_blob
+               )
              )
-           )
+    end)
 
     assert :persistent_term.get(store_key, :missing) == before_store
   end

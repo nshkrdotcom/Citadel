@@ -1,6 +1,10 @@
 defmodule Citadel.Runtime.StateContinuityHardeningTest do
   use ExUnit.Case, async: false
 
+  @moduletag capture_log: true
+
+  import ExUnit.CaptureLog
+
   alias Citadel.ActionOutboxEntry
   alias Citadel.BackoffPolicy
   alias Citadel.KernelEpochUpdate
@@ -33,16 +37,18 @@ defmodule Citadel.Runtime.StateContinuityHardeningTest do
 
     monitor = Process.monitor(pid)
 
-    KernelSnapshot.publish_epoch_update(
-      kernel_snapshot_name,
-      KernelEpochUpdate.new!(%{
-        source_owner: "test",
-        constituent: :policy_epoch,
-        epoch: 4,
-        updated_at: DateTime.utc_now(),
-        extensions: %{"policy_version" => "v4"}
-      })
-    )
+    capture_log(fn ->
+      KernelSnapshot.publish_epoch_update(
+        kernel_snapshot_name,
+        KernelEpochUpdate.new!(%{
+          source_owner: "test",
+          constituent: :policy_epoch,
+          epoch: 4,
+          updated_at: DateTime.utc_now(),
+          extensions: %{"policy_version" => "v4"}
+        })
+      )
+    end)
 
     assert_receive {:DOWN, ^monitor, :process, ^pid, reason}, 1_000
     assert inspect(reason) =~ "Citadel.Runtime.KernelSnapshot invariant failure"
@@ -104,17 +110,19 @@ defmodule Citadel.Runtime.StateContinuityHardeningTest do
 
     monitor = Process.monitor(session_server)
 
-    assert catch_exit(
-             SessionServer.commit_transition(session_server, %{
-               extensions: %{
-                 "blocked_failure" => %{
-                   "entry_id" => "missing-entry",
-                   "reason_family" => "illegal",
-                   "last_error_code" => "illegal"
+    capture_log(fn ->
+      assert catch_exit(
+               SessionServer.commit_transition(session_server, %{
+                 extensions: %{
+                   "blocked_failure" => %{
+                     "entry_id" => "missing-entry",
+                     "reason_family" => "illegal",
+                     "last_error_code" => "illegal"
+                   }
                  }
-               }
-             })
-           )
+               })
+             )
+    end)
 
     assert_receive {:DOWN, ^monitor, :process, ^session_server, reason}, 1_000
     assert inspect(reason) =~ "Citadel.Runtime.SessionServer invariant failure"

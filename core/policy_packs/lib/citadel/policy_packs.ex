@@ -124,9 +124,14 @@ defmodule Citadel.PolicyPacks.Selector do
 
     %{
       tenant_id:
-        Value.required(attrs, :tenant_id, "Citadel.PolicyPacks.Selector matches input", fn value ->
-          Value.string!(value, "Citadel.PolicyPacks.Selector matches input.tenant_id")
-        end),
+        Value.required(
+          attrs,
+          :tenant_id,
+          "Citadel.PolicyPacks.Selector matches input",
+          fn value ->
+            Value.string!(value, "Citadel.PolicyPacks.Selector matches input.tenant_id")
+          end
+        ),
       scope_kind:
         Value.required(
           attrs,

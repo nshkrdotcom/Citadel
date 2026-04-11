@@ -254,6 +254,7 @@ defmodule Citadel.DecisionRejectionClassifier do
 
   def classify!(attrs, rejection_policy) do
     attrs = Value.normalize_attrs!(attrs, "Citadel.DecisionRejectionClassifier", @input_fields)
+
     rejection_policy =
       RejectionPolicy.new!(rejection_policy)
 

@@ -1,6 +1,4 @@
-Code.require_file(
-  Path.expand("../../../../dev/docker/toxiproxy/test_support.exs", __DIR__)
-)
+Code.require_file(Path.expand("../../../../dev/docker/toxiproxy/test_support.exs", __DIR__))
 
 defmodule Citadel.ProjectionBridgeInfrastructureFaultInjectionTest do
   use ExUnit.Case, async: false
@@ -26,7 +24,9 @@ defmodule Citadel.ProjectionBridgeInfrastructureFaultInjectionTest do
 
     def publish_review_projection(_projection, metadata) do
       timeout =
-        :persistent_term.get({Citadel.ProjectionBridgeInfrastructureFaultInjectionTest, :proxy_timeout_ms})
+        :persistent_term.get(
+          {Citadel.ProjectionBridgeInfrastructureFaultInjectionTest, :proxy_timeout_ms}
+        )
 
       ToxiproxyHarness.request_url(
         :get,
@@ -39,7 +39,9 @@ defmodule Citadel.ProjectionBridgeInfrastructureFaultInjectionTest do
 
     def publish_derived_state_attachment(_attachment, metadata) do
       timeout =
-        :persistent_term.get({Citadel.ProjectionBridgeInfrastructureFaultInjectionTest, :proxy_timeout_ms})
+        :persistent_term.get(
+          {Citadel.ProjectionBridgeInfrastructureFaultInjectionTest, :proxy_timeout_ms}
+        )
 
       ToxiproxyHarness.request_url(
         :get,

@@ -1,6 +1,4 @@
-Code.require_file(
-  Path.expand("../../../../dev/docker/toxiproxy/test_support.exs", __DIR__)
-)
+Code.require_file(Path.expand("../../../../dev/docker/toxiproxy/test_support.exs", __DIR__))
 
 defmodule Citadel.InvocationBridgeInfrastructureFaultInjectionTest do
   use ExUnit.Case, async: false
@@ -26,7 +24,10 @@ defmodule Citadel.InvocationBridgeInfrastructureFaultInjectionTest do
     alias Citadel.TestSupport.ToxiproxyHarness
 
     def submit_execution_intent(envelope) do
-      timeout = :persistent_term.get({Citadel.InvocationBridgeInfrastructureFaultInjectionTest, :proxy_timeout_ms})
+      timeout =
+        :persistent_term.get(
+          {Citadel.InvocationBridgeInfrastructureFaultInjectionTest, :proxy_timeout_ms}
+        )
 
       ToxiproxyHarness.request_url(
         :get,
@@ -43,7 +44,11 @@ defmodule Citadel.InvocationBridgeInfrastructureFaultInjectionTest do
 
     def submit_execution_intent(envelope) do
       timeout = 200
-      url = :persistent_term.get({Citadel.InvocationBridgeInfrastructureFaultInjectionTest, :half_open_url})
+
+      url =
+        :persistent_term.get(
+          {Citadel.InvocationBridgeInfrastructureFaultInjectionTest, :half_open_url}
+        )
 
       ToxiproxyHarness.request_url(:get, url, timeout: timeout, connect_timeout: timeout)
       |> ToxiproxyHarness.normalize_http_result("receipt:#{envelope.entry_id}")

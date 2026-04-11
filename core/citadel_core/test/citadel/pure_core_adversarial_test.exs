@@ -92,7 +92,9 @@ defmodule Citadel.PureCoreAdversarialTest do
         :ok
 
       {:error, error} ->
-        flunk("unexpected generic crash: #{inspect(error.__struct__)} #{Exception.message(error)}")
+        flunk(
+          "unexpected generic crash: #{inspect(error.__struct__)} #{Exception.message(error)}"
+        )
     end
   end
 
@@ -139,15 +141,33 @@ defmodule Citadel.PureCoreAdversarialTest do
   defp intent_envelope_candidate do
     one_of([
       valid_intent_envelope_attrs(),
-      map(valid_intent_envelope_attrs(), &put_in(&1, [:constraints, :boundary_requirement], :reuse_existing)),
-      map(valid_intent_envelope_attrs(), &Map.put(&1, :target_hints, [detached_target_hint_attrs()])),
-      map(valid_intent_envelope_attrs(), &put_in(&1, [:desired_outcome, :outcome_kind], :inspect_scope)),
-      map(valid_intent_envelope_attrs(), &put_in(&1, [:constraints, :boundary_requirement], :fresh_only)),
+      map(
+        valid_intent_envelope_attrs(),
+        &put_in(&1, [:constraints, :boundary_requirement], :reuse_existing)
+      ),
+      map(
+        valid_intent_envelope_attrs(),
+        &Map.put(&1, :target_hints, [detached_target_hint_attrs()])
+      ),
+      map(
+        valid_intent_envelope_attrs(),
+        &put_in(&1, [:desired_outcome, :outcome_kind], :inspect_scope)
+      ),
+      map(
+        valid_intent_envelope_attrs(),
+        &put_in(&1, [:constraints, :boundary_requirement], :fresh_only)
+      ),
       map(valid_intent_envelope_attrs(), &Map.put(&1, :scope_selectors, [])),
-      map(valid_intent_envelope_attrs(), &put_in(&1, [:desired_outcome, :requested_capabilities], [])),
+      map(
+        valid_intent_envelope_attrs(),
+        &put_in(&1, [:desired_outcome, :requested_capabilities], [])
+      ),
       map(valid_intent_envelope_attrs(), &put_in(&1, [:constraints, :max_steps], 0)),
       map(valid_intent_envelope_attrs(), &Map.put(&1, :success_criteria, [])),
-      map(valid_intent_envelope_attrs(), &put_in(&1, [:constraints, :allowed_service_ids], ["svc-terminal", "svc-terminal"])),
+      map(
+        valid_intent_envelope_attrs(),
+        &put_in(&1, [:constraints, :allowed_service_ids], ["svc-terminal", "svc-terminal"])
+      ),
       map(valid_intent_envelope_attrs(), &put_in(&1, [:extensions], %{"bad" => {:tuple, 1}})),
       map(valid_intent_envelope_attrs(), &Map.put(&1, :intent, "open the repo"))
     ])
@@ -159,7 +179,10 @@ defmodule Citadel.PureCoreAdversarialTest do
       map(valid_decision_snapshot_attrs(), &Map.put(&1, :policy_version, "   ")),
       map(valid_decision_snapshot_attrs(), &Map.put(&1, :policy_epoch, -1)),
       map(valid_decision_snapshot_attrs(), &Map.put(&1, :captured_at, "not-a-datetime")),
-      map(valid_decision_snapshot_attrs(), &put_in(&1, [:extensions], %{"nested" => %{"epoch" => [1, 2, 3]}})),
+      map(
+        valid_decision_snapshot_attrs(),
+        &put_in(&1, [:extensions], %{"nested" => %{"epoch" => [1, 2, 3]}})
+      ),
       map(valid_decision_snapshot_attrs(), &put_in(&1, [:extensions], %{"bad" => {:tuple, 1}}))
     ])
   end
@@ -199,8 +222,14 @@ defmodule Citadel.PureCoreAdversarialTest do
       map(valid_action_outbox_entry_attrs(), fn attrs ->
         put_in(attrs, [:backoff_policy, :linear_step_ms], nil)
       end),
-      map(valid_action_outbox_entry_attrs(), &put_in(&1, [:action, :payload], %{"bad" => {:tuple, 1}})),
-      map(valid_action_outbox_entry_attrs(), &put_in(&1, [:extensions], %{"nested" => %{"attempt" => 1}}))
+      map(
+        valid_action_outbox_entry_attrs(),
+        &put_in(&1, [:action, :payload], %{"bad" => {:tuple, 1}})
+      ),
+      map(
+        valid_action_outbox_entry_attrs(),
+        &put_in(&1, [:extensions], %{"nested" => %{"attempt" => 1}})
+      )
     ])
   end
 
@@ -217,7 +246,10 @@ defmodule Citadel.PureCoreAdversarialTest do
   defp rejection_policy_candidate do
     one_of([
       valid_rejection_policy_attrs(),
-      map(valid_rejection_policy_attrs(), &put_in(&1, [:runtime_change_reason_codes], ["scope_unavailable", "scope_unavailable"])),
+      map(
+        valid_rejection_policy_attrs(),
+        &put_in(&1, [:runtime_change_reason_codes], ["scope_unavailable", "scope_unavailable"])
+      ),
       map(valid_rejection_policy_attrs(), &put_in(&1, [:extensions], %{"bad" => {:tuple, 1}}))
     ])
   end
@@ -511,7 +543,10 @@ defmodule Citadel.PureCoreAdversarialTest do
           stage <- member_of([:scope_resolution, :service_admission, :planning]),
           reason_code <- member_of(["policy_denied", "approval_missing", "scope_unavailable"]),
           summary <- identifier("summary"),
-          causes <- uniq_list_of(member_of([:input, :runtime_state, :governance, :policy_denial]), max_length: 3),
+          causes <-
+            uniq_list_of(member_of([:input, :runtime_state, :governance, :policy_denial]),
+              max_length: 3
+            ),
           extensions <- json_object(1)
         ) do
       %{

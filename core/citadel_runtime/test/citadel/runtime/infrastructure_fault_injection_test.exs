@@ -1,6 +1,4 @@
-Code.require_file(
-  Path.expand("../../../../../dev/docker/toxiproxy/test_support.exs", __DIR__)
-)
+Code.require_file(Path.expand("../../../../../dev/docker/toxiproxy/test_support.exs", __DIR__))
 
 defmodule Citadel.Runtime.InfrastructureFaultInjectionTest do
   use ExUnit.Case, async: false
@@ -33,7 +31,9 @@ defmodule Citadel.Runtime.InfrastructureFaultInjectionTest do
     end
 
     def set!(datetime) do
-      Agent.update(Citadel.Runtime.InfrastructureFaultInjectionTest.TestClock, fn _ -> datetime end)
+      Agent.update(Citadel.Runtime.InfrastructureFaultInjectionTest.TestClock, fn _ ->
+        datetime
+      end)
     end
 
     def advance!(amount, unit) do
@@ -54,7 +54,10 @@ defmodule Citadel.Runtime.InfrastructureFaultInjectionTest do
     alias Citadel.TestSupport.ToxiproxyHarness
 
     def submit_execution_intent(envelope) do
-      timeout = :persistent_term.get({Citadel.Runtime.InfrastructureFaultInjectionTest, :proxy_timeout_ms})
+      timeout =
+        :persistent_term.get(
+          {Citadel.Runtime.InfrastructureFaultInjectionTest, :proxy_timeout_ms}
+        )
 
       ToxiproxyHarness.request_url(
         :get,
@@ -70,10 +73,7 @@ defmodule Citadel.Runtime.InfrastructureFaultInjectionTest do
     def start_link(opts) do
       Agent.start_link(fn ->
         %{
-          circuit:
-            BridgeCircuit.new!(
-              policy: Keyword.fetch!(opts, :circuit_policy)
-            ),
+          circuit: BridgeCircuit.new!(policy: Keyword.fetch!(opts, :circuit_policy)),
           scope_key: Keyword.get(opts, :scope_key, "http:toxiproxy")
         }
       end)
@@ -138,12 +138,12 @@ defmodule Citadel.Runtime.InfrastructureFaultInjectionTest do
       ToxiproxyHarness.add_toxic!(@proxy_name, "latency", "latency", %{"latency" => 800})
 
       holder =
-        start_supervised!(
-          %{
-            id: unique_name(:shared_invocation_circuit),
-            start:
-              {SharedInvocationCircuit, :start_link,
-               [[
+        start_supervised!(%{
+          id: unique_name(:shared_invocation_circuit),
+          start:
+            {SharedInvocationCircuit, :start_link,
+             [
+               [
                  circuit_policy:
                    BridgeCircuitPolicy.new!(%{
                      failure_threshold: 1,
@@ -153,9 +153,9 @@ defmodule Citadel.Runtime.InfrastructureFaultInjectionTest do
                      scope_key_mode: "downstream_scope",
                      extensions: %{}
                    })
-               ]]}
-          }
-        )
+               ]
+             ]}
+        })
 
       session_id = "sess-fault-retry"
       entry = outbox_entry("entry-fault-retry", max_attempts: 2, base_delay_ms: 250)
@@ -257,12 +257,12 @@ defmodule Citadel.Runtime.InfrastructureFaultInjectionTest do
       ToxiproxyHarness.add_toxic!(@proxy_name, "latency", "latency", %{"latency" => 800})
 
       holder =
-        start_supervised!(
-          %{
-            id: unique_name(:shared_invocation_circuit),
-            start:
-              {SharedInvocationCircuit, :start_link,
-               [[
+        start_supervised!(%{
+          id: unique_name(:shared_invocation_circuit),
+          start:
+            {SharedInvocationCircuit, :start_link,
+             [
+               [
                  circuit_policy:
                    BridgeCircuitPolicy.new!(%{
                      failure_threshold: 1,
@@ -272,12 +272,15 @@ defmodule Citadel.Runtime.InfrastructureFaultInjectionTest do
                      scope_key_mode: "downstream_scope",
                      extensions: %{}
                    })
-               ]]}
-          }
-        )
+               ]
+             ]}
+        })
 
       assert {:error, :timeout} =
-               SharedInvocationCircuit.submit(holder, outbox_entry("prime-circuit", max_attempts: 1))
+               SharedInvocationCircuit.submit(
+                 holder,
+                 outbox_entry("prime-circuit", max_attempts: 1)
+               )
 
       ToxiproxyHarness.ensure_proxy!()
 
@@ -345,18 +348,27 @@ defmodule Citadel.Runtime.InfrastructureFaultInjectionTest do
       {KernelSnapshot, name: kernel_snapshot, policy_version: "v1", policy_epoch: 1}
     )
 
-    start_supervised!({SessionDirectory, name: session_directory, kernel_snapshot: kernel_snapshot})
+    start_supervised!(
+      {SessionDirectory, name: session_directory, kernel_snapshot: kernel_snapshot}
+    )
+
     start_supervised!({ServiceCatalog, name: service_catalog, kernel_snapshot: kernel_snapshot})
-    start_supervised!({BoundaryLeaseTracker, name: boundary_tracker, kernel_snapshot: kernel_snapshot})
-    start_supervised!({Task.Supervisor, name: invocation_supervisor, max_children: Keyword.get(opts, :max_children, 4)})
+
+    start_supervised!(
+      {BoundaryLeaseTracker, name: boundary_tracker, kernel_snapshot: kernel_snapshot}
+    )
+
+    start_supervised!(
+      {Task.Supervisor,
+       name: invocation_supervisor, max_children: Keyword.get(opts, :max_children, 4)}
+    )
+
     start_supervised!({Task.Supervisor, name: projection_supervisor, max_children: 4})
     start_supervised!({Task.Supervisor, name: local_supervisor, max_children: 4})
 
     start_supervised!(
       {SignalIngress,
-       name: signal_ingress,
-       session_directory: session_directory,
-       signal_source: TestSignalSource}
+       name: signal_ingress, session_directory: session_directory, signal_source: TestSignalSource}
     )
 
     %{
@@ -474,9 +486,14 @@ defmodule Citadel.Runtime.InfrastructureFaultInjectionTest do
     detach_telemetry_handler(handler_id)
 
     :ok =
-      :telemetry.attach(handler_id, event_name, fn _event, measurements, metadata, pid ->
-        send(pid, {:invocation_dispatch_backlog, measurements, metadata})
-      end, test_pid)
+      :telemetry.attach(
+        handler_id,
+        event_name,
+        fn _event, measurements, metadata, pid ->
+          send(pid, {:invocation_dispatch_backlog, measurements, metadata})
+        end,
+        test_pid
+      )
   end
 
   defp detach_telemetry_handler(handler_id) do
