@@ -7,7 +7,11 @@ defmodule Citadel.Runtime.SessionMigration do
   alias Citadel.PersistedSessionBlob
   alias Citadel.PersistedSessionEnvelope
 
-  def migrate_blob!(%PersistedSessionBlob{} = blob), do: blob
+  def migrate_blob!(%PersistedSessionBlob{} = blob) do
+    blob
+    |> PersistedSessionBlob.dump()
+    |> migrate_blob!()
+  end
 
   def migrate_blob!(%{schema_version: 1} = blob) do
     PersistedSessionBlob.new!(%{
@@ -32,7 +36,7 @@ defmodule Citadel.Runtime.SessionMigration do
         |> Map.put_new(:owner_incarnation, fetch(blob, :owner_incarnation, 1))
         |> Map.put_new(:recent_signal_hashes, fetch(blob, :recent_signal_hashes, []))
         |> Map.put_new(:lifecycle_status, fetch(blob, :lifecycle_status, :active))
-        |> Map.put_new(:outbox_entry_ids, normalize_outbox_entry_ids(blob))
+        |> put_default(:outbox_entry_ids, fn -> normalize_outbox_entry_ids(blob) end)
         |> Map.put_new(:external_refs, fetch(blob, :external_refs, %{}))
         |> Map.put_new(:extensions, fetch(blob, :extensions, %{})),
       outbox_entries: fetch(blob, :outbox_entries, %{}),
@@ -44,7 +48,11 @@ defmodule Citadel.Runtime.SessionMigration do
     raise ArgumentError, "unsupported persisted session blob schema: #{inspect(other)}"
   end
 
-  defp migrate_envelope!(%PersistedSessionEnvelope{} = envelope), do: envelope
+  defp migrate_envelope!(%PersistedSessionEnvelope{} = envelope) do
+    envelope
+    |> PersistedSessionEnvelope.dump()
+    |> migrate_envelope!()
+  end
 
   defp migrate_envelope!(%{schema_version: 1} = envelope) do
     PersistedSessionEnvelope.new!(%{
@@ -155,8 +163,15 @@ defmodule Citadel.Runtime.SessionMigration do
     case fetch(blob, :outbox_entry_ids) do
       nil ->
         case fetch(blob, :outbox_entries, %{}) do
-          entries when is_map(entries) -> Map.keys(entries)
-          entries when is_list(entries) -> Enum.map(entries, &fetch(&1, :entry_id))
+          entries when is_map(entries) ->
+            case Map.keys(entries) do
+              [] -> []
+              [entry_id] -> [entry_id]
+              _entry_ids -> cannot_infer_outbox_order!(blob)
+            end
+
+          entries when is_list(entries) ->
+            Enum.map(entries, &fetch(&1, :entry_id))
         end
 
       ids ->
@@ -170,5 +185,18 @@ defmodule Citadel.Runtime.SessionMigration do
       is_map_key(map, Atom.to_string(key)) -> Map.get(map, Atom.to_string(key))
       true -> default
     end
+  end
+
+  defp put_default(map, key, value_fun) when is_function(value_fun, 0) do
+    if is_map_key(map, key) or is_map_key(map, Atom.to_string(key)) do
+      map
+    else
+      Map.put(map, key, value_fun.())
+    end
+  end
+
+  defp cannot_infer_outbox_order!(blob) do
+    raise ArgumentError,
+          "persisted session blob schema 0 requires explicit outbox_entry_ids when outbox_entries contains multiple map entries: #{inspect(blob)}"
   end
 end

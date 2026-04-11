@@ -143,7 +143,7 @@ defmodule Citadel.Runtime.SessionDirectory do
     store = :persistent_term.get(store_key, default_store())
 
     {:ok,
-     %{
+     ensure_invariants!(%{
        clock: Keyword.get(opts, :clock, SystemClock),
        kernel_snapshot: Keyword.get(opts, :kernel_snapshot, KernelSnapshot),
        flush_interval_ms: Keyword.get(opts, :flush_interval_ms, 10),
@@ -156,13 +156,17 @@ defmodule Citadel.Runtime.SessionDirectory do
        pending_updated_at: nil,
        flush_timer_ref: nil,
        activation_queue: %{}
-     }}
+     })}
   end
 
   @impl true
   def handle_call(:reset, _from, state) do
-    store = default_store()
-    state = persist_store(%{state | store: store, activation_queue: %{}})
+    state =
+      state
+      |> Map.put(:store, default_store())
+      |> Map.put(:activation_queue, %{})
+      |> persist_store!()
+
     {:reply, :ok, state}
   end
 
@@ -173,8 +177,9 @@ defmodule Citadel.Runtime.SessionDirectory do
   def handle_call({:seed_raw_blob, session_id, raw_blob}, _from, state) do
     state =
       state
-      |> put_store_in([:blobs, session_id], raw_blob)
+      |> update_store([:blobs, session_id], raw_blob)
       |> maybe_refresh_cached_metadata(session_id)
+      |> persist_store!()
 
     {:reply, :ok, state}
   end
@@ -195,6 +200,7 @@ defmodule Citadel.Runtime.SessionDirectory do
     case Map.get(state.store.blobs, session_id) do
       nil ->
         {state, claimed_blob} = build_new_claimed_blob(state, session_id, now, opts)
+        state = persist_store!(state)
 
         emit_lifecycle_telemetry(:attached)
         {:reply, {:ok, %{blob: claimed_blob, lifecycle_event: :attached}}, state}
@@ -211,8 +217,9 @@ defmodule Citadel.Runtime.SessionDirectory do
 
           state =
             state
-            |> put_store_in([:blobs, session_id], claimed_blob)
+            |> update_store([:blobs, session_id], claimed_blob)
             |> maybe_refresh_cached_metadata(session_id)
+            |> persist_store!()
 
           emit_lifecycle_telemetry(:resumed)
           {:reply, {:ok, %{blob: claimed_blob, lifecycle_event: :resumed}}, state}
@@ -232,7 +239,7 @@ defmodule Citadel.Runtime.SessionDirectory do
       with raw_blob when not is_nil(raw_blob) <- Map.get(state.store.blobs, commit.session_id),
            {:ok, current_blob} <- migrate_blob(raw_blob),
            :ok <- validate_commit_fence(current_blob, commit) do
-        {state, applied_blob} =
+        {staged_state, applied_blob} =
           apply_commit_binding_epoch(state, current_blob, commit.persisted_blob)
 
         fault_result = fault_result(state.fault_injection, commit)
@@ -240,9 +247,10 @@ defmodule Citadel.Runtime.SessionDirectory do
         case fault_result do
           :ok ->
             state =
-              state
-              |> put_store_in([:blobs, commit.session_id], applied_blob)
+              staged_state
+              |> update_store([:blobs, commit.session_id], applied_blob)
               |> maybe_refresh_cached_metadata(commit.session_id)
+              |> persist_store!()
 
             {{:ok, applied_blob}, state}
 
@@ -251,9 +259,10 @@ defmodule Citadel.Runtime.SessionDirectory do
 
           {:error, :acknowledgement_ambiguous, :committed} ->
             state =
-              state
-              |> put_store_in([:blobs, commit.session_id], applied_blob)
+              staged_state
+              |> update_store([:blobs, commit.session_id], applied_blob)
               |> maybe_refresh_cached_metadata(commit.session_id)
+              |> persist_store!()
 
             {{:error, :acknowledgement_ambiguous}, state}
 
@@ -300,13 +309,19 @@ defmodule Citadel.Runtime.SessionDirectory do
       registered_at: state.clock.utc_now()
     }
 
-    state = put_store_in(state, [:active_sessions, session_id], cursor_info)
+    state =
+      state
+      |> update_store([:active_sessions, session_id], cursor_info)
+      |> persist_store!()
+
     {:reply, :ok, state}
   end
 
   def handle_call({:unregister_active_session, session_id}, _from, state) do
     state =
-      put_store_in(state, [:active_sessions], Map.delete(state.store.active_sessions, session_id))
+      state
+      |> update_store([:active_sessions], Map.delete(state.store.active_sessions, session_id))
+      |> persist_store!()
 
     {:reply, :ok, state}
   end
@@ -511,19 +526,21 @@ defmodule Citadel.Runtime.SessionDirectory do
             })
 
           state
-          |> put_store_in([:blobs, session_id], quarantined_blob)
-          |> put_store_in([:quarantine, session_id], %{
+          |> update_store([:blobs, session_id], quarantined_blob)
+          |> update_store([:quarantine, session_id], %{
             reason_family: reason_family,
             eviction_deadline: eviction_deadline
           })
           |> maybe_refresh_cached_metadata(session_id)
+          |> persist_store!()
 
         _ ->
           state
-          |> put_store_in([:quarantine, session_id], %{
+          |> update_store([:quarantine, session_id], %{
             reason_family: reason_family,
             eviction_deadline: eviction_deadline
           })
+          |> persist_store!()
       end
 
     :telemetry.execute(
@@ -543,10 +560,11 @@ defmodule Citadel.Runtime.SessionDirectory do
     if Map.has_key?(state.store.quarantine, session_id) do
       state =
         state
-        |> put_store_in([:quarantine], Map.delete(state.store.quarantine, session_id))
-        |> put_store_in([:blobs], Map.delete(state.store.blobs, session_id))
-        |> put_store_in([:active_sessions], Map.delete(state.store.active_sessions, session_id))
-        |> put_store_in([:blocked_sessions], Map.delete(state.store.blocked_sessions, session_id))
+        |> update_store([:quarantine], Map.delete(state.store.quarantine, session_id))
+        |> update_store([:blobs], Map.delete(state.store.blobs, session_id))
+        |> update_store([:active_sessions], Map.delete(state.store.active_sessions, session_id))
+        |> update_store([:blocked_sessions], Map.delete(state.store.blocked_sessions, session_id))
+        |> persist_store!()
 
       emit_lifecycle_telemetry(:evicted)
       {:reply, :ok, state}
@@ -568,7 +586,7 @@ defmodule Citadel.Runtime.SessionDirectory do
 
   @impl true
   def handle_info(@flush_message, %{pending_project_binding_epoch: nil} = state) do
-    {:noreply, %{state | flush_timer_ref: nil}}
+    {:noreply, ensure_invariants!(%{state | flush_timer_ref: nil})}
   end
 
   def handle_info(@flush_message, state) do
@@ -584,12 +602,12 @@ defmodule Citadel.Runtime.SessionDirectory do
     )
 
     {:noreply,
-     %{
+     ensure_invariants!(%{
        state
        | pending_project_binding_epoch: nil,
          pending_updated_at: nil,
          flush_timer_ref: nil
-     }}
+     })}
   end
 
   defp build_new_claimed_blob(state, session_id, now, opts) do
@@ -626,7 +644,7 @@ defmodule Citadel.Runtime.SessionDirectory do
 
     state =
       state
-      |> put_store_in([:blobs, session_id], blob)
+      |> update_store([:blobs, session_id], blob)
       |> maybe_refresh_cached_metadata(session_id)
 
     {state, blob}
@@ -645,7 +663,7 @@ defmodule Citadel.Runtime.SessionDirectory do
 
     state =
       state
-      |> put_store_in([:project_binding_epoch], next_epoch)
+      |> update_store([:project_binding_epoch], next_epoch)
       |> schedule_project_binding_flush(next_epoch)
 
     {state, assigned_binding}
@@ -695,7 +713,7 @@ defmodule Citadel.Runtime.SessionDirectory do
 
         state =
           state
-          |> put_store_in([:project_binding_epoch], next_epoch)
+          |> update_store([:project_binding_epoch], next_epoch)
           |> schedule_project_binding_flush(next_epoch)
 
         {state, next_blob}
@@ -726,8 +744,9 @@ defmodule Citadel.Runtime.SessionDirectory do
 
       state =
         state
-        |> put_store_in([:blobs, session_id], updated_blob)
+        |> update_store([:blobs, session_id], updated_blob)
         |> maybe_refresh_cached_metadata(session_id)
+        |> persist_store!()
 
       {{:ok, updated_blob}, state}
     else
@@ -762,9 +781,34 @@ defmodule Citadel.Runtime.SessionDirectory do
       blob.envelope.extensions
       |> Map.merge(extensions_patch)
 
+    strict_dead_letters = strict_dead_letter_entries(outbox)
+    blocked_failure_entry = List.first(strict_dead_letters)
+
+    updated_extensions =
+      case blocked_failure_entry do
+        nil -> Map.delete(updated_extensions, "blocked_failure")
+        entry -> put_blocked_failure(updated_extensions, entry)
+      end
+
+    lifecycle_status =
+      cond do
+        blocked_failure_entry && blob.envelope.lifecycle_status == :quarantined ->
+          :quarantined
+
+        blocked_failure_entry ->
+          :blocked
+
+        blob.envelope.lifecycle_status == :blocked ->
+          :active
+
+        true ->
+          blob.envelope.lifecycle_status
+      end
+
     updated_envelope =
       blob.envelope
       |> PersistedSessionEnvelope.dump()
+      |> Map.put(:lifecycle_status, lifecycle_status)
       |> Map.put(:outbox_entry_ids, outbox.entry_order)
       |> Map.put(:extensions, updated_extensions)
       |> PersistedSessionEnvelope.new!()
@@ -904,14 +948,14 @@ defmodule Citadel.Runtime.SessionDirectory do
 
         state =
           if blocked_entries == %{} do
-            put_store_in(
+            update_store(
               state,
               [:blocked_sessions],
               Map.delete(state.store.blocked_sessions, session_id)
             )
           else
             emit_blocked_telemetry(blocked_entries)
-            put_store_in(state, [:blocked_sessions, session_id], blocked_entries)
+            update_store(state, [:blocked_sessions, session_id], blocked_entries)
           end
 
         if blob.envelope.lifecycle_status == :quarantined do
@@ -920,9 +964,9 @@ defmodule Citadel.Runtime.SessionDirectory do
             |> Map.get("quarantine", %{})
             |> normalize_quarantine_meta()
 
-          put_store_in(state, [:quarantine, session_id], quarantine_meta)
+          update_store(state, [:quarantine, session_id], quarantine_meta)
         else
-          put_store_in(state, [:quarantine], Map.delete(state.store.quarantine, session_id))
+          update_store(state, [:quarantine], Map.delete(state.store.quarantine, session_id))
         end
 
       _ ->
@@ -931,11 +975,9 @@ defmodule Citadel.Runtime.SessionDirectory do
   end
 
   defp extract_blocked_entries(blob) do
-    blob.outbox_entries
-    |> Map.values()
-    |> Enum.filter(fn entry ->
-      entry.replay_status == :dead_letter and entry.ordering_mode == :strict
-    end)
+    blob
+    |> PersistedSessionBlob.restore_session_outbox!()
+    |> strict_dead_letter_entries()
     |> Map.new(fn entry ->
       {entry.entry_id,
        %{
@@ -990,19 +1032,23 @@ defmodule Citadel.Runtime.SessionDirectory do
   end
 
   defp migrate_blob(raw_blob) do
-    {:ok, SessionMigration.migrate_blob!(raw_blob)}
+    blob = SessionMigration.migrate_blob!(raw_blob)
+    validate_blob_invariants!(blob)
+    {:ok, blob}
   rescue
     error in ArgumentError -> {:error, {:migration_failed, error.message}}
+    error in RuntimeError -> {:error, {:migration_failed, Exception.message(error)}}
   end
 
-  defp put_store_in(state, path, value) do
-    updated_store = put_in(state.store, path, value)
-    persist_store(%{state | store: updated_store})
+  defp update_store(state, path, value) do
+    %{state | store: put_in(state.store, path, value)}
   end
 
-  defp persist_store(%{store_key: store_key, store: store} = state) do
+  defp persist_store!(state) do
+    state = ensure_invariants!(state)
+    %{store_key: store_key, store: store} = state
     :persistent_term.put(store_key, store)
-    state
+    ensure_persisted_store!(state)
   end
 
   defp schedule_project_binding_flush(%{flush_timer_ref: nil} = state, next_epoch) do
@@ -1069,6 +1115,320 @@ defmodule Citadel.Runtime.SessionDirectory do
       quarantine: %{},
       blocked_sessions: %{}
     }
+  end
+
+  defp strict_dead_letter_entries(%SessionOutbox{} = outbox) do
+    outbox.entry_order
+    |> Enum.map(&Map.fetch!(outbox.entries_by_id, &1))
+    |> Enum.filter(&(&1.replay_status == :dead_letter and &1.ordering_mode == :strict))
+  end
+
+  defp validate_blob_invariants!(%PersistedSessionBlob{} = blob) do
+    validate_project_binding_invariant!(blob)
+    validate_blocked_failure_invariant!(blob)
+    validate_quarantine_invariant!(blob)
+    blob
+  end
+
+  defp validate_project_binding_invariant!(%PersistedSessionBlob{} = blob) do
+    case blob.envelope.project_binding do
+      %ProjectBinding{session_id: session_id} when session_id == blob.session_id ->
+        :ok
+
+      %ProjectBinding{session_id: session_id} ->
+        invariant_failure!(
+          "project binding session_id #{inspect(session_id)} does not match blob.session_id #{inspect(blob.session_id)}"
+        )
+
+      nil ->
+        :ok
+    end
+  end
+
+  defp validate_blocked_failure_invariant!(%PersistedSessionBlob{} = blob) do
+    strict_dead_letters =
+      blob
+      |> PersistedSessionBlob.restore_session_outbox!()
+      |> strict_dead_letter_entries()
+
+    blocked_failure = Map.get(blob.envelope.extensions, "blocked_failure")
+
+    if strict_dead_letters != [] and
+         blob.envelope.lifecycle_status not in [:blocked, :quarantined] do
+      invariant_failure!(
+        "strict dead-letter entries require blocked or quarantined lifecycle_status for session #{inspect(blob.session_id)}"
+      )
+    end
+
+    case blocked_failure do
+      nil ->
+        :ok
+
+      %{"entry_id" => entry_id} ->
+        entry = Map.get(blob.outbox_entries, entry_id)
+
+        cond do
+          blob.envelope.lifecycle_status not in [:blocked, :quarantined] ->
+            invariant_failure!(
+              "blocked_failure metadata requires blocked or quarantined lifecycle_status for session #{inspect(blob.session_id)}"
+            )
+
+          is_nil(entry) ->
+            invariant_failure!(
+              "blocked_failure metadata references missing entry #{inspect(entry_id)} for session #{inspect(blob.session_id)}"
+            )
+
+          entry.replay_status != :dead_letter or entry.ordering_mode != :strict ->
+            invariant_failure!(
+              "blocked_failure metadata must reference a strict dead-letter entry, got replay_status=#{inspect(entry.replay_status)} ordering_mode=#{inspect(entry.ordering_mode)}"
+            )
+
+          Map.get(blocked_failure, "reason_family") != (entry.dead_letter_reason || "unknown") ->
+            invariant_failure!(
+              "blocked_failure reason_family drifted from strict dead-letter entry #{inspect(entry_id)}"
+            )
+
+          Map.get(blocked_failure, "last_error_code") != entry.last_error_code ->
+            invariant_failure!(
+              "blocked_failure last_error_code drifted from strict dead-letter entry #{inspect(entry_id)}"
+            )
+
+          true ->
+            :ok
+        end
+
+      other ->
+        invariant_failure!(
+          "blocked_failure metadata must be a JSON object, got: #{inspect(other)}"
+        )
+    end
+  end
+
+  defp validate_quarantine_invariant!(%PersistedSessionBlob{} = blob) do
+    quarantine = Map.get(blob.envelope.extensions, "quarantine")
+
+    cond do
+      blob.envelope.lifecycle_status == :quarantined and is_nil(quarantine) ->
+        invariant_failure!(
+          "quarantined session #{inspect(blob.session_id)} requires explicit quarantine metadata"
+        )
+
+      blob.envelope.lifecycle_status != :quarantined and not is_nil(quarantine) ->
+        invariant_failure!(
+          "non-quarantined session #{inspect(blob.session_id)} must not retain quarantine metadata"
+        )
+
+      is_nil(quarantine) ->
+        :ok
+
+      true ->
+        _meta = normalize_quarantine_meta(quarantine)
+        :ok
+    end
+  end
+
+  defp ensure_invariants!(state) do
+    ensure_store_shape!(state.store)
+    ensure_flush_invariants!(state)
+    ensure_activation_queue_invariants!(state.activation_queue)
+    ensure_cached_metadata_invariants!(state)
+    state
+  end
+
+  defp ensure_store_shape!(store) when is_map(store) do
+    for key <- [:blobs, :active_sessions, :project_binding_epoch, :quarantine, :blocked_sessions] do
+      if not Map.has_key?(store, key) do
+        invariant_failure!("store is missing required key #{inspect(key)}")
+      end
+    end
+
+    unless is_map(store.blobs) do
+      invariant_failure!("store.blobs must be a map, got: #{inspect(store.blobs)}")
+    end
+
+    unless is_map(store.active_sessions) do
+      invariant_failure!(
+        "store.active_sessions must be a map, got: #{inspect(store.active_sessions)}"
+      )
+    end
+
+    unless is_integer(store.project_binding_epoch) and store.project_binding_epoch >= 0 do
+      invariant_failure!(
+        "store.project_binding_epoch must be a non-negative integer, got: #{inspect(store.project_binding_epoch)}"
+      )
+    end
+
+    unless is_map(store.quarantine) do
+      invariant_failure!("store.quarantine must be a map, got: #{inspect(store.quarantine)}")
+    end
+
+    unless is_map(store.blocked_sessions) do
+      invariant_failure!(
+        "store.blocked_sessions must be a map, got: #{inspect(store.blocked_sessions)}"
+      )
+    end
+  end
+
+  defp ensure_flush_invariants!(state) do
+    case {state.pending_project_binding_epoch, state.pending_updated_at, state.flush_timer_ref} do
+      {nil, nil, _timer_ref} ->
+        :ok
+
+      {epoch, %DateTime{}, timer_ref}
+      when is_integer(epoch) and epoch >= 0 and not is_nil(timer_ref) ->
+        if epoch != state.store.project_binding_epoch do
+          invariant_failure!(
+            "pending_project_binding_epoch #{inspect(epoch)} must match store.project_binding_epoch #{inspect(state.store.project_binding_epoch)}"
+          )
+        end
+
+      other ->
+        invariant_failure!("flush state is inconsistent: #{inspect(other)}")
+    end
+  end
+
+  defp ensure_activation_queue_invariants!(activation_queue) when is_map(activation_queue) do
+    Enum.each(activation_queue, fn
+      {session_id, %{priority_class: priority_class, queued_at: %DateTime{}}}
+      when is_binary(session_id) and is_binary(priority_class) ->
+        :ok
+
+      other ->
+        invariant_failure!("activation queue contains invalid item #{inspect(other)}")
+    end)
+  end
+
+  defp ensure_cached_metadata_invariants!(state) do
+    {max_binding_epoch, seen_session_ids} =
+      Enum.reduce(state.store.blobs, {0, MapSet.new()}, fn {session_id, raw_blob},
+                                                           {max_epoch, seen_ids} ->
+        blob =
+          case migrate_blob(raw_blob) do
+            {:ok, migrated_blob} ->
+              migrated_blob
+
+            {:error, reason} ->
+              invariant_failure!(
+                "store contains unreadable persisted blob for #{inspect(session_id)}: #{inspect(reason)}"
+              )
+          end
+
+        if blob.session_id != session_id do
+          invariant_failure!(
+            "store.blobs key #{inspect(session_id)} does not match blob.session_id #{inspect(blob.session_id)}"
+          )
+        end
+
+        expected_blocked = extract_blocked_entries(blob)
+        actual_blocked = Map.get(state.store.blocked_sessions, session_id)
+
+        cond do
+          expected_blocked == %{} and is_nil(actual_blocked) ->
+            :ok
+
+          expected_blocked == actual_blocked ->
+            :ok
+
+          true ->
+            invariant_failure!(
+              "blocked-session cache drifted for #{inspect(session_id)}: expected=#{inspect(expected_blocked)} got=#{inspect(actual_blocked)}"
+            )
+        end
+
+        actual_quarantine = Map.get(state.store.quarantine, session_id)
+
+        cond do
+          blob.envelope.lifecycle_status == :quarantined ->
+            expected_quarantine =
+              blob.envelope.extensions
+              |> Map.fetch!("quarantine")
+              |> normalize_quarantine_meta()
+
+            if actual_quarantine != expected_quarantine do
+              invariant_failure!(
+                "quarantine cache drifted for #{inspect(session_id)}: expected=#{inspect(expected_quarantine)} got=#{inspect(actual_quarantine)}"
+              )
+            end
+
+          is_nil(actual_quarantine) ->
+            :ok
+
+          true ->
+            invariant_failure!(
+              "non-quarantined session #{inspect(session_id)} must not appear in the quarantine cache"
+            )
+        end
+
+        binding_epoch =
+          case blob.envelope.project_binding do
+            %ProjectBinding{binding_epoch: epoch} -> epoch
+            nil -> 0
+          end
+
+        {max(max_epoch, binding_epoch), MapSet.put(seen_ids, session_id)}
+      end)
+
+    if state.store.project_binding_epoch < max_binding_epoch do
+      invariant_failure!(
+        "store.project_binding_epoch #{inspect(state.store.project_binding_epoch)} fell behind persisted bindings max epoch #{inspect(max_binding_epoch)}"
+      )
+    end
+
+    Enum.each(state.store.active_sessions, fn
+      {session_id, %{session_id: active_session_id}}
+      when is_binary(active_session_id) and active_session_id == session_id ->
+        :ok
+
+      {session_id, cursor_info} ->
+        invariant_failure!(
+          "active-session cache drifted for #{inspect(session_id)}: #{inspect(cursor_info)}"
+        )
+    end)
+
+    Enum.each(state.store.blocked_sessions, fn {session_id, _meta} ->
+      if not MapSet.member?(seen_session_ids, session_id) do
+        invariant_failure!("blocked-session cache references missing blob #{inspect(session_id)}")
+      end
+    end)
+
+    Enum.each(state.store.quarantine, fn {session_id, meta} ->
+      case meta do
+        %{reason_family: reason_family, eviction_deadline: %DateTime{}}
+        when is_binary(reason_family) ->
+          :ok
+
+        other ->
+          invariant_failure!("quarantine cache contains invalid item #{inspect(other)}")
+      end
+
+      if Map.has_key?(state.store.blobs, session_id) do
+        :ok
+      end
+    end)
+  end
+
+  defp ensure_persisted_store!(%{store_key: store_key, store: store} = state) do
+    case :persistent_term.get(store_key, :missing) do
+      ^store ->
+        state
+
+      persisted_store ->
+        invariant_failure!(
+          "persisted store drifted from owner state: expected=#{inspect(store)} got=#{inspect(persisted_store)}"
+        )
+    end
+  end
+
+  defp put_blocked_failure(extensions, entry) do
+    Map.put(extensions, "blocked_failure", %{
+      "entry_id" => entry.entry_id,
+      "reason_family" => entry.dead_letter_reason || "unknown",
+      "last_error_code" => entry.last_error_code
+    })
+  end
+
+  defp invariant_failure!(reason) do
+    raise RuntimeError, "Citadel.Runtime.SessionDirectory invariant failure: #{reason}"
   end
 
   defp next_state_or_self(state), do: state

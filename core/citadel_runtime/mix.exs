@@ -25,6 +25,7 @@ defmodule Citadel.Runtime.MixProject do
       {:citadel_authority_contract, path: "../authority_contract"},
       {:citadel_observability_contract, path: "../observability_contract"},
       {:telemetry, "~> 1.3"},
+      {:stream_data, "~> 1.1", only: :test},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end

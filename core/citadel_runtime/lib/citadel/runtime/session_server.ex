@@ -103,7 +103,11 @@ defmodule Citadel.Runtime.SessionServer do
     }
 
     {session_state, lifecycle_event, base_state} = bootstrap_session(base_state, opts)
-    state = %{base_state | session_state: session_state}
+
+    state =
+      base_state
+      |> Map.put(:session_state, session_state)
+      |> ensure_invariants!()
 
     publish_bootstrap_traces(state, lifecycle_event)
     maybe_register_with_ingress_and_directory(state, lifecycle_event, opts)
@@ -212,7 +216,10 @@ defmodule Citadel.Runtime.SessionServer do
         {:dispatch_result, entry_id, {:ok, durable_receipt_ref}, dispatch_family},
         state
       ) do
-    state = %{state | dispatching_entry_ids: MapSet.delete(state.dispatching_entry_ids, entry_id)}
+    state =
+      state
+      |> Map.put(:dispatching_entry_ids, MapSet.delete(state.dispatching_entry_ids, entry_id))
+      |> ensure_invariants!()
 
     case Map.get(state.session_state.outbox.entries_by_id, entry_id) do
       nil ->
@@ -242,7 +249,10 @@ defmodule Citadel.Runtime.SessionServer do
   end
 
   def handle_info({:dispatch_result, entry_id, {:error, reason_code}, dispatch_family}, state) do
-    state = %{state | dispatching_entry_ids: MapSet.delete(state.dispatching_entry_ids, entry_id)}
+    state =
+      state
+      |> Map.put(:dispatching_entry_ids, MapSet.delete(state.dispatching_entry_ids, entry_id))
+      |> ensure_invariants!()
 
     case Map.get(state.session_state.outbox.entries_by_id, entry_id) do
       nil ->
@@ -541,7 +551,13 @@ defmodule Citadel.Runtime.SessionServer do
 
   defp apply_transition_commit(state, state_changes, opts) do
     next_session_state = build_next_session_state(state, state_changes, opts)
-    persisted_blob = persisted_blob_from_session_state(next_session_state)
+
+    candidate_state =
+      state
+      |> Map.put(:session_state, next_session_state)
+      |> ensure_invariants!()
+
+    persisted_blob = persisted_blob_from_session_state(candidate_state.session_state)
 
     commit =
       SessionContinuityCommit.new!(%{
@@ -555,15 +571,16 @@ defmodule Citadel.Runtime.SessionServer do
     case SessionDirectory.commit_continuity(state.session_directory, commit) do
       {:ok, applied_blob} ->
         next_state =
-          %{
-            state
-            | session_state:
-                build_session_state(
-                  applied_blob,
-                  next_session_state.visible_services,
-                  next_session_state.boundary_lease_view
-                )
-          }
+          state
+          |> Map.put(
+            :session_state,
+            build_session_state(
+              applied_blob,
+              candidate_state.session_state.visible_services,
+              candidate_state.session_state.boundary_lease_view
+            )
+          )
+          |> ensure_invariants!()
 
         {:ok, next_state}
 
@@ -772,7 +789,12 @@ defmodule Citadel.Runtime.SessionServer do
     case Task.Supervisor.start_child(supervisor, task_fun) do
       {:ok, _pid} ->
         {:ok,
-         %{state | dispatching_entry_ids: MapSet.put(state.dispatching_entry_ids, entry.entry_id)}}
+         state
+         |> Map.put(
+           :dispatching_entry_ids,
+           MapSet.put(state.dispatching_entry_ids, entry.entry_id)
+         )
+         |> ensure_invariants!()}
 
       {:error, _reason} ->
         emit_dispatch_backlog(dispatch_family)
@@ -984,6 +1006,120 @@ defmodule Citadel.Runtime.SessionServer do
       jitter_window_ms: 0,
       extensions: %{}
     })
+  end
+
+  defp ensure_invariants!(
+         %{session_id: session_id, session_state: %SessionState{} = session_state} = state
+       ) do
+    if session_state.session_id != session_id do
+      invariant_failure!(
+        "session_state.session_id #{inspect(session_state.session_id)} does not match owner session_id #{inspect(session_id)}"
+      )
+    end
+
+    validate_project_binding_invariant!(session_state)
+    validate_outbox_invariant!(session_state)
+    validate_dispatching_entries_invariant!(state)
+    validate_blocked_failure_invariant!(session_state)
+    state
+  end
+
+  defp validate_project_binding_invariant!(%SessionState{project_binding: nil}), do: :ok
+
+  defp validate_project_binding_invariant!(%SessionState{} = session_state) do
+    if session_state.project_binding.session_id != session_state.session_id do
+      invariant_failure!(
+        "project binding session_id #{inspect(session_state.project_binding.session_id)} does not match session_state.session_id #{inspect(session_state.session_id)}"
+      )
+    end
+  end
+
+  defp validate_outbox_invariant!(%SessionState{} = session_state) do
+    SessionOutbox.ensure_invariant!(session_state.outbox)
+  rescue
+    error in ArgumentError ->
+      invariant_failure!(Exception.message(error))
+  end
+
+  defp validate_dispatching_entries_invariant!(state) do
+    invalid_dispatching_ids =
+      state.dispatching_entry_ids
+      |> MapSet.to_list()
+      |> Enum.reject(fn entry_id ->
+        case Map.get(state.session_state.outbox.entries_by_id, entry_id) do
+          %ActionOutboxEntry{replay_status: :dispatched} -> true
+          _ -> false
+        end
+      end)
+
+    if invalid_dispatching_ids != [] do
+      invariant_failure!(
+        "dispatching_entry_ids must reference dispatched outbox entries, got #{inspect(invalid_dispatching_ids)}"
+      )
+    end
+  end
+
+  defp validate_blocked_failure_invariant!(%SessionState{} = session_state) do
+    strict_dead_letters =
+      session_state.outbox.entry_order
+      |> Enum.map(&Map.fetch!(session_state.outbox.entries_by_id, &1))
+      |> Enum.filter(&(&1.replay_status == :dead_letter and &1.ordering_mode == :strict))
+
+    blocked_failure = Map.get(session_state.extensions, "blocked_failure")
+
+    if strict_dead_letters != [] and
+         session_state.lifecycle_status not in [:blocked, :quarantined] do
+      invariant_failure!(
+        "strict dead-letter entries require blocked or quarantined lifecycle_status for session #{inspect(session_state.session_id)}"
+      )
+    end
+
+    case blocked_failure do
+      nil ->
+        :ok
+
+      %{"entry_id" => entry_id} ->
+        entry = Map.get(session_state.outbox.entries_by_id, entry_id)
+
+        cond do
+          session_state.lifecycle_status not in [:blocked, :quarantined] ->
+            invariant_failure!(
+              "blocked_failure metadata requires blocked or quarantined lifecycle_status for session #{inspect(session_state.session_id)}"
+            )
+
+          is_nil(entry) ->
+            invariant_failure!(
+              "blocked_failure metadata references missing entry #{inspect(entry_id)}"
+            )
+
+          entry.replay_status != :dead_letter or entry.ordering_mode != :strict ->
+            invariant_failure!(
+              "blocked_failure metadata must reference a strict dead-letter entry, got replay_status=#{inspect(entry.replay_status)} ordering_mode=#{inspect(entry.ordering_mode)}"
+            )
+
+          Map.get(blocked_failure, "reason_family") != entry.dead_letter_reason ->
+            invariant_failure!(
+              "blocked_failure reason_family drifted from strict dead-letter entry #{inspect(entry_id)}"
+            )
+
+          Map.get(blocked_failure, "last_error_code") != entry.last_error_code ->
+            invariant_failure!(
+              "blocked_failure last_error_code drifted from strict dead-letter entry #{inspect(entry_id)}"
+            )
+
+          true ->
+            :ok
+        end
+
+      other ->
+        invariant_failure!(
+          "blocked_failure metadata must be a JSON object, got: #{inspect(other)}"
+        )
+    end
+  end
+
+  defp invariant_failure!(reason) do
+    raise RuntimeError, "Citadel.Runtime.SessionServer invariant failure: #{reason}"
   end
 
   defp next_timeout(%{idle_timeout_ms: nil}), do: :infinity
