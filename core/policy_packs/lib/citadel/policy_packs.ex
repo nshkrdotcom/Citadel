@@ -240,6 +240,20 @@ defmodule Citadel.PolicyPacks.Profiles do
       extensions: profiles.extensions
     }
   end
+
+  @doc """
+  Returns the stable policy-stage surface used by Citadel selectors and upper consumers.
+  """
+  def policy_surface(%__MODULE__{} = profiles) do
+    %{
+      trust_profile: profiles.trust_profile,
+      approval_profile: profiles.approval_profile,
+      egress_profile: profiles.egress_profile,
+      workspace_profile: profiles.workspace_profile,
+      resource_profile: profiles.resource_profile,
+      boundary_class: profiles.boundary_class
+    }
+  end
 end
 
 defmodule Citadel.PolicyPacks.RejectionPolicy do

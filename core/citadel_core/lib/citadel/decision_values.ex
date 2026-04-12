@@ -482,6 +482,22 @@ defmodule Citadel.AuthorityDecision do
       extensions: authority.extensions
     }
   end
+
+  @doc """
+  Returns the policy-stage trust and quality surface for upper consumers.
+  """
+  def policy_surface(%__MODULE__{} = authority) do
+    %{
+      decision_id: authority.decision_id,
+      policy_version: authority.policy_version,
+      boundary_class: authority.boundary_class,
+      trust_profile: authority.trust_profile,
+      approval_profile: authority.approval_profile,
+      egress_profile: authority.egress_profile,
+      workspace_profile: authority.workspace_profile,
+      resource_profile: authority.resource_profile
+    }
+  end
 end
 
 defmodule Citadel.Step do

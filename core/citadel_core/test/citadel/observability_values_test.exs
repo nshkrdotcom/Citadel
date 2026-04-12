@@ -34,6 +34,67 @@ defmodule Citadel.ObservabilityValuesTest do
     end
   end
 
+  test "runtime observations expose stable read and wake surfaces" do
+    subject_ref = SubjectRef.new!(%{kind: :attempt, id: "attempt-1"})
+
+    observation =
+      RuntimeObservation.new!(%{
+        observation_id: "obs-1",
+        request_id: "req-1",
+        session_id: "sess-1",
+        signal_id: "sig-1",
+        signal_cursor: "cursor-1",
+        runtime_ref_id: "runtime-1",
+        event_kind: "execution_event",
+        event_at: ~U[2026-04-10 10:00:00Z],
+        status: "completed",
+        output: %{"result" => "done"},
+        artifacts: [],
+        payload: %{"phase" => "done"},
+        subject_ref: subject_ref,
+        evidence_refs: [],
+        governance_refs: [],
+        extensions: %{}
+      })
+
+    assert RuntimeObservation.stable_read_fields() == [
+             :observation_id,
+             :request_id,
+             :session_id,
+             :signal_id,
+             :signal_cursor,
+             :runtime_ref_id,
+             :event_kind,
+             :event_at,
+             :status,
+             :subject_ref,
+             :evidence_refs,
+             :governance_refs
+           ]
+
+    assert RuntimeObservation.wake_reason(observation) == %{
+             event_kind: "execution_event",
+             status: "completed",
+             subject_kind: :attempt,
+             subject_id: "attempt-1"
+           }
+
+    assert RuntimeObservation.read_descriptor(observation) == %{
+             observation_id: "obs-1",
+             request_id: "req-1",
+             session_id: "sess-1",
+             signal_id: "sig-1",
+             signal_cursor: "cursor-1",
+             runtime_ref_id: "runtime-1",
+             event_kind: "execution_event",
+             event_at: ~U[2026-04-10 10:00:00Z],
+             status: "completed",
+             subject_ref: SubjectRef.dump(subject_ref),
+             evidence_ref_count: 0,
+             governance_ref_count: 0
+           }
+  end
+
   test "trace envelope enforces canonical minimum family names and payload hygiene" do
     assert_raise ArgumentError, ~r/canonical name/, fn ->
       TraceEnvelope.new!(%{
