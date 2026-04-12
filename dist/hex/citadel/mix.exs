@@ -21,6 +21,7 @@ defmodule Citadel.MixProject do
         "components/core/citadel_core/src",
         "components/core/citadel_runtime/src",
         "components/core/contract_core/src",
+        "components/core/execution_governance_contract/src",
         "components/core/jido_integration_v2_contracts/src",
         "components/core/observability_contract/src",
         "components/core/policy_packs/src"
@@ -52,6 +53,7 @@ defmodule Citadel.MixProject do
       "components/core/citadel_core/lib",
       "components/core/citadel_runtime/lib",
       "components/core/contract_core/lib",
+      "components/core/execution_governance_contract/lib",
       "components/core/jido_integration_v2_contracts/lib",
       "components/core/observability_contract/lib",
       "components/core/policy_packs/lib"
@@ -79,6 +81,7 @@ defmodule Citadel.MixProject do
       "components/core/citadel_core/lib",
       "components/core/citadel_runtime/lib",
       "components/core/contract_core/lib",
+      "components/core/execution_governance_contract/lib",
       "components/core/jido_integration_v2_contracts/lib",
       "components/core/observability_contract/lib",
       "components/core/policy_packs/lib"
@@ -121,6 +124,7 @@ defmodule Citadel.MixProject do
         "components/core/citadel_core",
         "components/core/citadel_runtime",
         "components/core/contract_core",
+        "components/core/execution_governance_contract",
         "components/core/jido_integration_v2_contracts",
         "components/core/observability_contract",
         "components/core/policy_packs",

@@ -6,6 +6,7 @@ defmodule Citadel.BoundaryBridge.BoundaryProjectionAdapter do
   alias Citadel.AuthorityContract.AuthorityDecision.V1, as: AuthorityDecisionV1
   alias Citadel.BoundaryIntent
   alias Citadel.ContractCore.CanonicalJson
+  alias Citadel.ExecutionGovernance.V1, as: ExecutionGovernanceV1
 
   @type metadata :: Citadel.Ports.BoundaryLifecycle.boundary_intent_metadata()
   @type projection :: %{required(String.t()) => CanonicalJson.value()}
@@ -16,10 +17,12 @@ defmodule Citadel.BoundaryBridge.BoundaryProjectionAdapter do
     tenant_id = fetch_required_string!(metadata, :tenant_id)
     target_id = fetch_required_string!(metadata, :target_id)
     authority_packet = fetch_optional_authority_packet(metadata)
+    execution_governance = fetch_optional_execution_governance(metadata)
 
     %{
       "boundary_intent" => normalize_projection_value!(BoundaryIntent.dump(boundary_intent)),
       "authority_packet" => normalize_optional_projection_value(authority_packet),
+      "execution_governance" => normalize_optional_projection_value(execution_governance),
       "session_id" => session_id,
       "tenant_id" => tenant_id,
       "target_id" => target_id,
@@ -79,6 +82,20 @@ defmodule Citadel.BoundaryBridge.BoundaryProjectionAdapter do
       other ->
         raise ArgumentError,
               "Citadel.BoundaryBridge.BoundaryProjectionAdapter metadata.authority_packet must be a Citadel.AuthorityContract.AuthorityDecision.V1, got: #{inspect(other)}"
+    end
+  end
+
+  defp fetch_optional_execution_governance(metadata) do
+    case Map.get(metadata, :execution_governance) do
+      nil ->
+        nil
+
+      %ExecutionGovernanceV1{} = execution_governance ->
+        execution_governance
+
+      other ->
+        raise ArgumentError,
+              "Citadel.BoundaryBridge.BoundaryProjectionAdapter metadata.execution_governance must be a Citadel.ExecutionGovernance.V1, got: #{inspect(other)}"
     end
   end
 

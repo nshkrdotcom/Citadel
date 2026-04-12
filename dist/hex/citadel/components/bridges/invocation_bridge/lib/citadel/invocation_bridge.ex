@@ -1,23 +1,23 @@
 defmodule Citadel.InvocationBridge do
   @moduledoc """
-  Explicit invocation bridge that stops at `Citadel.InvocationRequest` and
-  projects the lower `ExecutionIntentEnvelope.V1` handoff locally.
+  Explicit invocation bridge that stops at `Citadel.InvocationRequest.V2` and
+  projects the lower `ExecutionIntentEnvelope.V2` handoff locally.
   """
 
   alias Citadel.ActionOutboxEntry
   alias Citadel.BridgeCircuit
   alias Citadel.BridgeCircuitPolicy
   alias Citadel.BridgeState
-  alias Citadel.ExecutionIntentEnvelope.V1, as: ExecutionIntentEnvelopeV1
+  alias Citadel.ExecutionIntentEnvelope.V2, as: ExecutionIntentEnvelopeV2
   alias Citadel.InvocationBridge.ExecutionIntentAdapter
-  alias Citadel.InvocationRequest
+  alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
 
   defmodule Downstream do
     @moduledoc false
 
-    alias Citadel.ExecutionIntentEnvelope.V1
+    alias Citadel.ExecutionIntentEnvelope.V2
 
-    @callback submit_execution_intent(V1.t()) :: {:ok, String.t()} | {:error, atom()}
+    @callback submit_execution_intent(V2.t()) :: {:ok, String.t()} | {:error, atom()}
   end
 
   @manifest %{
@@ -29,6 +29,7 @@ defmodule Citadel.InvocationBridge do
       :citadel_core,
       :citadel_runtime,
       :citadel_authority_contract,
+      :citadel_execution_governance_contract,
       :citadel_observability_contract
     ],
     external_dependencies: [:jido_integration_v2_contracts]
@@ -93,7 +94,7 @@ defmodule Citadel.InvocationBridge do
   def shared_contract_strategy, do: :citadel_invocation_request_entrypoint
 
   @spec supported_invocation_request_schema_versions() :: [pos_integer(), ...]
-  def supported_invocation_request_schema_versions, do: [InvocationRequest.schema_version()]
+  def supported_invocation_request_schema_versions, do: [InvocationRequestV2.schema_version()]
 
   @spec ensure_supported_invocation_request_schema_version!(integer()) :: integer()
   def ensure_supported_invocation_request_schema_version!(schema_version) do
@@ -101,17 +102,21 @@ defmodule Citadel.InvocationBridge do
       schema_version
     else
       raise ArgumentError,
-            "unsupported Citadel.InvocationRequest.schema_version: #{inspect(schema_version)}"
+            "unsupported Citadel.InvocationRequest.V2.schema_version: #{inspect(schema_version)}"
     end
   end
 
   @spec submit(
           t(),
-          InvocationRequest.t(),
+          InvocationRequestV2.t(),
           ActionOutboxEntry.t()
         ) ::
           {:ok, String.t(), t()} | {:error, atom(), t()}
-  def submit(%__MODULE__{} = bridge, %InvocationRequest{} = request, %ActionOutboxEntry{} = entry) do
+  def submit(
+        %__MODULE__{} = bridge,
+        %InvocationRequestV2{} = request,
+        %ActionOutboxEntry{} = entry
+      ) do
     if unsupported_schema_version?(bridge, request) do
       {:error, :unsupported_schema_version, bridge}
     else
@@ -121,13 +126,13 @@ defmodule Citadel.InvocationBridge do
 
   @spec submit_invocation(
           t(),
-          InvocationRequest.t(),
+          InvocationRequestV2.t(),
           ActionOutboxEntry.t()
         ) ::
           {:ok, String.t(), t()} | {:error, atom(), t()}
   def submit_invocation(
         %__MODULE__{} = bridge,
-        %InvocationRequest{} = request,
+        %InvocationRequestV2{} = request,
         %ActionOutboxEntry{} = entry
       ) do
     submit(bridge, request, entry)
@@ -150,7 +155,7 @@ defmodule Citadel.InvocationBridge do
 
   defp do_submit(
          %__MODULE__{} = bridge,
-         %InvocationRequest{} = request,
+         %InvocationRequestV2{} = request,
          %ActionOutboxEntry{} = entry
        ) do
     envelope = bridge.execution_intent_adapter.project!(request, entry)
@@ -195,7 +200,7 @@ defmodule Citadel.InvocationBridge do
 
   defp scope_key(
          %BridgeCircuitPolicy{scope_key_mode: "downstream_scope"},
-         %ExecutionIntentEnvelopeV1{} = envelope
+         %ExecutionIntentEnvelopeV2{} = envelope
        ) do
     Map.get(
       envelope.extensions,
@@ -206,7 +211,7 @@ defmodule Citadel.InvocationBridge do
 
   defp unsupported_schema_version?(
          %__MODULE__{supported_invocation_request_schema_versions: supported_versions},
-         %InvocationRequest{schema_version: schema_version}
+         %InvocationRequestV2{schema_version: schema_version}
        ) do
     schema_version not in supported_versions
   end
