@@ -778,7 +778,8 @@ defmodule Citadel.Runtime.SessionServer do
     {eligible, _strict_barrier?} =
       Enum.reduce(entries, {[], false}, fn entry, {acc, strict_barrier?} ->
         cond do
-          entry.ordering_mode == :strict and entry.replay_status in [:completed, :superseded] ->
+          entry.ordering_mode == :strict and
+              entry.replay_status in [:completed, :submission_accepted, :superseded] ->
             {acc, strict_barrier?}
 
           entry.ordering_mode == :strict and entry.replay_status == :dead_letter ->

@@ -370,6 +370,77 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
     assert persisted_entry.last_error_code == "workspace_ref_unresolved"
   end
 
+  test "session server does not let submission-accepted strict entries block later strict replay" do
+    test_pid = self()
+    env = start_submission_runtime_env()
+    session_id = "sess-submission-follow-on"
+
+    accepted_entry =
+      ActionOutboxEntry.new!(%{
+        ActionOutboxEntry.dump(
+          outbox_entry("accepted-entry", "submit_invocation", %{"target" => "compile"}, %{
+            policy_epoch: 1
+          })
+        )
+        | replay_status: :submission_accepted,
+          submission_key: submission_key_for("accepted-entry"),
+          submission_receipt_ref: "submission/accepted-entry"
+      })
+
+    pending_entry =
+      outbox_entry("pending-entry", "submit_invocation", %{"target" => "compile"}, %{
+        policy_epoch: 1
+      })
+
+    seed_submission_session_entries(env, session_id, [accepted_entry, pending_entry])
+
+    start_supervised!(
+      {SessionServer,
+       name: env.session_server_name,
+       session_id: session_id,
+       session_directory: env.session_directory,
+       kernel_snapshot: env.kernel_snapshot,
+       boundary_lease_tracker: env.boundary_tracker,
+       service_catalog: env.service_catalog,
+       signal_ingress: env.signal_ingress,
+       invocation_supervisor: env.invocation_supervisor,
+       projection_supervisor: env.projection_supervisor,
+       local_supervisor: env.local_supervisor,
+       invocation_handler: fn _payload, attempt_entry ->
+         send(
+           test_pid,
+           {:invocation_attempt, attempt_entry.entry_id, attempt_entry.attempt_count}
+         )
+
+         {:accepted,
+          %{
+            submission_key: submission_key_for(attempt_entry.entry_id),
+            submission_receipt_ref: "submission/#{attempt_entry.entry_id}",
+            status: :accepted,
+            accepted_at: ~U[2026-04-11 10:11:00Z],
+            ledger_version: 8
+          }}
+       end}
+    )
+
+    assert_receive {:invocation_attempt, "pending-entry", 1}, 1_000
+
+    wait_until(fn ->
+      session_state = SessionServer.snapshot(env.session_server_name)
+
+      case {Map.fetch!(session_state.outbox.entries_by_id, "accepted-entry"),
+            Map.fetch!(session_state.outbox.entries_by_id, "pending-entry")} do
+        {%{replay_status: :submission_accepted} = first_entry,
+         %{replay_status: :submission_accepted} = second_entry} ->
+          first_entry.submission_receipt_ref == "submission/accepted-entry" and
+            second_entry.submission_receipt_ref == "submission/pending-entry"
+
+        _other ->
+          false
+      end
+    end)
+  end
+
   test "session server supersedes stale replay-safe work, commits before dispatch, and routes service lifecycle through service catalog" do
     test_pid = self()
     kernel_snapshot_name = unique_name(:kernel_snapshot)
@@ -661,6 +732,13 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
   end
 
   defp seed_submission_session(env, session_id, entry) do
+    seed_submission_session_entries(env, session_id, [entry])
+  end
+
+  defp seed_submission_session_entries(env, session_id, entries) do
+    entry_order = Enum.map(entries, & &1.entry_id)
+    entries_by_id = Map.new(entries, &{&1.entry_id, &1})
+
     :ok =
       SessionDirectory.seed_raw_blob(
         env.session_directory,
@@ -692,11 +770,11 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
               active_authority_decision: nil,
               last_rejection: nil,
               boundary_ref: nil,
-              outbox_entry_ids: [entry.entry_id],
+              outbox_entry_ids: entry_order,
               external_refs: %{"trace_id" => "trace-runtime"},
               extensions: %{}
             }),
-          outbox_entries: %{entry.entry_id => entry},
+          outbox_entries: entries_by_id,
           extensions: %{}
         })
       )
