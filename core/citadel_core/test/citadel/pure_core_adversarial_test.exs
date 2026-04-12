@@ -208,6 +208,12 @@ defmodule Citadel.PureCoreAdversarialTest do
         |> Map.put(:staleness_mode, :stale_exempt)
         |> Map.put(:staleness_requirements, valid_staleness_requirements_map())
       end),
+      map(valid_action_outbox_entry_attrs(), fn attrs ->
+        attrs
+        |> Map.put(:replay_status, :submission_accepted)
+        |> Map.put(:submission_key, "sha256:" <> String.duplicate("a", 64))
+        |> Map.put(:submission_receipt_ref, "submission://accepted")
+      end),
       map(valid_action_outbox_entry_attrs(), &Map.put(&1, :replay_status, :completed)),
       map(valid_action_outbox_entry_attrs(), fn attrs ->
         attrs

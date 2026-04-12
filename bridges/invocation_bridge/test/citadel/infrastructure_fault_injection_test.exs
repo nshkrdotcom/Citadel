@@ -16,6 +16,7 @@ defmodule Citadel.InvocationBridgeInfrastructureFaultInjectionTest do
   alias Citadel.TestSupport.HalfOpenSocketServer
   alias Citadel.TestSupport.ToxiproxyHarness
   alias Citadel.TopologyIntent
+  alias Jido.Integration.V2.SubmissionAcceptance
 
   @proxy_name "citadel_nginx"
   @proxy_timeout_key {__MODULE__, :proxy_timeout_ms}
@@ -36,8 +37,24 @@ defmodule Citadel.InvocationBridgeInfrastructureFaultInjectionTest do
         timeout: timeout,
         connect_timeout: timeout
       )
-      |> ToxiproxyHarness.normalize_http_result("receipt:#{envelope.entry_id}")
+      |> normalize_transport_result(envelope)
     end
+
+    defp normalize_transport_result({:ok, _response}, envelope) do
+      {:accepted,
+       Jido.Integration.V2.SubmissionAcceptance.new!(%{
+         submission_key:
+           Citadel.InvocationBridgeInfrastructureFaultInjectionTest.submission_key_for!(
+             envelope.entry_id
+           ),
+         submission_receipt_ref: "receipt:#{envelope.entry_id}",
+         status: :accepted,
+         accepted_at: ~U[2026-04-11 08:00:00Z],
+         ledger_version: 1
+       })}
+    end
+
+    defp normalize_transport_result({:error, reason}, _envelope), do: {:error, reason}
   end
 
   defmodule HalfOpenDownstream do
@@ -52,8 +69,24 @@ defmodule Citadel.InvocationBridgeInfrastructureFaultInjectionTest do
         )
 
       ToxiproxyHarness.request_url(:get, url, timeout: timeout, connect_timeout: timeout)
-      |> ToxiproxyHarness.normalize_http_result("receipt:#{envelope.entry_id}")
+      |> normalize_transport_result(envelope)
     end
+
+    defp normalize_transport_result({:ok, _response}, envelope) do
+      {:accepted,
+       Jido.Integration.V2.SubmissionAcceptance.new!(%{
+         submission_key:
+           Citadel.InvocationBridgeInfrastructureFaultInjectionTest.submission_key_for!(
+             envelope.entry_id
+           ),
+         submission_receipt_ref: "receipt:#{envelope.entry_id}",
+         status: :accepted,
+         accepted_at: ~U[2026-04-11 08:00:00Z],
+         ledger_version: 1
+       })}
+    end
+
+    defp normalize_transport_result({:error, reason}, _envelope), do: {:error, reason}
   end
 
   setup do
@@ -88,20 +121,22 @@ defmodule Citadel.InvocationBridgeInfrastructureFaultInjectionTest do
 
       bridge = InvocationBridge.new!(downstream: ProxyDownstream)
 
-      {{:ok, "receipt:entry-latency", _bridge}, delayed_ms} =
+      {{:accepted, %SubmissionAcceptance{} = acceptance, _bridge}, delayed_ms} =
         ToxiproxyHarness.measure_ms(fn ->
           InvocationBridge.submit(bridge, invocation_request(), outbox_entry("entry-latency"))
         end)
 
+      assert acceptance.submission_receipt_ref == "receipt:entry-latency"
       assert delayed_ms >= 350
 
       ToxiproxyHarness.ensure_proxy!()
 
-      {{:ok, "receipt:entry-recovered", _bridge}, recovered_ms} =
+      {{:accepted, %SubmissionAcceptance{} = acceptance, _bridge}, recovered_ms} =
         ToxiproxyHarness.measure_ms(fn ->
           InvocationBridge.submit(bridge, invocation_request(), outbox_entry("entry-recovered"))
         end)
 
+      assert acceptance.submission_receipt_ref == "receipt:entry-recovered"
       assert recovered_ms < 150
     end)
   end
@@ -355,6 +390,10 @@ defmodule Citadel.InvocationBridgeInfrastructureFaultInjectionTest do
         }),
       extensions: %{}
     })
+  end
+
+  def submission_key_for!(seed) when is_binary(seed) do
+    "sha256:" <> (:crypto.hash(:sha256, seed) |> Base.encode16(case: :lower))
   end
 
   defp run_wave12(fun) when is_function(fun, 0) do

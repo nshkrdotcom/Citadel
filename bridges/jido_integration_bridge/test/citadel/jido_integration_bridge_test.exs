@@ -1,0 +1,311 @@
+defmodule Citadel.JidoIntegrationBridgeTest do
+  use ExUnit.Case, async: true
+
+  alias Citadel.ActionOutboxEntry
+  alias Citadel.AuthorityContract.AuthorityDecision.V1, as: AuthorityDecisionV1
+  alias Citadel.BackoffPolicy
+  alias Citadel.BoundaryIntent
+  alias Citadel.ExecutionGovernanceCompiler
+  alias Citadel.InvocationBridge.ExecutionIntentAdapter
+  alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
+  alias Citadel.JidoIntegrationBridge
+  alias Citadel.JidoIntegrationBridge.BrainInvocationAdapter
+  alias Citadel.JidoIntegrationBridge.InvocationDownstream
+  alias Citadel.JidoIntegrationBridge.LineageCodec
+  alias Citadel.LocalAction
+  alias Citadel.StalenessRequirements
+  alias Citadel.TopologyIntent
+  alias Jido.Integration.V2.ReviewProjection
+  alias Jido.Integration.V2.SubmissionAcceptance
+
+  defmodule TestTransport do
+    @behaviour Citadel.JidoIntegrationBridge.Transport
+
+    @impl true
+    def submit_brain_invocation(invocation) do
+      send(Process.get(:ji_bridge_test_pid), {:brain_invocation, invocation})
+
+      {:accepted,
+       Jido.Integration.V2.SubmissionAcceptance.new!(%{
+         submission_key: invocation.submission_key,
+         submission_receipt_ref:
+           "submission/#{invocation.submission_identity.invocation_request_id}",
+         status: :accepted,
+         accepted_at: ~U[2026-04-11 09:00:00Z],
+         ledger_version: 2
+       })}
+    end
+  end
+
+  setup do
+    previous_transport = Application.get_env(:citadel_jido_integration_bridge, :transport_module)
+    Process.put(:ji_bridge_test_pid, self())
+    :ok = JidoIntegrationBridge.put_transport_module(TestTransport)
+
+    on_exit(fn ->
+      if is_nil(previous_transport) do
+        Application.delete_env(:citadel_jido_integration_bridge, :transport_module)
+      else
+        Application.put_env(
+          :citadel_jido_integration_bridge,
+          :transport_module,
+          previous_transport
+        )
+      end
+    end)
+
+    :ok
+  end
+
+  test "projects execution intent envelopes into durable brain invocations" do
+    envelope = envelope_fixture("entry-project")
+    invocation = BrainInvocationAdapter.project!(envelope)
+
+    assert invocation.submission_identity.invocation_request_id == "invoke-bridge-1"
+    assert invocation.submission_identity.selected_step_id == "step-bridge-1"
+    assert invocation.runtime_class == :session
+    assert invocation.gateway_request["sandbox"]["level"] == "strict"
+    assert invocation.runtime_request["execution_family"] == "process"
+    assert invocation.boundary_request["session_mode"] == "attached"
+    assert invocation.execution_intent["command"] == "echo"
+    assert invocation.execution_intent["args"] == ["hello"]
+  end
+
+  test "coerces shared lineage packets through the local choke point" do
+    projection =
+      ReviewProjection.new!(%{
+        schema_version: "review_projection.v1",
+        projection: "accepted",
+        packet_ref: "jido://v2/review_packet/run/run-1",
+        subject: %{
+          kind: :run,
+          id: "run-1",
+          metadata: %{}
+        },
+        evidence_refs: [],
+        governance_refs: [],
+        metadata: %{},
+        extensions: %{}
+      })
+
+    coerced = projection |> ReviewProjection.dump() |> LineageCodec.review_projection!()
+
+    assert coerced == ReviewProjection.new!(ReviewProjection.dump(projection))
+  end
+
+  test "delegates to the configured transport through the invocation downstream" do
+    envelope = envelope_fixture("entry-submit")
+
+    assert {:accepted, %SubmissionAcceptance{} = acceptance} =
+             InvocationDownstream.submit_execution_intent(envelope)
+
+    assert acceptance.submission_receipt_ref == "submission/invoke-bridge-1"
+
+    assert_receive {:brain_invocation, invocation}
+    assert invocation.submission_key == acceptance.submission_key
+  end
+
+  defp envelope_fixture(entry_id) do
+    request = invocation_request_fixture()
+    entry = outbox_entry(entry_id)
+    ExecutionIntentAdapter.project!(request, entry)
+  end
+
+  defp invocation_request_fixture do
+    InvocationRequestV2.new!(%{
+      schema_version: 2,
+      invocation_request_id: "invoke-bridge-1",
+      request_id: "req-bridge-1",
+      session_id: "sess-bridge-1",
+      tenant_id: "tenant-bridge-1",
+      trace_id: "trace-bridge-1",
+      actor_id: "actor-bridge-1",
+      target_id: "target-bridge-1",
+      target_kind: "cli",
+      selected_step_id: "step-bridge-1",
+      allowed_operations: ["shell.exec"],
+      authority_packet:
+        AuthorityDecisionV1.new!(%{
+          contract_version: "v1",
+          decision_id: "dec-bridge-1",
+          tenant_id: "tenant-bridge-1",
+          request_id: "req-bridge-1",
+          policy_version: "policy-bridge-1",
+          boundary_class: "hazmat",
+          trust_profile: "trusted_operator",
+          approval_profile: "manual",
+          egress_profile: "restricted",
+          workspace_profile: "workspace_attached",
+          resource_profile: "balanced",
+          decision_hash: String.duplicate("a", 64),
+          extensions: %{}
+        }),
+      boundary_intent:
+        BoundaryIntent.new!(%{
+          boundary_class: "hazmat",
+          trust_profile: "trusted_operator",
+          workspace_profile: "workspace_attached",
+          resource_profile: "balanced",
+          requested_attach_mode: "reuse_existing",
+          requested_ttl_ms: 60_000,
+          extensions: %{}
+        }),
+      topology_intent:
+        TopologyIntent.new!(%{
+          topology_intent_id: "top-bridge-1",
+          session_mode: "attached",
+          routing_hints: %{
+            "execution_intent_family" => "process",
+            "execution_intent" => %{
+              "contract_version" => "v1",
+              "command" => "echo",
+              "args" => ["hello"],
+              "working_directory" => "/workspace/project",
+              "environment" => %{},
+              "stdin" => nil,
+              "extensions" => %{}
+            },
+            "downstream_scope" => "process:workspace"
+          },
+          coordination_mode: "single_target",
+          topology_epoch: 3,
+          extensions: %{}
+        }),
+      execution_governance:
+        ExecutionGovernanceCompiler.compile!(
+          authority_packet_fixture(),
+          boundary_intent_fixture(),
+          topology_intent_fixture(),
+          execution_governance_id: "execgov-bridge-1",
+          sandbox_level: "strict",
+          sandbox_egress: "restricted",
+          sandbox_approvals: "manual",
+          allowed_tools: ["bash", "git"],
+          file_scope_ref: "workspace://tenant-bridge-1/root",
+          file_scope_hint: "/srv/workspaces/tenant-bridge-1",
+          logical_workspace_ref: "workspace://tenant-bridge-1/root",
+          workspace_mutability: "read_write",
+          execution_family: "process",
+          placement_intent: "host_local",
+          target_kind: "cli",
+          allowed_operations: ["shell.exec"],
+          effect_classes: ["filesystem", "process"]
+        ),
+      extensions: %{
+        "citadel" => %{
+          "execution_intent_family" => "process",
+          "execution_intent" => %{
+            "contract_version" => "v1",
+            "command" => "echo",
+            "args" => ["hello"],
+            "working_directory" => "/workspace/project",
+            "environment" => %{},
+            "stdin" => nil,
+            "extensions" => %{}
+          }
+        }
+      }
+    })
+  end
+
+  defp authority_packet_fixture do
+    AuthorityDecisionV1.new!(%{
+      contract_version: "v1",
+      decision_id: "dec-bridge-1",
+      tenant_id: "tenant-bridge-1",
+      request_id: "req-bridge-1",
+      policy_version: "policy-bridge-1",
+      boundary_class: "hazmat",
+      trust_profile: "trusted_operator",
+      approval_profile: "manual",
+      egress_profile: "restricted",
+      workspace_profile: "workspace_attached",
+      resource_profile: "balanced",
+      decision_hash: String.duplicate("a", 64),
+      extensions: %{}
+    })
+  end
+
+  defp boundary_intent_fixture do
+    BoundaryIntent.new!(%{
+      boundary_class: "hazmat",
+      trust_profile: "trusted_operator",
+      workspace_profile: "workspace_attached",
+      resource_profile: "balanced",
+      requested_attach_mode: "reuse_existing",
+      requested_ttl_ms: 60_000,
+      extensions: %{}
+    })
+  end
+
+  defp topology_intent_fixture do
+    TopologyIntent.new!(%{
+      topology_intent_id: "top-bridge-1",
+      session_mode: "attached",
+      routing_hints: %{
+        "execution_intent_family" => "process",
+        "execution_intent" => %{
+          "contract_version" => "v1",
+          "command" => "echo",
+          "args" => ["hello"],
+          "working_directory" => "/workspace/project",
+          "environment" => %{},
+          "stdin" => nil,
+          "extensions" => %{}
+        },
+        "downstream_scope" => "process:workspace"
+      },
+      coordination_mode: "single_target",
+      topology_epoch: 3,
+      extensions: %{}
+    })
+  end
+
+  defp outbox_entry(entry_id) do
+    ActionOutboxEntry.new!(%{
+      schema_version: 1,
+      entry_id: entry_id,
+      causal_group_id: "group-bridge-1",
+      action:
+        LocalAction.new!(%{
+          action_kind: "submit_invocation",
+          payload: %{"request_id" => "req-bridge-1"},
+          extensions: %{}
+        }),
+      inserted_at: ~U[2026-04-11 09:00:00Z],
+      replay_status: :pending,
+      attempt_count: 0,
+      max_attempts: 3,
+      backoff_policy:
+        BackoffPolicy.new!(%{
+          strategy: :fixed,
+          base_delay_ms: 10,
+          max_delay_ms: 10,
+          linear_step_ms: nil,
+          multiplier: nil,
+          jitter_mode: :none,
+          jitter_window_ms: 0,
+          extensions: %{}
+        }),
+      next_attempt_at: nil,
+      last_error_code: nil,
+      dead_letter_reason: nil,
+      ordering_mode: :strict,
+      staleness_mode: :requires_check,
+      staleness_requirements:
+        StalenessRequirements.new!(%{
+          snapshot_seq: 1,
+          policy_epoch: 1,
+          topology_epoch: nil,
+          scope_catalog_epoch: nil,
+          service_admission_epoch: nil,
+          project_binding_epoch: nil,
+          boundary_epoch: nil,
+          required_binding_id: nil,
+          required_boundary_ref: nil,
+          extensions: %{}
+        }),
+      extensions: %{}
+    })
+  end
+end

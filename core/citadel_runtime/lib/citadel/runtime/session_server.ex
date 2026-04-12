@@ -226,6 +226,104 @@ defmodule Citadel.Runtime.SessionServer do
   end
 
   def handle_info(
+        {:dispatch_result, entry_id, {:accepted, acceptance}, dispatch_family},
+        state
+      ) do
+    state =
+      state
+      |> Map.put(:dispatching_entry_ids, MapSet.delete(state.dispatching_entry_ids, entry_id))
+      |> ensure_invariants!()
+
+    case Map.get(state.session_state.outbox.entries_by_id, entry_id) do
+      nil ->
+        {:noreply, state, next_timeout(state)}
+
+      entry ->
+        case normalize_submission_acceptance(acceptance) do
+          {:ok, acceptance_data} ->
+            accepted_entry =
+              ActionOutboxEntry.new!(%{
+                ActionOutboxEntry.dump(entry)
+                | replay_status: :submission_accepted,
+                  submission_key: acceptance_data.submission_key,
+                  submission_receipt_ref: acceptance_data.submission_receipt_ref,
+                  submission_rejection: nil,
+                  last_error_code: nil,
+                  next_attempt_at: nil
+              })
+
+            updated_outbox =
+              SessionOutbox.put_entry!(state.session_state.outbox, accepted_entry)
+
+            case apply_transition_commit(
+                   state,
+                   %{outbox: updated_outbox},
+                   meaningful_activity?: true
+                 ) do
+              {:ok, next_state} ->
+                publish_action_trace(next_state, entry_id, dispatch_family, :accepted)
+                send(self(), :replay_pending)
+                {:noreply, next_state, next_timeout(next_state)}
+
+              {:error, _reason, next_state} ->
+                {:noreply, next_state, next_timeout(next_state)}
+            end
+
+          {:error, reason_code} ->
+            case classify_failed_entry(state, entry, reason_code) do
+              {:ok, next_state} ->
+                publish_action_trace(next_state, entry_id, dispatch_family, :error)
+                send(self(), :replay_pending)
+                {:noreply, next_state, next_timeout(next_state)}
+
+              {:error, _reason, next_state} ->
+                {:noreply, next_state, next_timeout(next_state)}
+            end
+        end
+    end
+  end
+
+  def handle_info(
+        {:dispatch_result, entry_id, {:rejected, rejection}, dispatch_family},
+        state
+      ) do
+    state =
+      state
+      |> Map.put(:dispatching_entry_ids, MapSet.delete(state.dispatching_entry_ids, entry_id))
+      |> ensure_invariants!()
+
+    case Map.get(state.session_state.outbox.entries_by_id, entry_id) do
+      nil ->
+        {:noreply, state, next_timeout(state)}
+
+      entry ->
+        case normalize_submission_rejection(rejection) do
+          {:ok, rejection_data} ->
+            case classify_submission_rejection(state, entry, rejection_data) do
+              {:ok, next_state} ->
+                publish_action_trace(next_state, entry_id, dispatch_family, :rejected)
+                send(self(), :replay_pending)
+                {:noreply, next_state, next_timeout(next_state)}
+
+              {:error, _reason, next_state} ->
+                {:noreply, next_state, next_timeout(next_state)}
+            end
+
+          {:error, reason_code} ->
+            case classify_failed_entry(state, entry, reason_code) do
+              {:ok, next_state} ->
+                publish_action_trace(next_state, entry_id, dispatch_family, :error)
+                send(self(), :replay_pending)
+                {:noreply, next_state, next_timeout(next_state)}
+
+              {:error, _reason, next_state} ->
+                {:noreply, next_state, next_timeout(next_state)}
+            end
+        end
+    end
+  end
+
+  def handle_info(
         {:dispatch_result, entry_id, {:ok, durable_receipt_ref}, dispatch_family},
         state
       ) do
@@ -956,6 +1054,105 @@ defmodule Citadel.Runtime.SessionServer do
     end
   end
 
+  defp classify_submission_rejection(state, entry, rejection) do
+    case rejection.retry_class do
+      :retryable ->
+        delay_ms =
+          BackoffPolicy.compute_delay_ms!(
+            entry.backoff_policy,
+            entry.entry_id,
+            entry.attempt_count
+          )
+
+        next_attempt_at = DateTime.add(state.clock.utc_now(), delay_ms, :millisecond)
+
+        retriable_entry =
+          ActionOutboxEntry.new!(%{
+            ActionOutboxEntry.dump(entry)
+            | replay_status: :pending,
+              submission_key: rejection.submission_key,
+              submission_receipt_ref: nil,
+              submission_rejection: rejection_to_map(rejection),
+              next_attempt_at: next_attempt_at,
+              last_error_code: rejection.reason_code
+          })
+
+        apply_transition_commit(
+          state,
+          %{outbox: SessionOutbox.put_entry!(state.session_state.outbox, retriable_entry)},
+          meaningful_activity?: false
+        )
+
+      :after_redecision ->
+        superseded_entry =
+          ActionOutboxEntry.new!(%{
+            ActionOutboxEntry.dump(entry)
+            | replay_status: :superseded,
+              submission_key: rejection.submission_key,
+              submission_receipt_ref: nil,
+              submission_rejection: rejection_to_map(rejection),
+              last_error_code: rejection.reason_code,
+              next_attempt_at: nil,
+              extensions:
+                Map.merge(entry.extensions, %{
+                  "superseded_reason" => "submission_rejected_after_redecision"
+                })
+          })
+
+        snapshot = KernelSnapshot.current_snapshot(state.kernel_snapshot)
+
+        updated_outbox =
+          state.session_state.outbox
+          |> SessionOutbox.put_entry!(superseded_entry)
+          |> ensure_redecision_entry(state.session_state, snapshot, state.clock.utc_now())
+
+        apply_transition_commit(
+          state,
+          %{outbox: updated_outbox},
+          meaningful_activity?: true
+        )
+
+      :never ->
+        dead_letter_entry =
+          ActionOutboxEntry.new!(%{
+            ActionOutboxEntry.dump(entry)
+            | replay_status: :dead_letter,
+              submission_key: rejection.submission_key,
+              submission_receipt_ref: nil,
+              submission_rejection: rejection_to_map(rejection),
+              last_error_code: rejection.reason_code,
+              dead_letter_reason: rejection.reason_code,
+              next_attempt_at: nil
+          })
+
+        updated_session_state =
+          if dead_letter_entry.ordering_mode == :strict do
+            %{
+              outbox: SessionOutbox.put_entry!(state.session_state.outbox, dead_letter_entry),
+              lifecycle_status: :blocked,
+              extensions:
+                Map.merge(state.session_state.extensions, %{
+                  "blocked_failure" => %{
+                    "entry_id" => dead_letter_entry.entry_id,
+                    "reason_family" => dead_letter_entry.dead_letter_reason,
+                    "last_error_code" => dead_letter_entry.last_error_code
+                  }
+                })
+            }
+          else
+            %{outbox: SessionOutbox.put_entry!(state.session_state.outbox, dead_letter_entry)}
+          end
+
+        :telemetry.execute(
+          Telemetry.event_name(:outbox_dead_letter_count),
+          %{count: 1},
+          %{reason_family: dead_letter_entry.dead_letter_reason}
+        )
+
+        apply_transition_commit(state, updated_session_state, meaningful_activity?: true)
+    end
+  end
+
   defp publish_trace_family(%{trace_publisher: nil}, _family, _attrs), do: :ok
 
   defp publish_trace_family(state, family, attrs) do
@@ -1018,6 +1215,125 @@ defmodule Citadel.Runtime.SessionServer do
   end
 
   defp emit_dispatch_backlog(:local), do: :ok
+
+  defp normalize_submission_acceptance(%{
+         submission_key: submission_key,
+         submission_receipt_ref: submission_receipt_ref,
+         status: status,
+         accepted_at: %DateTime{} = accepted_at,
+         ledger_version: ledger_version
+       })
+       when is_binary(submission_key) and is_binary(submission_receipt_ref) and
+              is_integer(ledger_version) and ledger_version >= 0 do
+    with {:ok, normalized_status} <- normalize_submission_acceptance_status(status) do
+      {:ok,
+       %{
+         submission_key: submission_key,
+         submission_receipt_ref: submission_receipt_ref,
+         status: normalized_status,
+         accepted_at: accepted_at,
+         ledger_version: ledger_version
+       }}
+    end
+  end
+
+  defp normalize_submission_acceptance(_value), do: {:error, :invalid_submission_result}
+
+  defp normalize_submission_rejection(%{
+         submission_key: submission_key,
+         rejection_family: rejection_family,
+         reason_code: reason_code,
+         retry_class: retry_class,
+         redecision_required: redecision_required,
+         details: details,
+         rejected_at: %DateTime{} = rejected_at
+       })
+       when is_binary(submission_key) and is_binary(reason_code) and
+              is_boolean(redecision_required) and is_map(details) do
+    with {:ok, normalized_rejection_family} <-
+           normalize_submission_rejection_family(rejection_family),
+         {:ok, normalized_retry_class} <- normalize_submission_retry_class(retry_class) do
+      {:ok,
+       %{
+         submission_key: submission_key,
+         rejection_family: normalized_rejection_family,
+         reason_code: reason_code,
+         retry_class: normalized_retry_class,
+         redecision_required: redecision_required,
+         details: details,
+         rejected_at: rejected_at
+       }}
+    end
+  end
+
+  defp normalize_submission_rejection(_value), do: {:error, :invalid_submission_result}
+
+  defp normalize_submission_acceptance_status(status) when status in [:accepted, :duplicate],
+    do: {:ok, status}
+
+  defp normalize_submission_acceptance_status("accepted"), do: {:ok, :accepted}
+  defp normalize_submission_acceptance_status("duplicate"), do: {:ok, :duplicate}
+  defp normalize_submission_acceptance_status(_status), do: {:error, :invalid_submission_result}
+
+  defp normalize_submission_rejection_family(rejection_family)
+       when rejection_family in [
+              :invalid_submission,
+              :projection_mismatch,
+              :scope_unresolvable,
+              :policy_denied,
+              :policy_shed,
+              :unsupported_target,
+              :capacity_exhausted
+            ],
+       do: {:ok, rejection_family}
+
+  defp normalize_submission_rejection_family(rejection_family) when is_binary(rejection_family) do
+    case rejection_family do
+      "invalid_submission" -> {:ok, :invalid_submission}
+      "projection_mismatch" -> {:ok, :projection_mismatch}
+      "scope_unresolvable" -> {:ok, :scope_unresolvable}
+      "policy_denied" -> {:ok, :policy_denied}
+      "policy_shed" -> {:ok, :policy_shed}
+      "unsupported_target" -> {:ok, :unsupported_target}
+      "capacity_exhausted" -> {:ok, :capacity_exhausted}
+      _other -> {:error, :invalid_submission_result}
+    end
+  end
+
+  defp normalize_submission_rejection_family(_rejection_family),
+    do: {:error, :invalid_submission_result}
+
+  defp normalize_submission_retry_class(retry_class)
+       when retry_class in [:never, :after_redecision, :retryable],
+       do: {:ok, retry_class}
+
+  defp normalize_submission_retry_class("never"), do: {:ok, :never}
+  defp normalize_submission_retry_class("after_redecision"), do: {:ok, :after_redecision}
+  defp normalize_submission_retry_class("retryable"), do: {:ok, :retryable}
+  defp normalize_submission_retry_class(_retry_class), do: {:error, :invalid_submission_result}
+
+  defp rejection_to_map(rejection) when is_map(rejection) do
+    rejection = Map.new(rejection) |> Map.delete(:__struct__)
+
+    %{
+      "submission_key" => map_value(rejection, :submission_key),
+      "rejection_family" => map_value(rejection, :rejection_family),
+      "reason_code" => map_value(rejection, :reason_code),
+      "retry_class" => map_value(rejection, :retry_class),
+      "redecision_required" => map_value(rejection, :redecision_required),
+      "details" => map_value(rejection, :details, %{}),
+      "rejected_at" =>
+        map_value(rejection, :rejected_at)
+        |> normalize_datetime_for_json()
+    }
+  end
+
+  defp normalize_datetime_for_json(%DateTime{} = value), do: DateTime.to_iso8601(value)
+  defp normalize_datetime_for_json(value) when is_binary(value), do: value
+
+  defp map_value(map, key, default \\ nil) when is_map(map) do
+    Map.get(map, key, Map.get(map, Atom.to_string(key), default))
+  end
 
   defp dispatch_family(action_kind)
        when action_kind in ["publish_review_projection", "publish_derived_state_attachment"],

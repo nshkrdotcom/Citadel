@@ -245,6 +245,131 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
     assert Map.has_key?(second_snapshot.subscriptions, "sess-cold")
   end
 
+  test "session server records durable submission acceptance and does not replay accepted invocation work" do
+    test_pid = self()
+    env = start_submission_runtime_env()
+    session_id = "sess-submission-accepted"
+
+    entry =
+      outbox_entry("accepted-entry", "submit_invocation", %{"target" => "compile"}, %{
+        policy_epoch: 1
+      })
+
+    seed_submission_session(env, session_id, entry)
+
+    start_supervised!(
+      {SessionServer,
+       name: env.session_server_name,
+       session_id: session_id,
+       session_directory: env.session_directory,
+       kernel_snapshot: env.kernel_snapshot,
+       boundary_lease_tracker: env.boundary_tracker,
+       service_catalog: env.service_catalog,
+       signal_ingress: env.signal_ingress,
+       invocation_supervisor: env.invocation_supervisor,
+       projection_supervisor: env.projection_supervisor,
+       local_supervisor: env.local_supervisor,
+       invocation_handler: fn _payload, attempt_entry ->
+         send(
+           test_pid,
+           {:invocation_attempt, attempt_entry.entry_id, attempt_entry.attempt_count}
+         )
+
+         {:accepted,
+          %{
+            submission_key: submission_key_for(attempt_entry.entry_id),
+            submission_receipt_ref: "submission/#{attempt_entry.entry_id}",
+            status: :accepted,
+            accepted_at: ~U[2026-04-11 10:10:00Z],
+            ledger_version: 7
+          }}
+       end}
+    )
+
+    assert_receive {:invocation_attempt, "accepted-entry", 1}, 1_000
+
+    wait_until(fn ->
+      session_state = SessionServer.snapshot(env.session_server_name)
+
+      case Map.fetch!(session_state.outbox.entries_by_id, "accepted-entry") do
+        %{replay_status: :submission_accepted} = accepted_entry ->
+          accepted_entry.submission_key == submission_key_for("accepted-entry") and
+            accepted_entry.submission_receipt_ref == "submission/accepted-entry" and
+            is_nil(accepted_entry.durable_receipt_ref)
+
+        _other ->
+          false
+      end
+    end)
+
+    assert :ok = SessionServer.replay_pending(env.session_server_name)
+    refute_receive {:invocation_attempt, "accepted-entry", _attempt_count}, 100
+
+    assert {:ok, persisted_blob} =
+             SessionDirectory.fetch_persisted_blob(env.session_directory, session_id)
+
+    persisted_entry = Map.fetch!(persisted_blob.outbox_entries, "accepted-entry")
+    assert persisted_entry.replay_status == :submission_accepted
+    assert persisted_entry.submission_receipt_ref == "submission/accepted-entry"
+  end
+
+  test "session server supersedes rejected submission work after redecision and enqueues follow-up local work" do
+    env = start_submission_runtime_env()
+    session_id = "sess-submission-rejected"
+
+    entry =
+      outbox_entry("rejected-entry", "submit_invocation", %{"target" => "compile"}, %{
+        policy_epoch: 1
+      })
+
+    seed_submission_session(env, session_id, entry)
+
+    start_supervised!(
+      {SessionServer,
+       name: env.session_server_name,
+       session_id: session_id,
+       session_directory: env.session_directory,
+       kernel_snapshot: env.kernel_snapshot,
+       boundary_lease_tracker: env.boundary_tracker,
+       service_catalog: env.service_catalog,
+       signal_ingress: env.signal_ingress,
+       invocation_supervisor: env.invocation_supervisor,
+       projection_supervisor: env.projection_supervisor,
+       local_supervisor: env.local_supervisor,
+       invocation_handler: fn _payload, attempt_entry ->
+         {:rejected,
+          %{
+            submission_key: submission_key_for(attempt_entry.entry_id),
+            rejection_family: :scope_unresolvable,
+            reason_code: "workspace_ref_unresolved",
+            retry_class: :after_redecision,
+            redecision_required: true,
+            details: %{"logical_workspace_ref" => "workspace://tenant/root"},
+            rejected_at: ~U[2026-04-11 10:12:00Z]
+          }}
+       end}
+    )
+
+    wait_until(fn ->
+      session_state = SessionServer.snapshot(env.session_server_name)
+      rejected_entry = Map.fetch!(session_state.outbox.entries_by_id, "rejected-entry")
+
+      rejected_entry.replay_status == :superseded and
+        rejected_entry.last_error_code == "workspace_ref_unresolved" and
+        Enum.any?(session_state.outbox.entries_by_id, fn {_entry_id, candidate} ->
+          candidate.action.action_kind == "enqueue_redecision"
+        end)
+    end)
+
+    assert {:ok, persisted_blob} =
+             SessionDirectory.fetch_persisted_blob(env.session_directory, session_id)
+
+    persisted_entry = Map.fetch!(persisted_blob.outbox_entries, "rejected-entry")
+    assert persisted_entry.replay_status == :superseded
+    assert persisted_entry.submission_key == submission_key_for("rejected-entry")
+    assert persisted_entry.last_error_code == "workspace_ref_unresolved"
+  end
+
   test "session server supersedes stale replay-safe work, commits before dispatch, and routes service lifecycle through service catalog" do
     test_pid = self()
     kernel_snapshot_name = unique_name(:kernel_snapshot)
@@ -483,6 +608,102 @@ defmodule Citadel.Runtime.RuntimeCoordinationTest do
         }),
       extensions: %{}
     })
+  end
+
+  defp start_submission_runtime_env do
+    kernel_snapshot_name = unique_name(:kernel_snapshot)
+    session_directory_name = unique_name(:session_directory)
+    service_catalog_name = unique_name(:service_catalog)
+    boundary_tracker_name = unique_name(:boundary_tracker)
+    signal_ingress_name = unique_name(:signal_ingress)
+    invocation_supervisor_name = unique_name(:invocation_supervisor)
+    projection_supervisor_name = unique_name(:projection_supervisor)
+    local_supervisor_name = unique_name(:local_supervisor)
+
+    start_supervised!(
+      {KernelSnapshot, name: kernel_snapshot_name, policy_version: "v1", policy_epoch: 1}
+    )
+
+    start_supervised!(
+      {SessionDirectory, name: session_directory_name, kernel_snapshot: kernel_snapshot_name}
+    )
+
+    start_supervised!(
+      {ServiceCatalog, name: service_catalog_name, kernel_snapshot: kernel_snapshot_name}
+    )
+
+    start_supervised!(
+      {BoundaryLeaseTracker, name: boundary_tracker_name, kernel_snapshot: kernel_snapshot_name}
+    )
+
+    start_supervised!({Task.Supervisor, name: invocation_supervisor_name, max_children: 4})
+    start_supervised!({Task.Supervisor, name: projection_supervisor_name, max_children: 4})
+    start_supervised!({Task.Supervisor, name: local_supervisor_name, max_children: 4})
+
+    start_supervised!(
+      {SignalIngress,
+       name: signal_ingress_name,
+       session_directory: session_directory_name,
+       signal_source: TestSignalSource}
+    )
+
+    %{
+      kernel_snapshot: kernel_snapshot_name,
+      session_directory: session_directory_name,
+      service_catalog: service_catalog_name,
+      boundary_tracker: boundary_tracker_name,
+      signal_ingress: signal_ingress_name,
+      invocation_supervisor: invocation_supervisor_name,
+      projection_supervisor: projection_supervisor_name,
+      local_supervisor: local_supervisor_name,
+      session_server_name: unique_name(:submission_session_server)
+    }
+  end
+
+  defp seed_submission_session(env, session_id, entry) do
+    :ok =
+      SessionDirectory.seed_raw_blob(
+        env.session_directory,
+        session_id,
+        PersistedSessionBlob.new!(%{
+          schema_version: 1,
+          session_id: session_id,
+          envelope:
+            PersistedSessionEnvelope.new!(%{
+              schema_version: 1,
+              session_id: session_id,
+              continuity_revision: 1,
+              owner_incarnation: 1,
+              project_binding: nil,
+              scope_ref:
+                ScopeRef.new!(%{
+                  scope_id: "scope-1",
+                  scope_kind: "workspace",
+                  workspace_root: "/workspace",
+                  environment: "test",
+                  catalog_epoch: 1,
+                  extensions: %{}
+                }),
+              signal_cursor: nil,
+              recent_signal_hashes: [],
+              lifecycle_status: :active,
+              last_active_at: nil,
+              active_plan: nil,
+              active_authority_decision: nil,
+              last_rejection: nil,
+              boundary_ref: nil,
+              outbox_entry_ids: [entry.entry_id],
+              external_refs: %{"trace_id" => "trace-runtime"},
+              extensions: %{}
+            }),
+          outbox_entries: %{entry.entry_id => entry},
+          extensions: %{}
+        })
+      )
+  end
+
+  defp submission_key_for(seed) when is_binary(seed) do
+    "sha256:" <> (:crypto.hash(:sha256, seed) |> Base.encode16(case: :lower))
   end
 
   defp unique_name(prefix) do

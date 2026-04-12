@@ -12,11 +12,22 @@ defmodule Citadel.InvocationBridgeTest do
   alias Citadel.LocalAction
   alias Citadel.StalenessRequirements
   alias Citadel.TopologyIntent
+  alias Jido.Integration.V2.SubmissionAcceptance
+  alias Jido.Integration.V2.SubmissionRejection
 
   defmodule Downstream do
     def submit_execution_intent(envelope) do
       send(Process.get(:invocation_bridge_test_pid), {:submitted, envelope})
-      {:ok, "receipt:#{envelope.entry_id}"}
+
+      {:accepted,
+       Jido.Integration.V2.SubmissionAcceptance.new!(%{
+         submission_key:
+           Citadel.InvocationBridgeTest.submission_key_for!("bridge/#{envelope.entry_id}"),
+         submission_receipt_ref: "receipt:#{envelope.entry_id}",
+         status: :accepted,
+         accepted_at: ~U[2026-04-11 06:00:00Z],
+         ledger_version: 1
+       })}
     end
   end
 
@@ -24,19 +35,36 @@ defmodule Citadel.InvocationBridgeTest do
     def submit_execution_intent(_envelope), do: {:error, :timeout}
   end
 
+  defmodule RejectedDownstream do
+    def submit_execution_intent(envelope) do
+      {:rejected,
+       Jido.Integration.V2.SubmissionRejection.new!(%{
+         submission_key:
+           Citadel.InvocationBridgeTest.submission_key_for!("bridge/#{envelope.entry_id}"),
+         rejection_family: :scope_unresolvable,
+         reason_code: "workspace_ref_unresolved",
+         retry_class: :after_redecision,
+         redecision_required: true,
+         details: %{"logical_workspace_ref" => "workspace://project/main"},
+         rejected_at: ~U[2026-04-11 06:05:00Z]
+       })}
+    end
+  end
+
   setup do
     Process.put(:invocation_bridge_test_pid, self())
     :ok
   end
 
-  test "projects the explicit lower execution handoff and deduplicates by entry_id" do
+  test "projects the explicit lower execution handoff and returns typed Spine acceptance" do
     bridge = InvocationBridge.new!(downstream: Downstream)
     request = invocation_request()
     entry = outbox_entry("entry-1")
 
-    assert {:ok, "receipt:entry-1", bridge_after_submit} =
+    assert {:accepted, %SubmissionAcceptance{} = acceptance, bridge_after_submit} =
              InvocationBridge.submit(bridge, request, entry)
 
+    assert acceptance.submission_receipt_ref == "receipt:entry-1"
     assert_receive {:submitted, envelope}
     assert envelope.entry_id == "entry-1"
     assert envelope.causal_group_id == entry.causal_group_id
@@ -44,11 +72,8 @@ defmodule Citadel.InvocationBridgeTest do
     assert envelope.execution_intent_family == "http"
     assert envelope.authority_packet == request.authority_packet
     assert envelope.execution_governance == request.execution_governance
-
-    assert {:ok, "receipt:entry-1", ^bridge_after_submit} =
-             InvocationBridge.submit(bridge_after_submit, request, entry)
-
-    refute_receive {:submitted, _envelope}
+    assert envelope.extensions["selected_step_id"] == "step-1"
+    assert bridge_after_submit.state_ref == bridge.state_ref
   end
 
   test "rejects unsupported invocation schema versions at bridge entry" do
@@ -62,7 +87,7 @@ defmodule Citadel.InvocationBridgeTest do
     refute_receive {:submitted, _envelope}
   end
 
-  test "shares receipt deduplication across fresh bridge instances when state_name is reused" do
+  test "does not deduplicate locally by entry_id when the same request is retried" do
     state_name = unique_name(:invocation_bridge_state)
     request = invocation_request()
     entry = outbox_entry("entry-shared")
@@ -73,10 +98,11 @@ defmodule Citadel.InvocationBridgeTest do
         state_name: state_name
       )
 
-    assert {:ok, "receipt:entry-shared", _bridge} =
+    assert {:accepted, %SubmissionAcceptance{} = first_acceptance, _bridge} =
              InvocationBridge.submit(bridge, request, entry)
 
-    assert_receive {:submitted, _envelope}
+    assert first_acceptance.submission_receipt_ref == "receipt:entry-shared"
+    assert_receive {:submitted, _first_envelope}
 
     fresh_bridge =
       InvocationBridge.new!(
@@ -84,10 +110,11 @@ defmodule Citadel.InvocationBridgeTest do
         state_name: state_name
       )
 
-    assert {:ok, "receipt:entry-shared", _fresh_bridge} =
+    assert {:accepted, %SubmissionAcceptance{} = second_acceptance, _fresh_bridge} =
              InvocationBridge.submit(fresh_bridge, request, entry)
 
-    refute_receive {:submitted, _envelope}
+    assert second_acceptance.submission_receipt_ref == "receipt:entry-shared"
+    assert_receive {:submitted, _second_envelope}
   end
 
   test "allows an explicit invocation schema transition window instead of hardcoding the current schema only" do
@@ -99,11 +126,21 @@ defmodule Citadel.InvocationBridgeTest do
 
     request = %{invocation_request() | schema_version: 3}
 
-    assert {:ok, "receipt:entry-transition", _bridge} =
+    assert {:accepted, %SubmissionAcceptance{}, _bridge} =
              InvocationBridge.submit(bridge, request, outbox_entry("entry-transition"))
 
     assert_receive {:submitted, envelope}
     assert envelope.invocation_schema_version == 3
+  end
+
+  test "surfaces typed Spine rejections without collapsing them into transport errors" do
+    bridge = InvocationBridge.new!(downstream: RejectedDownstream)
+
+    assert {:rejected, %SubmissionRejection{} = rejection, _bridge} =
+             InvocationBridge.submit(bridge, invocation_request(), outbox_entry("entry-rejected"))
+
+    assert rejection.retry_class == :after_redecision
+    assert rejection.reason_code == "workspace_ref_unresolved"
   end
 
   test "fast-fails once the downstream circuit is open" do
@@ -149,7 +186,7 @@ defmodule Citadel.InvocationBridgeTest do
     Process.exit(state_server, :kill)
     wait_until(fn -> not Process.alive?(state_server) end)
 
-    assert {:ok, "receipt:entry-restarted", _bridge} =
+    assert {:accepted, %SubmissionAcceptance{}, _bridge} =
              InvocationBridge.submit(
                bridge,
                invocation_request(),
@@ -357,6 +394,10 @@ defmodule Citadel.InvocationBridgeTest do
 
   defp unique_name(prefix) do
     :"#{prefix}_#{System.unique_integer([:positive])}"
+  end
+
+  def submission_key_for!(seed) when is_binary(seed) do
+    "sha256:" <> (:crypto.hash(:sha256, seed) |> Base.encode16(case: :lower))
   end
 
   defp wait_until(fun, attempts \\ 40)

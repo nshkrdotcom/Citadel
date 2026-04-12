@@ -82,9 +82,12 @@ defmodule Citadel.BridgeState do
   @spec finish_operation(
           state_server(),
           operation_token(),
-          {:ok, term()} | {:error, atom()}
+          {:accepted, term()} | {:rejected, term()} | {:ok, term()} | {:error, atom()}
         ) ::
-          {:ok, term()} | {:error, atom() | :operation_not_found}
+          {:accepted, term()}
+          | {:rejected, term()}
+          | {:ok, term()}
+          | {:error, atom() | :operation_not_found}
   def finish_operation(%Ref{} = ref, token, result) when is_reference(token) do
     call_with_ref(ref, {:finish_operation, token, result})
   end
@@ -223,6 +226,20 @@ defmodule Citadel.BridgeState do
     update_in(state, [:pending_dedupe_keys], &Map.delete(&1, dedupe_key))
   end
 
+  defp apply_operation_result(state, pending_operation, {:accepted, result}) do
+    state =
+      state
+      |> Map.update!(:circuit, &BridgeCircuit.record_success(&1, pending_operation.scope_key))
+
+    case pending_operation.dedupe_key do
+      nil ->
+        state
+
+      dedupe_key ->
+        put_in(state, [:receipts_by_dedupe_key, dedupe_key], result)
+    end
+  end
+
   defp apply_operation_result(state, pending_operation, {:ok, result}) do
     state =
       state
@@ -235,6 +252,10 @@ defmodule Citadel.BridgeState do
       dedupe_key ->
         put_in(state, [:receipts_by_dedupe_key, dedupe_key], result)
     end
+  end
+
+  defp apply_operation_result(state, pending_operation, {:rejected, _reason}) do
+    Map.update!(state, :circuit, &BridgeCircuit.record_failure(&1, pending_operation.scope_key))
   end
 
   defp apply_operation_result(state, pending_operation, {:error, _reason}) do

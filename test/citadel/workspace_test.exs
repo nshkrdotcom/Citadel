@@ -5,10 +5,11 @@ defmodule Citadel.WorkspaceTest do
   alias Weld
 
   test "tracks the packet workspace package contract on disk" do
-    assert Workspace.package_count() == 18
+    assert Workspace.package_count() == 19
     assert Workspace.package_count() == length(Workspace.package_paths())
     assert "apps/host_surface_harness" in Workspace.package_paths()
     assert "core/jido_integration_v2_contracts" in Workspace.package_paths()
+    assert "bridges/jido_integration_bridge" in Workspace.package_paths()
     assert Workspace.missing_package_paths() == []
 
     assert Enum.all?(Workspace.package_paths(), fn path ->
@@ -67,6 +68,7 @@ defmodule Citadel.WorkspaceTest do
 
     assert "core/citadel_runtime" in result.artifact.selected_projects
     assert "core/jido_integration_v2_contracts" in result.artifact.selected_projects
+    assert "bridges/jido_integration_bridge" in result.artifact.selected_projects
     assert "bridges/trace_bridge" in result.artifact.selected_projects
     assert "bridges/projection_bridge" in result.artifact.selected_projects
     refute "core/conformance" in result.artifact.selected_projects
