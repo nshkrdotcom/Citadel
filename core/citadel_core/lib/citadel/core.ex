@@ -4,6 +4,7 @@ defmodule Citadel.Core do
   """
 
   alias Citadel.AuthorityContract.AuthorityDecision.V1
+  alias Citadel.ExecutionGovernance.V1, as: ExecutionGovernanceV1
 
   @manifest %{
     package: :citadel_core,
@@ -24,6 +25,7 @@ defmodule Citadel.Core do
     internal_dependencies: [
       :citadel_contract_core,
       :citadel_authority_contract,
+      :citadel_execution_governance_contract,
       :citadel_observability_contract,
       :citadel_policy_packs
     ],
@@ -45,7 +47,10 @@ defmodule Citadel.Core do
   def authority_packet_module, do: V1
 
   @spec invocation_request_module() :: module()
-  def invocation_request_module, do: Citadel.InvocationRequest
+  def invocation_request_module, do: Citadel.InvocationRequest.V2
+
+  @spec execution_governance_module() :: module()
+  def execution_governance_module, do: ExecutionGovernanceV1
 
   @spec structured_ingress_posture() :: :structured_only
   def structured_ingress_posture, do: :structured_only

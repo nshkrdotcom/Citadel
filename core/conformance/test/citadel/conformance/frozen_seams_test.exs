@@ -5,15 +5,17 @@ defmodule Citadel.Conformance.FrozenSeamsTest do
   alias Citadel.AuthorityContract.AuthorityDecision.V1
   alias Citadel.BoundaryIntent
   alias Citadel.DecisionRejection
+  alias Citadel.ExecutionGovernance.V1, as: ExecutionGovernanceV1
+  alias Citadel.ExecutionGovernanceCompiler
   alias Citadel.IntentEnvelope
   alias Citadel.IntentMappingConstraints
-  alias Citadel.InvocationRequest
+  alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
   alias Citadel.TopologyIntent
 
   test "guards the frozen invocation and ingress carrier inventories" do
-    assert InvocationRequest.schema_version() == 1
+    assert InvocationRequestV2.schema_version() == 2
 
-    assert InvocationRequest.required_fields() == [
+    assert InvocationRequestV2.required_fields() == [
              :schema_version,
              :invocation_request_id,
              :request_id,
@@ -28,10 +30,25 @@ defmodule Citadel.Conformance.FrozenSeamsTest do
              :authority_packet,
              :boundary_intent,
              :topology_intent,
+             :execution_governance,
              :extensions
            ]
 
-    assert Keyword.keys(InvocationRequest.schema()) == InvocationRequest.required_fields()
+    assert Keyword.keys(InvocationRequestV2.schema()) == InvocationRequestV2.required_fields()
+
+    assert ExecutionGovernanceV1.required_fields() == [
+             :contract_version,
+             :execution_governance_id,
+             :authority_ref,
+             :sandbox,
+             :boundary,
+             :topology,
+             :workspace,
+             :resources,
+             :placement,
+             :operations,
+             :extensions
+           ]
 
     assert BoundaryIntent.required_fields() == [
              :boundary_class,
@@ -111,18 +128,18 @@ defmodule Citadel.Conformance.FrozenSeamsTest do
   end
 
   test "fails immediately on unsupported InvocationRequest schema mutations" do
-    assert %InvocationRequest{} = InvocationRequest.new!(invocation_request_attrs())
+    assert %InvocationRequestV2{} = InvocationRequestV2.new!(invocation_request_attrs())
 
-    assert_raise ArgumentError, ~r/schema_version must be 1/, fn ->
+    assert_raise ArgumentError, ~r/schema_version must be 2/, fn ->
       invocation_request_attrs()
-      |> Map.put(:schema_version, 2)
-      |> InvocationRequest.new!()
+      |> Map.put(:schema_version, 3)
+      |> InvocationRequestV2.new!()
     end
   end
 
   defp invocation_request_attrs do
     %{
-      schema_version: 1,
+      schema_version: 2,
       invocation_request_id: "invoke-1",
       request_id: "req-1",
       session_id: "sess-1",
@@ -151,6 +168,7 @@ defmodule Citadel.Conformance.FrozenSeamsTest do
         topology_epoch: 1,
         extensions: %{}
       },
+      execution_governance: execution_governance(),
       extensions: %{
         "citadel" => %{
           "ingress_provenance" => %{
@@ -178,5 +196,49 @@ defmodule Citadel.Conformance.FrozenSeamsTest do
       decision_hash: String.duplicate("a", 64),
       extensions: %{"citadel" => %{}}
     })
+  end
+
+  defp boundary_intent do
+    %{
+      boundary_class: "workspace_session",
+      trust_profile: "baseline",
+      workspace_profile: "workspace",
+      resource_profile: "standard",
+      requested_attach_mode: "fresh_or_reuse",
+      requested_ttl_ms: 300_000,
+      extensions: %{}
+    }
+  end
+
+  defp topology_intent do
+    %{
+      topology_intent_id: "topology-1",
+      session_mode: "attached",
+      routing_hints: %{"preferred_target_ids" => ["workspace/main"]},
+      coordination_mode: "single_target",
+      topology_epoch: 1,
+      extensions: %{}
+    }
+  end
+
+  defp execution_governance do
+    ExecutionGovernanceCompiler.compile!(
+      authority_packet(),
+      BoundaryIntent.new!(boundary_intent()),
+      TopologyIntent.new!(topology_intent()),
+      execution_governance_id: "execgov-conformance-1",
+      sandbox_level: "standard",
+      sandbox_egress: "restricted",
+      sandbox_approvals: "auto",
+      allowed_tools: ["write_patch"],
+      file_scope_ref: "workspace://project/main",
+      logical_workspace_ref: "workspace://project/main",
+      workspace_mutability: "read_write",
+      execution_family: "process",
+      placement_intent: "host_local",
+      target_kind: "workspace",
+      allowed_operations: ["write_patch"],
+      effect_classes: []
+    )
   end
 end

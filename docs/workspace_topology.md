@@ -7,6 +7,7 @@ Citadel is a non-umbrella Elixir monorepo with explicit package ownership.
 - `core/contract_core`: neutral identifiers, host-local refs, and RFC 8785 / JCS canonicalization helpers
 - `core/jido_integration_v2_contracts`: workspace-carried higher-order lineage contract slice
 - `core/authority_contract`: Brain-authored `AuthorityDecision.v1` schema ownership
+- `core/execution_governance_contract`: Brain-to-Spine `ExecutionGovernance.v1` packet ownership
 - `core/observability_contract`: trace and telemetry vocabulary ownership
 - `core/policy_packs`: policy pack definitions and normalization helpers
 - `core/citadel_core`: pure values, compilers, reducers, and projectors

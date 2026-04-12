@@ -42,6 +42,7 @@ citadel/
     contract_core/
     jido_integration_v2_contracts/
     authority_contract/
+    execution_governance_contract/
     observability_contract/
     policy_packs/
     citadel_core/

@@ -6,8 +6,9 @@ defmodule Citadel.InvocationBridgeTest do
   alias Citadel.BackoffPolicy
   alias Citadel.BoundaryIntent
   alias Citadel.BridgeCircuitPolicy
+  alias Citadel.ExecutionGovernanceCompiler
   alias Citadel.InvocationBridge
-  alias Citadel.InvocationRequest
+  alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
   alias Citadel.LocalAction
   alias Citadel.StalenessRequirements
   alias Citadel.TopologyIntent
@@ -39,9 +40,10 @@ defmodule Citadel.InvocationBridgeTest do
     assert_receive {:submitted, envelope}
     assert envelope.entry_id == "entry-1"
     assert envelope.causal_group_id == entry.causal_group_id
-    assert envelope.invocation_schema_version == 1
+    assert envelope.invocation_schema_version == 2
     assert envelope.execution_intent_family == "http"
     assert envelope.authority_packet == request.authority_packet
+    assert envelope.execution_governance == request.execution_governance
 
     assert {:ok, "receipt:entry-1", ^bridge_after_submit} =
              InvocationBridge.submit(bridge_after_submit, request, entry)
@@ -52,7 +54,7 @@ defmodule Citadel.InvocationBridgeTest do
   test "rejects unsupported invocation schema versions at bridge entry" do
     bridge = InvocationBridge.new!(downstream: Downstream)
 
-    request = %{invocation_request() | schema_version: 2}
+    request = %{invocation_request() | schema_version: 3}
 
     assert {:error, :unsupported_schema_version, ^bridge} =
              InvocationBridge.submit(bridge, request, outbox_entry("entry-2"))
@@ -92,16 +94,16 @@ defmodule Citadel.InvocationBridgeTest do
     bridge =
       InvocationBridge.new!(
         downstream: Downstream,
-        supported_invocation_request_schema_versions: [1, 2]
+        supported_invocation_request_schema_versions: [2, 3]
       )
 
-    request = %{invocation_request() | schema_version: 2}
+    request = %{invocation_request() | schema_version: 3}
 
     assert {:ok, "receipt:entry-transition", _bridge} =
              InvocationBridge.submit(bridge, request, outbox_entry("entry-transition"))
 
     assert_receive {:submitted, envelope}
-    assert envelope.invocation_schema_version == 2
+    assert envelope.invocation_schema_version == 3
   end
 
   test "fast-fails once the downstream circuit is open" do
@@ -159,8 +161,8 @@ defmodule Citadel.InvocationBridgeTest do
   end
 
   defp invocation_request do
-    InvocationRequest.new!(%{
-      schema_version: 1,
+    InvocationRequestV2.new!(%{
+      schema_version: 2,
       invocation_request_id: "invoke-1",
       request_id: "req-1",
       session_id: "sess-1",
@@ -217,6 +219,25 @@ defmodule Citadel.InvocationBridgeTest do
           topology_epoch: 1,
           extensions: %{}
         }),
+      execution_governance:
+        ExecutionGovernanceCompiler.compile!(
+          authority_packet(),
+          boundary_intent(),
+          topology_intent(),
+          execution_governance_id: "execgov-invocation-bridge-1",
+          sandbox_level: "standard",
+          sandbox_egress: "restricted",
+          sandbox_approvals: "auto",
+          allowed_tools: ["fetch_http"],
+          file_scope_ref: "workspace://project/main",
+          logical_workspace_ref: "workspace://project/main",
+          workspace_mutability: "read_write",
+          execution_family: "http",
+          placement_intent: "host_local",
+          target_kind: "http",
+          allowed_operations: ["fetch"],
+          effect_classes: ["network_http"]
+        ),
       extensions: %{
         "citadel" => %{
           "execution_intent_family" => "http",
@@ -230,6 +251,58 @@ defmodule Citadel.InvocationBridgeTest do
           }
         }
       }
+    })
+  end
+
+  defp authority_packet do
+    AuthorityDecisionV1.new!(%{
+      contract_version: "v1",
+      decision_id: "dec-1",
+      tenant_id: "tenant-123",
+      request_id: "req-1",
+      policy_version: "policy-1",
+      boundary_class: "workspace_session",
+      trust_profile: "trusted_operator",
+      approval_profile: "approval_optional",
+      egress_profile: "restricted",
+      workspace_profile: "project_workspace",
+      resource_profile: "standard",
+      decision_hash: "c941cfcdae563437fb6f200c3b7abecdc70c5a23273d81301c86e2364ead04e9",
+      extensions: %{}
+    })
+  end
+
+  defp boundary_intent do
+    BoundaryIntent.new!(%{
+      boundary_class: "workspace_session",
+      trust_profile: "trusted_operator",
+      workspace_profile: "project_workspace",
+      resource_profile: "standard",
+      requested_attach_mode: "fresh_or_reuse",
+      requested_ttl_ms: 30_000,
+      extensions: %{}
+    })
+  end
+
+  defp topology_intent do
+    TopologyIntent.new!(%{
+      topology_intent_id: "top-1",
+      session_mode: "attached",
+      routing_hints: %{
+        "execution_intent_family" => "http",
+        "execution_intent" => %{
+          "contract_version" => "v1",
+          "method" => "POST",
+          "url" => "https://example.test/invoke",
+          "headers" => %{"content-type" => "application/json"},
+          "body" => %{"request" => "payload"},
+          "extensions" => %{}
+        },
+        "downstream_scope" => "http:example.test"
+      },
+      coordination_mode: "single_target",
+      topology_epoch: 1,
+      extensions: %{}
     })
   end
 

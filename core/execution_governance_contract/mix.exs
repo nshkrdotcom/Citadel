@@ -1,14 +1,14 @@
-defmodule Jido.Integration.V2.Contracts.MixProject do
+defmodule Citadel.ExecutionGovernanceContract.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :jido_integration_v2_contracts,
+      app: :citadel_execution_governance_contract,
       version: "0.1.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      description: "Citadel-local higher-order Jido Integration V2 contract slice"
+      description: "Execution governance packet ownership for Citadel"
     ]
   end
 
@@ -20,6 +20,7 @@ defmodule Jido.Integration.V2.Contracts.MixProject do
 
   defp deps do
     [
+      {:citadel_contract_core, path: "../contract_core"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end

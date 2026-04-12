@@ -1,0 +1,63 @@
+{
+  "contract_version": "v1",
+  "execution_governance_id": "execgov-1",
+  "authority_ref": {
+    "decision_id": "decision-1",
+    "policy_version": "policy-2026-04-11",
+    "decision_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "sandbox": {
+    "level": "standard",
+    "egress": "restricted",
+    "approvals": "auto",
+    "allowed_tools": [
+      "write_patch",
+      "read_repo"
+    ],
+    "file_scope_ref": "workspace://project/main",
+    "file_scope_hint": null
+  },
+  "boundary": {
+    "boundary_class": "workspace_session",
+    "trust_profile": "trusted_operator",
+    "requested_attach_mode": "fresh_or_reuse",
+    "requested_ttl_ms": 300000
+  },
+  "topology": {
+    "topology_intent_id": "topology-1",
+    "session_mode": "attached",
+    "coordination_mode": "single_target",
+    "topology_epoch": 1,
+    "routing_hints": {
+      "preferred_target_ids": [
+        "workspace/main"
+      ]
+    }
+  },
+  "workspace": {
+    "workspace_profile": "project_workspace",
+    "logical_workspace_ref": "workspace://project/main",
+    "mutability": "read_write"
+  },
+  "resources": {
+    "resource_profile": "standard",
+    "cpu_class": null,
+    "memory_class": null,
+    "wall_clock_budget_ms": null
+  },
+  "placement": {
+    "execution_family": "process",
+    "placement_intent": "host_local",
+    "target_kind": "workspace",
+    "node_affinity": null
+  },
+  "operations": {
+    "allowed_operations": [
+      "write_patch"
+    ],
+    "effect_classes": []
+  },
+  "extensions": {
+    "citadel": {}
+  }
+}

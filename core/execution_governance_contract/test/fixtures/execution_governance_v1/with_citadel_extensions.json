@@ -1,0 +1,67 @@
+{
+  "contract_version": "v1",
+  "execution_governance_id": "execgov-2",
+  "authority_ref": {
+    "decision_id": "decision-2",
+    "policy_version": "policy-2026-04-11",
+    "decision_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "sandbox": {
+    "level": "strict",
+    "egress": "blocked",
+    "approvals": "manual",
+    "allowed_tools": [
+      "read_repo"
+    ],
+    "file_scope_ref": "workspace://project/restricted",
+    "file_scope_hint": "apps/citadel"
+  },
+  "boundary": {
+    "boundary_class": "sandboxed_workspace_session",
+    "trust_profile": "high_trust_operator",
+    "requested_attach_mode": "fresh_only",
+    "requested_ttl_ms": 120000
+  },
+  "topology": {
+    "topology_intent_id": "topology-2",
+    "session_mode": "detached",
+    "coordination_mode": "single_target",
+    "topology_epoch": 7,
+    "routing_hints": {
+      "execution_intent_family": "process"
+    }
+  },
+  "workspace": {
+    "workspace_profile": "restricted_workspace",
+    "logical_workspace_ref": "workspace://project/restricted",
+    "mutability": "read_only"
+  },
+  "resources": {
+    "resource_profile": "elevated",
+    "cpu_class": "medium",
+    "memory_class": "large",
+    "wall_clock_budget_ms": 90000
+  },
+  "placement": {
+    "execution_family": "process",
+    "placement_intent": "remote_workspace",
+    "target_kind": "workspace",
+    "node_affinity": "cell-a"
+  },
+  "operations": {
+    "allowed_operations": [
+      "read_patch",
+      "inspect_repo"
+    ],
+    "effect_classes": [
+      "filesystem_read",
+      "analysis"
+    ]
+  },
+  "extensions": {
+    "citadel": {
+      "selection_source": "policy_pack/runtime",
+      "secret_projection_profile": "lease_handles_only"
+    }
+  }
+}

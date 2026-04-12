@@ -23,6 +23,7 @@ defmodule Citadel.InvocationBridge.MixProject do
       {:citadel_core, path: "../../core/citadel_core"},
       {:citadel_runtime, path: "../../core/citadel_runtime"},
       {:citadel_authority_contract, path: "../../core/authority_contract"},
+      {:citadel_execution_governance_contract, path: "../../core/execution_governance_contract"},
       {:citadel_observability_contract, path: "../../core/observability_contract"},
       {:jido_integration_v2_contracts, path: "../../core/jido_integration_v2_contracts"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}

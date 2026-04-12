@@ -4,9 +4,13 @@ defmodule Citadel.Conformance.WorkspaceSkeletonTest do
   test "tracks the packet-defined seam and wave posture" do
     assert Citadel.ContractCore.manifest().status == :wave_2_seam_frozen
     assert Citadel.AuthorityContract.manifest().status == :wave_2_seam_frozen
+    assert Citadel.ExecutionGovernanceContract.manifest().status == :wave_10_data_layer_frozen
     assert Citadel.AuthorityContract.packet_name() == "AuthorityDecision.v1"
+    assert Citadel.ExecutionGovernanceContract.packet_name() == "ExecutionGovernance.v1"
     assert Citadel.AuthorityContract.extensions_namespaces() == ["citadel"]
+    assert Citadel.ExecutionGovernanceContract.extensions_namespaces() == ["citadel"]
     assert :decision_hash in Citadel.AuthorityContract.required_fields()
+    assert :execution_governance_id in Citadel.ExecutionGovernanceContract.required_fields()
     assert Citadel.ObservabilityContract.telemetry_prefix() == [:citadel]
 
     assert Citadel.PolicyPacks.selection_inputs() == [
@@ -22,7 +26,8 @@ defmodule Citadel.Conformance.WorkspaceSkeletonTest do
     assert Citadel.Core.authority_packet_module() ==
              Citadel.AuthorityContract.AuthorityDecision.V1
 
-    assert Citadel.Core.invocation_request_module() == Citadel.InvocationRequest
+    assert Citadel.Core.invocation_request_module() == Citadel.InvocationRequest.V2
+    assert Citadel.Core.execution_governance_module() == Citadel.ExecutionGovernance.V1
     assert Citadel.Core.structured_ingress_posture() == :structured_only
 
     assert Citadel.Core.shared_lineage_contracts() == [
@@ -38,11 +43,13 @@ defmodule Citadel.Conformance.WorkspaceSkeletonTest do
     assert Citadel.InvocationBridge.shared_contract_strategy() ==
              :citadel_invocation_request_entrypoint
 
-    assert Citadel.InvocationBridge.supported_invocation_request_schema_versions() == [1]
+    assert Citadel.InvocationBridge.supported_invocation_request_schema_versions() == [2]
 
-    assert_raise ArgumentError, ~r/unsupported Citadel\.InvocationRequest\.schema_version/, fn ->
-      Citadel.InvocationBridge.ensure_supported_invocation_request_schema_version!(2)
-    end
+    assert_raise ArgumentError,
+                 ~r/unsupported Citadel\.InvocationRequest\.V2\.schema_version/,
+                 fn ->
+                   Citadel.InvocationBridge.ensure_supported_invocation_request_schema_version!(1)
+                 end
 
     assert Citadel.Apps.HostSurfaceHarness.manifest().status == :wave_7_host_surface_proof
     assert Citadel.Conformance.manifest().status == :wave_7_black_box_conformance

@@ -1,13 +1,13 @@
 defmodule Citadel.InvocationBridge.ExecutionIntentAdapter do
   @moduledoc """
-  Explicit adapter that freezes the `InvocationRequest -> ExecutionIntentEnvelope.V1`
+  Explicit adapter that freezes the `InvocationRequest.V2 -> ExecutionIntentEnvelope.V2`
   handoff without pretending the lower family already exists downstream.
   """
 
   alias Citadel.ActionOutboxEntry
-  alias Citadel.ExecutionIntentEnvelope.V1, as: ExecutionIntentEnvelopeV1
+  alias Citadel.ExecutionIntentEnvelope.V2, as: ExecutionIntentEnvelopeV2
   alias Citadel.HttpExecutionIntent.V1, as: HttpExecutionIntentV1
-  alias Citadel.InvocationRequest
+  alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
   alias Citadel.JsonRpcExecutionIntent.V1, as: JsonRpcExecutionIntentV1
   alias Citadel.ProcessExecutionIntent.V1, as: ProcessExecutionIntentV1
 
@@ -17,8 +17,8 @@ defmodule Citadel.InvocationBridge.ExecutionIntentAdapter do
     "json_rpc" => JsonRpcExecutionIntentV1
   }
 
-  @spec project!(InvocationRequest.t(), ActionOutboxEntry.t()) :: ExecutionIntentEnvelopeV1.t()
-  def project!(%InvocationRequest{} = request, %ActionOutboxEntry{} = entry) do
+  @spec project!(InvocationRequestV2.t(), ActionOutboxEntry.t()) :: ExecutionIntentEnvelopeV2.t()
+  def project!(%InvocationRequestV2{} = request, %ActionOutboxEntry{} = entry) do
     citadel_extensions = Map.get(request.extensions, "citadel", %{})
 
     execution_intent_family =
@@ -52,8 +52,8 @@ defmodule Citadel.InvocationBridge.ExecutionIntentAdapter do
         Map.get(citadel_extensions, "execution_envelope", %{})
       )
 
-    ExecutionIntentEnvelopeV1.new!(%{
-      contract_version: ExecutionIntentEnvelopeV1.contract_version(),
+    ExecutionIntentEnvelopeV2.new!(%{
+      contract_version: ExecutionIntentEnvelopeV2.contract_version(),
       intent_envelope_id: "execution-intent:#{entry.entry_id}",
       entry_id: entry.entry_id,
       causal_group_id: entry.causal_group_id,
@@ -70,6 +70,7 @@ defmodule Citadel.InvocationBridge.ExecutionIntentAdapter do
       authority_packet: request.authority_packet,
       boundary_intent: request.boundary_intent,
       topology_intent: request.topology_intent,
+      execution_governance: request.execution_governance,
       execution_intent_family: execution_intent_family,
       execution_intent:
         execution_intent_module.new!(
@@ -83,7 +84,7 @@ defmodule Citadel.InvocationBridge.ExecutionIntentAdapter do
     })
   end
 
-  defp default_intent_family(%InvocationRequest{target_kind: "http"}), do: "http"
-  defp default_intent_family(%InvocationRequest{target_kind: "json_rpc"}), do: "json_rpc"
+  defp default_intent_family(%InvocationRequestV2{target_kind: "http"}), do: "http"
+  defp default_intent_family(%InvocationRequestV2{target_kind: "json_rpc"}), do: "json_rpc"
   defp default_intent_family(_request), do: "process"
 end

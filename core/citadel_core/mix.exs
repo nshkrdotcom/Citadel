@@ -27,6 +27,7 @@ defmodule Citadel.Core.MixProject do
     [
       {:citadel_contract_core, path: "../contract_core"},
       {:citadel_authority_contract, path: "../authority_contract"},
+      {:citadel_execution_governance_contract, path: "../execution_governance_contract"},
       {:citadel_observability_contract, path: "../observability_contract"},
       {:citadel_policy_packs, path: "../policy_packs"},
       {:jido_integration_v2_contracts, path: "../jido_integration_v2_contracts"},

@@ -4,11 +4,11 @@ defmodule Citadel.Ports.InvocationSink do
   """
 
   alias Citadel.ActionOutboxEntry
-  alias Citadel.InvocationRequest
+  alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
 
   @type submission_result :: {:ok, String.t()} | {:error, atom()}
 
-  @callback submit_invocation(InvocationRequest.t(), ActionOutboxEntry.t()) ::
+  @callback submit_invocation(InvocationRequestV2.t(), ActionOutboxEntry.t()) ::
               submission_result()
 end
 
@@ -68,12 +68,14 @@ defmodule Citadel.Ports.BoundaryLifecycle do
   alias Citadel.BoundaryLeaseView
   alias Citadel.BoundarySessionDescriptor.V1, as: BoundarySessionDescriptorV1
   alias Citadel.ContractCore.CanonicalJson
+  alias Citadel.ExecutionGovernance.V1, as: ExecutionGovernanceV1
 
   @type boundary_intent_metadata :: %{
           required(:session_id) => String.t(),
           required(:tenant_id) => String.t(),
           required(:target_id) => String.t(),
           optional(:authority_packet) => AuthorityDecisionV1.t(),
+          optional(:execution_governance) => ExecutionGovernanceV1.t(),
           optional(:downstream_scope) => String.t(),
           optional(:extensions) => %{optional(String.t()) => CanonicalJson.value()}
         }
