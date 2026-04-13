@@ -87,7 +87,13 @@ defmodule Citadel.Workspace.MixProject do
         "cmd ./dev/docker/toxiproxy/run_fault_injection_suite.sh"
       ],
       "lint.strict": ["credo --config-name strict --all"],
-      "static.analysis": ["lint.packet_seams", "lint.strict", "monorepo.dialyzer"],
+      "static.analysis": [
+        "lint.packet_seams",
+        "lint.strict",
+        "cmd --cd surfaces/citadel_domain_surface mix lint.packet_seams",
+        "cmd --cd surfaces/citadel_domain_surface mix lint.strict",
+        "monorepo.dialyzer"
+      ],
       ci: [
         "deps.get",
         "monorepo.deps.get",
@@ -161,5 +167,5 @@ defmodule Citadel.Workspace.MixProject do
     ]
   end
 
-  defp workspace_project_globs, do: [".", "core/*", "bridges/*", "apps/*"]
+  defp workspace_project_globs, do: [".", "core/*", "bridges/*", "apps/*", "surfaces/*"]
 end

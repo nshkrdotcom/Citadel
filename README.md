@@ -8,6 +8,14 @@ Citadel is the host-local Brain kernel for a generic agentic OS. It accepts stru
 
 This repository is now aligned to the packet-defined non-umbrella workspace. The old single-package scaffold is gone; the package graph and ownership boundaries are the source of truth.
 
+The workspace now also carries a separately publishable northbound typed surface
+package:
+
+- `surfaces/citadel_domain_surface`
+- public namespace: `Citadel.DomainSurface`
+- role: typed host-facing command, query, route, and capability boundary above
+  the Citadel kernel
+
 ## Stack Position
 
 ```text
@@ -61,6 +69,8 @@ citadel/
     coding_assist/
     operator_assist/
     host_surface_harness/
+  surfaces/
+    citadel_domain_surface/
 ```
 
 Package ownership is explicit:
@@ -68,6 +78,8 @@ Package ownership is explicit:
 - `core/*` owns values, contracts, policy packs, runtime coordination, and conformance.
 - `bridges/*` owns adapter code only.
 - `apps/*` owns thin proof-app composition shells and stays above the kernel.
+- `surfaces/*` owns northbound publishable typed surfaces that sit above the
+  kernel without becoming second cores.
 
 The third proof app, `apps/host_surface_harness`, is part of the workspace from day one. It exists to prove host/kernel seams, multi-session behavior, and structured ingress above Citadel without pushing those concerns into the core.
 
@@ -125,13 +137,17 @@ The Wave 9 hardening posture is enforced in code and CI:
 
 - `mix lint.packet_seams` fails on `String.to_atom/1` anywhere in packet-critical workspace paths and blocks raw `map()` or `keyword()` public seam specs on the tracked ingress, bridge, runtime, and trace modules.
 - `mix lint.strict` runs a curated high-signal Credo config across the workspace libraries instead of style-noise checks that do not protect packet seams.
+- `mix static.analysis` also runs the `citadel_domain_surface` package-local
+  seam lint and strict lint so the northbound typed boundary keeps its own
+  publication discipline inside the monorepo.
 - `mix monorepo.dialyzer` fans out `mix dialyzer --halt-exit-status` across the real workspace graph through Blitz, so any Dialyzer warning fails the build.
 - `.github/workflows/ci.yml` runs format, compile, packet seam lint, strict lint, Dialyzer, and tests as separate CI steps.
 
 Publication is now finalized as a derivative workspace boundary. The repo-local
 Weld manifest lives at `packaging/weld/citadel.exs`, projects the public
-`citadel` artifact in package-projection mode, keeps `apps/*` and
-`core/conformance` out of the default artifact, carries the
+`citadel` artifact in package-projection mode, keeps `apps/*`,
+`core/conformance`, and `surfaces/citadel_domain_surface` out of the default
+artifact, carries the
 `core/jido_integration_v2_contracts` slice in-workspace, and preserves package
 ownership instead of flattening the workspace into a monolith.
 
@@ -174,7 +190,8 @@ Local workspace docs now live in:
 - `docs/README.md`
 - `docs/workspace_topology.md`
 - `docs/shared_contract_dependency_strategy.md`
-- package-level `README.md` files under every `core/*`, `bridges/*`, and `apps/*` package
+- package-level `README.md` files under every `core/*`, `bridges/*`, `apps/*`,
+  and `surfaces/*` package
 
 ## Fault Injection Harness
 

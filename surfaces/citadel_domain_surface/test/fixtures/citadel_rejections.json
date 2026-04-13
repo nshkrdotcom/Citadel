@@ -1,0 +1,56 @@
+[
+  {
+    "rejection_id": "rejection/ingress",
+    "stage": "ingress_normalization",
+    "reason_code": "invalid_shape",
+    "summary": "request rejected during ingress normalization",
+    "retryability": "terminal",
+    "publication_requirement": "host_only",
+    "expected_code": "request_rejected"
+  },
+  {
+    "rejection_id": "rejection/scope",
+    "stage": "scope_resolution",
+    "reason_code": "scope_unavailable",
+    "summary": "scope is not currently available",
+    "retryability": "after_runtime_change",
+    "publication_requirement": "host_only",
+    "expected_code": "scope_rejected"
+  },
+  {
+    "rejection_id": "rejection/service",
+    "stage": "service_admission",
+    "reason_code": "service_hidden",
+    "summary": "service admission rejected the request",
+    "retryability": "after_runtime_change",
+    "publication_requirement": "host_only",
+    "expected_code": "service_rejected"
+  },
+  {
+    "rejection_id": "rejection/planning",
+    "stage": "planning",
+    "reason_code": "boundary_reuse_requires_attached_session",
+    "summary": "boundary reuse requires an attached session",
+    "retryability": "after_input_change",
+    "publication_requirement": "host_only",
+    "expected_code": "planning_rejected"
+  },
+  {
+    "rejection_id": "rejection/policy",
+    "stage": "authority_compilation",
+    "reason_code": "policy_denied",
+    "summary": "policy denied the request",
+    "retryability": "after_governance_change",
+    "publication_requirement": "review_projection",
+    "expected_code": "policy_rejected"
+  },
+  {
+    "rejection_id": "rejection/projection",
+    "stage": "projection",
+    "reason_code": "projection_backend_unavailable",
+    "summary": "projection shaping failed",
+    "retryability": "after_runtime_change",
+    "publication_requirement": "derived_state_attachment",
+    "expected_code": "projection_rejected"
+  }
+]

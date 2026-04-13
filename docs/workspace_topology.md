@@ -35,6 +35,14 @@ Bridge packages stay vertical. They depend on core and runtime surfaces, not on 
 
 App packages remain composition shells. They do not become second cores.
 
+## Surface Packages
+
+- `surfaces/citadel_domain_surface`: typed host-facing command, query, route,
+  admin, and capability surface above the Citadel kernel
+
+Surface packages remain northbound publishable boundaries. They are not kernel
+core packages and they are not bridge packages.
+
 ## Publication Posture
 
 Publication remains derivative of the workspace architecture, but the default
@@ -45,9 +53,14 @@ public artifact is now explicit:
 - mode: package projection, not monolith
 - roots: `core/citadel_runtime`
 - selected bridge closure: all `bridges/*`
-- excluded by default: `apps/*`, `core/conformance`, and the root tooling project
+- excluded by default: `apps/*`, `core/conformance`,
+  `surfaces/citadel_domain_surface`, and the root tooling project
 
 The welded artifact keeps the source workspace authoritative. It projects the
 runtime-facing core packages, the in-workspace shared contract slice, and
 selected bridges without collapsing ownership or turning proof packages into
 runtime dependencies.
+
+`surfaces/citadel_domain_surface` remains directly publishable as its own
+workspace package rather than being absorbed into the default welded `citadel`
+artifact.

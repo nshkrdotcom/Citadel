@@ -28,9 +28,11 @@ defmodule Citadel.Workspace do
     "bridges/memory_bridge",
     "apps/coding_assist",
     "apps/operator_assist",
-    "apps/host_surface_harness"
+    "apps/host_surface_harness",
+    "surfaces/citadel_domain_surface"
   ]
-  @active_project_globs [".", "core/*", "bridges/*", "apps/*"]
+  @active_project_globs [".", "core/*", "bridges/*", "apps/*", "surfaces/*"]
+  @surface_package_paths ["surfaces/citadel_domain_surface"]
   @proof_package_paths [
     "core/conformance",
     "apps/coding_assist",
@@ -42,7 +44,8 @@ defmodule Citadel.Workspace do
     "build_support",
     "core/*/lib",
     "bridges/*/lib",
-    "apps/host_surface_harness/lib"
+    "apps/host_surface_harness/lib",
+    "surfaces/*/lib"
   ]
   @packet_seam_spec_paths [
     "core/citadel_core/lib/citadel/invocation_request.ex",
@@ -98,6 +101,9 @@ defmodule Citadel.Workspace do
 
   @spec proof_package_paths() :: [String.t()]
   def proof_package_paths, do: @proof_package_paths
+
+  @spec surface_package_paths() :: [String.t()]
+  def surface_package_paths, do: @surface_package_paths
 
   @spec static_analysis_paths() :: [String.t()]
   def static_analysis_paths, do: @static_analysis_paths
