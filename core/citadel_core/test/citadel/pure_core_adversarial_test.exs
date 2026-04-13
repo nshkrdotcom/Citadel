@@ -550,7 +550,8 @@ defmodule Citadel.PureCoreAdversarialTest do
           reason_code <- member_of(["policy_denied", "approval_missing", "scope_unavailable"]),
           summary <- identifier("summary"),
           causes <-
-            uniq_list_of(member_of([:input, :runtime_state, :governance, :policy_denial]),
+            small_domain_distinct_list_of(
+              [:input, :runtime_state, :governance, :policy_denial],
               max_length: 3
             ),
           extensions <- json_object(1)
@@ -594,6 +595,29 @@ defmodule Citadel.PureCoreAdversarialTest do
 
   defp optional(generator) do
     one_of([constant(nil), generator])
+  end
+
+  # `uniq_list_of/2` can flake on tiny finite domains while shrinking.
+  # For small enums like rejection causes, sample from the precomputed power set instead.
+  defp small_domain_distinct_list_of(values, opts) do
+    min_length = Keyword.get(opts, :min_length, 0)
+    max_length = Keyword.get(opts, :max_length, length(values))
+
+    values
+    |> small_domain_subsets()
+    |> Enum.filter(fn subset ->
+      subset_length = length(subset)
+      subset_length >= min_length and subset_length <= max_length
+    end)
+    |> member_of()
+  end
+
+  defp small_domain_subsets(values) do
+    values
+    |> Enum.reduce([[]], fn value, subsets ->
+      subsets ++ Enum.map(subsets, &[value | &1])
+    end)
+    |> Enum.map(&Enum.reverse/1)
   end
 
   defp json_object(depth) do
