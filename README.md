@@ -53,6 +53,7 @@ citadel/
     query_bridge/
     signal_bridge/
     boundary_bridge/
+    host_ingress_bridge/
     projection_bridge/
     trace_bridge/
     memory_bridge/
@@ -69,6 +70,12 @@ Package ownership is explicit:
 - `apps/*` owns thin proof-app composition shells and stays above the kernel.
 
 The third proof app, `apps/host_surface_harness`, is part of the workspace from day one. It exists to prove host/kernel seams, multi-session behavior, and structured ingress above Citadel without pushing those concerns into the core.
+
+The public structured host-ingress seam now lives in
+`bridges/host_ingress_bridge`. That package owns the typed host-facing request
+context, accepted-result contract, pure invocation compiler, and the public
+`Citadel.HostIngress` facade that host applications call before the lower
+`jido_integration` seam.
 
 ## Toolchain And Build
 

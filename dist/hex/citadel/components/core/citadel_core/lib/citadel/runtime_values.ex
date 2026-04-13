@@ -454,7 +454,14 @@ defmodule Citadel.ActionOutboxEntry do
   alias Citadel.StalenessRequirements
 
   @schema_version 1
-  @allowed_replay_status [:pending, :dispatched, :completed, :dead_letter, :superseded]
+  @allowed_replay_status [
+    :pending,
+    :dispatched,
+    :submission_accepted,
+    :completed,
+    :dead_letter,
+    :superseded
+  ]
   @allowed_ordering_modes [:strict, :relaxed]
   @allowed_staleness_modes [:requires_check, :stale_exempt]
   @schema [
@@ -464,7 +471,10 @@ defmodule Citadel.ActionOutboxEntry do
     action: {:struct, LocalAction},
     inserted_at: :datetime,
     replay_status: {:enum, @allowed_replay_status},
+    submission_key: :string,
+    submission_receipt_ref: :string,
     durable_receipt_ref: :string,
+    submission_rejection: {:map, :json},
     attempt_count: :non_neg_integer,
     max_attempts: :positive_integer,
     backoff_policy: {:struct, BackoffPolicy},
@@ -478,7 +488,13 @@ defmodule Citadel.ActionOutboxEntry do
   ]
   @fields Keyword.keys(@schema)
 
-  @type replay_status :: :pending | :dispatched | :completed | :dead_letter | :superseded
+  @type replay_status ::
+          :pending
+          | :dispatched
+          | :submission_accepted
+          | :completed
+          | :dead_letter
+          | :superseded
   @type ordering_mode :: :strict | :relaxed
   @type staleness_mode :: :requires_check | :stale_exempt
 
@@ -489,7 +505,10 @@ defmodule Citadel.ActionOutboxEntry do
           action: LocalAction.t(),
           inserted_at: DateTime.t(),
           replay_status: replay_status(),
+          submission_key: String.t() | nil,
+          submission_receipt_ref: String.t() | nil,
           durable_receipt_ref: String.t() | nil,
+          submission_rejection: map() | nil,
           attempt_count: non_neg_integer(),
           max_attempts: pos_integer(),
           backoff_policy: BackoffPolicy.t(),
@@ -521,7 +540,10 @@ defmodule Citadel.ActionOutboxEntry do
             action: nil,
             inserted_at: nil,
             replay_status: :pending,
+            submission_key: nil,
+            submission_receipt_ref: nil,
             durable_receipt_ref: nil,
+            submission_rejection: nil,
             attempt_count: 0,
             max_attempts: 1,
             backoff_policy: nil,
@@ -578,6 +600,26 @@ defmodule Citadel.ActionOutboxEntry do
         Value.required(attrs, :replay_status, "Citadel.ActionOutboxEntry", fn value ->
           Value.enum!(value, @allowed_replay_status, "Citadel.ActionOutboxEntry.replay_status")
         end),
+      submission_key:
+        Value.optional(
+          attrs,
+          :submission_key,
+          "Citadel.ActionOutboxEntry",
+          fn value ->
+            Value.string!(value, "Citadel.ActionOutboxEntry.submission_key")
+          end,
+          nil
+        ),
+      submission_receipt_ref:
+        Value.optional(
+          attrs,
+          :submission_receipt_ref,
+          "Citadel.ActionOutboxEntry",
+          fn value ->
+            Value.string!(value, "Citadel.ActionOutboxEntry.submission_receipt_ref")
+          end,
+          nil
+        ),
       durable_receipt_ref:
         Value.optional(
           attrs,
@@ -585,6 +627,16 @@ defmodule Citadel.ActionOutboxEntry do
           "Citadel.ActionOutboxEntry",
           fn value ->
             Value.string!(value, "Citadel.ActionOutboxEntry.durable_receipt_ref")
+          end,
+          nil
+        ),
+      submission_rejection:
+        Value.optional(
+          attrs,
+          :submission_rejection,
+          "Citadel.ActionOutboxEntry",
+          fn value ->
+            Value.json_object!(value, "Citadel.ActionOutboxEntry.submission_rejection")
           end,
           nil
         ),
@@ -665,6 +717,7 @@ defmodule Citadel.ActionOutboxEntry do
     }
 
     validate_staleness_mode!(entry)
+    validate_submission_state!(entry)
     validate_terminal_state!(entry)
     validate_attempt_bounds!(entry)
     entry
@@ -678,7 +731,10 @@ defmodule Citadel.ActionOutboxEntry do
       action: LocalAction.dump(entry.action),
       inserted_at: entry.inserted_at,
       replay_status: entry.replay_status,
+      submission_key: entry.submission_key,
+      submission_receipt_ref: entry.submission_receipt_ref,
       durable_receipt_ref: entry.durable_receipt_ref,
+      submission_rejection: entry.submission_rejection,
       attempt_count: entry.attempt_count,
       max_attempts: entry.max_attempts,
       backoff_policy: BackoffPolicy.dump(entry.backoff_policy),
@@ -696,6 +752,51 @@ defmodule Citadel.ActionOutboxEntry do
     do: true
 
   def replayable?(%__MODULE__{}), do: false
+
+  defp validate_submission_state!(%__MODULE__{
+         replay_status: :submission_accepted,
+         submission_key: nil
+       }) do
+    raise ArgumentError,
+          "Citadel.ActionOutboxEntry submission-accepted entries require submission_key"
+  end
+
+  defp validate_submission_state!(%__MODULE__{
+         replay_status: :submission_accepted,
+         submission_receipt_ref: nil
+       }) do
+    raise ArgumentError,
+          "Citadel.ActionOutboxEntry submission-accepted entries require submission_receipt_ref"
+  end
+
+  defp validate_submission_state!(%__MODULE__{
+         replay_status: :submission_accepted,
+         submission_rejection: rejection
+       })
+       when not is_nil(rejection) do
+    raise ArgumentError,
+          "Citadel.ActionOutboxEntry submission-accepted entries must not carry submission_rejection"
+  end
+
+  defp validate_submission_state!(%__MODULE__{
+         submission_receipt_ref: receipt_ref,
+         submission_key: nil
+       })
+       when not is_nil(receipt_ref) do
+    raise ArgumentError,
+          "Citadel.ActionOutboxEntry submission_receipt_ref requires submission_key"
+  end
+
+  defp validate_submission_state!(%__MODULE__{
+         submission_rejection: rejection,
+         submission_key: nil
+       })
+       when not is_nil(rejection) do
+    raise ArgumentError,
+          "Citadel.ActionOutboxEntry submission_rejection requires submission_key"
+  end
+
+  defp validate_submission_state!(entry), do: entry
 
   defp validate_staleness_mode!(%__MODULE__{
          staleness_mode: :requires_check,

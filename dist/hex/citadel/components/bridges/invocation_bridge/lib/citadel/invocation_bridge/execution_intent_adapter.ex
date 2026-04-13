@@ -45,6 +45,7 @@ defmodule Citadel.InvocationBridge.ExecutionIntentAdapter do
       Map.merge(
         %{
           "causal_group_id" => entry.causal_group_id,
+          "selected_step_id" => request.selected_step_id,
           "downstream_scope" =>
             request.topology_intent.routing_hints["downstream_scope"] ||
               "#{execution_intent_family}:#{request.target_id}"

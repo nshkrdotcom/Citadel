@@ -5,7 +5,7 @@ Citadel is a non-umbrella Elixir monorepo with explicit package ownership.
 ## Core Packages
 
 - `core/contract_core`: neutral identifiers, host-local refs, and RFC 8785 / JCS canonicalization helpers
-- `core/jido_integration_v2_contracts`: workspace-carried higher-order lineage contract slice
+- `core/jido_integration_v2_contracts`: workspace-carried higher-order shared lineage and durable submission contract slice
 - `core/authority_contract`: Brain-authored `AuthorityDecision.v1` schema ownership
 - `core/execution_governance_contract`: Brain-to-Spine `ExecutionGovernance.v1` packet ownership
 - `core/observability_contract`: trace and telemetry vocabulary ownership
@@ -17,6 +17,7 @@ Citadel is a non-umbrella Elixir monorepo with explicit package ownership.
 ## Bridge Packages
 
 - `bridges/invocation_bridge`: invocation handoff and lower-seam alignment placeholder
+- `bridges/jido_integration_bridge`: Citadel-owned Brain-to-Spine durable submission adapter
 - `bridges/query_bridge`: durable-state rehydration adapters
 - `bridges/signal_bridge`: signal ingress normalization adapters
 - `bridges/boundary_bridge`: boundary lifecycle and metadata adapters

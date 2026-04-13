@@ -11,13 +11,20 @@ defmodule Citadel.InvocationBridge do
   alias Citadel.ExecutionIntentEnvelope.V2, as: ExecutionIntentEnvelopeV2
   alias Citadel.InvocationBridge.ExecutionIntentAdapter
   alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
+  alias Jido.Integration.V2.SubmissionAcceptance
+  alias Jido.Integration.V2.SubmissionRejection
 
   defmodule Downstream do
     @moduledoc false
 
     alias Citadel.ExecutionIntentEnvelope.V2
+    alias Jido.Integration.V2.SubmissionAcceptance
+    alias Jido.Integration.V2.SubmissionRejection
 
-    @callback submit_execution_intent(V2.t()) :: {:ok, String.t()} | {:error, atom()}
+    @callback submit_execution_intent(V2.t()) ::
+                {:accepted, SubmissionAcceptance.t()}
+                | {:rejected, SubmissionRejection.t()}
+                | {:error, atom()}
   end
 
   @manifest %{
@@ -111,7 +118,9 @@ defmodule Citadel.InvocationBridge do
           InvocationRequestV2.t(),
           ActionOutboxEntry.t()
         ) ::
-          {:ok, String.t(), t()} | {:error, atom(), t()}
+          {:accepted, SubmissionAcceptance.t(), t()}
+          | {:rejected, SubmissionRejection.t(), t()}
+          | {:error, atom(), t()}
   def submit(
         %__MODULE__{} = bridge,
         %InvocationRequestV2{} = request,
@@ -129,7 +138,9 @@ defmodule Citadel.InvocationBridge do
           InvocationRequestV2.t(),
           ActionOutboxEntry.t()
         ) ::
-          {:ok, String.t(), t()} | {:error, atom(), t()}
+          {:accepted, SubmissionAcceptance.t(), t()}
+          | {:rejected, SubmissionRejection.t(), t()}
+          | {:error, atom(), t()}
   def submit_invocation(
         %__MODULE__{} = bridge,
         %InvocationRequestV2{} = request,
@@ -161,34 +172,40 @@ defmodule Citadel.InvocationBridge do
     envelope = bridge.execution_intent_adapter.project!(request, entry)
     scope_key = scope_key(bridge.circuit_policy, envelope)
 
-    case BridgeState.begin_operation(bridge.state_ref, scope_key, dedupe_key: entry.entry_id) do
-      {:duplicate, receipt_ref} ->
-        {:ok, receipt_ref, bridge}
-
+    case BridgeState.begin_operation(bridge.state_ref, scope_key) do
       {:error, reason} ->
         {:error, reason, bridge}
 
       {:ok, token} ->
         case bridge.downstream.submit_execution_intent(envelope) do
-          {:ok, receipt_ref} when is_binary(receipt_ref) ->
-            case BridgeState.finish_operation(bridge.state_ref, token, {:ok, receipt_ref}) do
-              {:ok, ^receipt_ref} -> {:ok, receipt_ref, bridge}
-              {:error, :operation_not_found} -> {:ok, receipt_ref, bridge}
+          {:accepted, %SubmissionAcceptance{} = acceptance} ->
+            case BridgeState.finish_operation(bridge.state_ref, token, {:accepted, acceptance}) do
+              {:accepted, %SubmissionAcceptance{} = acceptance_result} ->
+                {:accepted, acceptance_result, bridge}
+
+              {:error, :operation_not_found} ->
+                {:accepted, acceptance, bridge}
+            end
+
+          {:rejected, %SubmissionRejection{} = rejection} ->
+            case BridgeState.finish_operation(bridge.state_ref, token, {:rejected, rejection}) do
+              {:rejected, %SubmissionRejection{} = rejection_result} ->
+                {:rejected, rejection_result, bridge}
+
+              {:error, :operation_not_found} ->
+                {:rejected, rejection, bridge}
             end
 
           {:error, reason} ->
-            case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
-              {:error, ^reason} -> {:error, reason, bridge}
-              {:error, :operation_not_found} -> {:error, reason, bridge}
-            end
+            finish_operation_error(bridge, token, reason)
+
+          {:ok, receipt_ref} when is_binary(receipt_ref) ->
+            _ = receipt_ref
+            finish_operation_error(bridge, token, :legacy_ok_result)
 
           other ->
             reason = normalize_error(other)
-
-            case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
-              {:error, ^reason} -> {:error, reason, bridge}
-              {:error, :operation_not_found} -> {:error, reason, bridge}
-            end
+            finish_operation_error(bridge, token, reason)
         end
     end
   end
@@ -214,6 +231,13 @@ defmodule Citadel.InvocationBridge do
          %InvocationRequestV2{schema_version: schema_version}
        ) do
     schema_version not in supported_versions
+  end
+
+  defp finish_operation_error(bridge, token, reason) do
+    case BridgeState.finish_operation(bridge.state_ref, token, {:error, reason}) do
+      {:error, ^reason} -> {:error, reason, bridge}
+      {:error, :operation_not_found} -> {:error, reason, bridge}
+    end
   end
 
   defp normalize_error({:error, reason}) when is_atom(reason), do: reason

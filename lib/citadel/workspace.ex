@@ -18,6 +18,7 @@ defmodule Citadel.Workspace do
     "core/citadel_runtime",
     "core/conformance",
     "bridges/invocation_bridge",
+    "bridges/host_ingress_bridge",
     "bridges/jido_integration_bridge",
     "bridges/query_bridge",
     "bridges/signal_bridge",
@@ -60,6 +61,7 @@ defmodule Citadel.Workspace do
   @tooling_project_paths ["."]
   @public_bridge_package_paths [
     "bridges/invocation_bridge",
+    "bridges/host_ingress_bridge",
     "bridges/jido_integration_bridge",
     "bridges/query_bridge",
     "bridges/signal_bridge",

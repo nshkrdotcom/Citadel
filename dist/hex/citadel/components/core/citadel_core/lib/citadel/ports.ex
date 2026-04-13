@@ -5,8 +5,13 @@ defmodule Citadel.Ports.InvocationSink do
 
   alias Citadel.ActionOutboxEntry
   alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
+  alias Jido.Integration.V2.SubmissionAcceptance
+  alias Jido.Integration.V2.SubmissionRejection
 
-  @type submission_result :: {:ok, String.t()} | {:error, atom()}
+  @type submission_result ::
+          {:accepted, SubmissionAcceptance.t()}
+          | {:rejected, SubmissionRejection.t()}
+          | {:error, atom()}
 
   @callback submit_invocation(InvocationRequestV2.t(), ActionOutboxEntry.t()) ::
               submission_result()

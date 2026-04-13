@@ -11,7 +11,9 @@ defmodule Citadel.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       erlc_paths: [
         "components/bridges/boundary_bridge/src",
+        "components/bridges/host_ingress_bridge/src",
         "components/bridges/invocation_bridge/src",
+        "components/bridges/jido_integration_bridge/src",
         "components/bridges/memory_bridge/src",
         "components/bridges/projection_bridge/src",
         "components/bridges/query_bridge/src",
@@ -43,7 +45,9 @@ defmodule Citadel.MixProject do
       "lib",
       "config",
       "components/bridges/boundary_bridge/lib",
+      "components/bridges/host_ingress_bridge/lib",
       "components/bridges/invocation_bridge/lib",
+      "components/bridges/jido_integration_bridge/lib",
       "components/bridges/memory_bridge/lib",
       "components/bridges/projection_bridge/lib",
       "components/bridges/query_bridge/lib",
@@ -71,7 +75,9 @@ defmodule Citadel.MixProject do
       "lib",
       "config",
       "components/bridges/boundary_bridge/lib",
+      "components/bridges/host_ingress_bridge/lib",
       "components/bridges/invocation_bridge/lib",
+      "components/bridges/jido_integration_bridge/lib",
       "components/bridges/memory_bridge/lib",
       "components/bridges/projection_bridge/lib",
       "components/bridges/query_bridge/lib",
@@ -92,6 +98,7 @@ defmodule Citadel.MixProject do
       {:aitrace, "~> 0.1.0"},
       {:jcs, "~> 0.2.0"},
       {:telemetry, "~> 1.3"},
+      {:zoi, "~> 0.17"},
       {:ex_doc, "~> 0.40", [only: :dev, runtime: false]}
     ]
   end
@@ -114,7 +121,9 @@ defmodule Citadel.MixProject do
         "README.md",
         "assets/citadel.svg",
         "components/bridges/boundary_bridge",
+        "components/bridges/host_ingress_bridge",
         "components/bridges/invocation_bridge",
+        "components/bridges/jido_integration_bridge",
         "components/bridges/memory_bridge",
         "components/bridges/projection_bridge",
         "components/bridges/query_bridge",

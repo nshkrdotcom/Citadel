@@ -3,68 +3,67 @@ defmodule Jido.Integration.V2.EvidenceRef do
   Stable reference to a source record backing a packet, decision, or interpretation.
   """
 
+  alias Jido.Integration.V2.Contracts
+  alias Jido.Integration.V2.Schema
   alias Jido.Integration.V2.SubjectRef
-  alias Jido.Integration.V2.Support
 
   @kinds [:run, :attempt, :event, :artifact, :trigger, :target, :connection, :install]
 
-  @type kind :: :run | :attempt | :event | :artifact | :trigger | :target | :connection | :install
+  @schema Zoi.struct(
+            __MODULE__,
+            %{
+              ref:
+                Contracts.non_empty_string_schema("evidence_ref.ref")
+                |> Zoi.nullish()
+                |> Zoi.optional(),
+              kind: Contracts.enumish_schema(@kinds, "evidence_ref.kind"),
+              id: Contracts.non_empty_string_schema("evidence_ref.id"),
+              packet_ref: Contracts.non_empty_string_schema("evidence_ref.packet_ref"),
+              subject: Contracts.struct_schema(SubjectRef, "evidence_ref.subject"),
+              metadata: Contracts.any_map_schema() |> Zoi.default(%{})
+            },
+            coerce: true
+          )
 
-  @type t :: %__MODULE__{
-          ref: String.t(),
-          kind: kind(),
-          id: String.t(),
-          packet_ref: String.t(),
-          subject: SubjectRef.t(),
-          metadata: map()
-        }
+  @type kind ::
+          :run | :attempt | :event | :artifact | :trigger | :target | :connection | :install
 
-  @enforce_keys [:kind, :id, :packet_ref, :subject]
-  defstruct ref: nil, kind: nil, id: nil, packet_ref: nil, subject: nil, metadata: %{}
+  @type t :: unquote(Zoi.type_spec(@schema))
+
+  @enforce_keys Zoi.Struct.enforce_keys(@schema)
+  defstruct Zoi.Struct.struct_fields(@schema)
+
+  @spec schema() :: Zoi.schema()
+  def schema, do: @schema
 
   @spec new(map() | keyword() | t()) :: {:ok, t()} | {:error, Exception.t()}
   def new(%__MODULE__{} = evidence_ref), do: normalize(evidence_ref)
 
-  def new(attrs) do
-    Support.wrap_new(__MODULE__, fn ->
-      attrs = Support.attrs!(attrs, __MODULE__)
+  def new(attrs) when is_map(attrs) or is_list(attrs) do
+    attrs = attrs |> Map.new() |> prepare_attrs()
 
-      %__MODULE__{
-        ref: Support.fetch(attrs, :ref),
-        kind:
-          Support.enum!(
-            Support.fetch!(attrs, :kind, "evidence_ref.kind"),
-            @kinds,
-            "evidence_ref.kind"
-          ),
-        id:
-          Support.non_empty_string!(
-            Support.fetch!(attrs, :id, "evidence_ref.id"),
-            "evidence_ref.id"
-          ),
-        packet_ref:
-          Support.non_empty_string!(
-            Support.fetch!(attrs, :packet_ref, "evidence_ref.packet_ref"),
-            "evidence_ref.packet_ref"
-          ),
-        subject:
-          Support.struct!(
-            Support.fetch!(attrs, :subject, "evidence_ref.subject"),
-            SubjectRef,
-            "evidence_ref.subject"
-          ),
-        metadata: Support.map!(Support.fetch(attrs, :metadata) || %{}, "evidence_ref.metadata")
-      }
-      |> normalize!()
-    end)
+    __MODULE__
+    |> Schema.new(@schema, attrs)
+    |> Schema.refine_new(&normalize/1)
   end
 
+  def new(attrs), do: Schema.new(__MODULE__, @schema, attrs)
+
   @spec new!(map() | keyword() | t()) :: t()
-  def new!(%__MODULE__{} = evidence_ref), do: normalize(evidence_ref) |> Support.unwrap_new!()
-  def new!(attrs), do: new(attrs) |> Support.unwrap_new!()
+  def new!(%__MODULE__{} = evidence_ref),
+    do: normalize(evidence_ref) |> then(fn {:ok, value} -> value end)
+
+  def new!(attrs) when is_map(attrs) or is_list(attrs) do
+    case new(attrs) do
+      {:ok, evidence_ref} -> evidence_ref
+      {:error, %ArgumentError{} = error} -> raise error
+    end
+  end
+
+  def new!(attrs), do: Schema.new!(__MODULE__, @schema, attrs) |> new!()
 
   @spec ref(kind(), String.t()) :: String.t()
-  def ref(kind, id), do: Support.reference_uri("evidence", kind, id)
+  def ref(kind, id), do: Contracts.reference_uri("evidence", kind, id)
 
   @spec dump(t()) :: %{
           ref: String.t(),
@@ -85,24 +84,40 @@ defmodule Jido.Integration.V2.EvidenceRef do
     }
   end
 
-  defp normalize(%__MODULE__{} = evidence_ref) do
-    Support.wrap_new(__MODULE__, fn -> normalize!(evidence_ref) end)
+  defp prepare_attrs(attrs) do
+    Map.update(attrs, :subject, nil, fn
+      %SubjectRef{} = subject -> subject
+      subject when is_map(subject) -> SubjectRef.new!(subject)
+      subject -> subject
+    end)
   end
 
-  defp normalize!(%__MODULE__{} = evidence_ref) do
+  defp normalize(%__MODULE__{} = evidence_ref) do
     expected_ref = ref(evidence_ref.kind, evidence_ref.id)
 
     if is_nil(evidence_ref.ref) or evidence_ref.ref == expected_ref do
-      %__MODULE__{
-        evidence_ref
-        | ref: expected_ref,
-          packet_ref:
-            Support.non_empty_string!(evidence_ref.packet_ref, "evidence_ref.packet_ref"),
-          metadata: Support.map!(evidence_ref.metadata, "evidence_ref.metadata")
-      }
+      {:ok,
+       %__MODULE__{
+         evidence_ref
+         | ref: expected_ref,
+           packet_ref:
+             Contracts.validate_non_empty_string!(
+               evidence_ref.packet_ref,
+               "evidence_ref.packet_ref"
+             ),
+           metadata: normalize_metadata(evidence_ref.metadata)
+       }}
     else
-      raise ArgumentError,
-            "evidence_ref.ref must match kind and id: #{inspect({evidence_ref.kind, evidence_ref.id, evidence_ref.ref})}"
+      {:error,
+       ArgumentError.exception(
+         "evidence_ref.ref must match kind and id: #{inspect({evidence_ref.kind, evidence_ref.id, evidence_ref.ref})}"
+       )}
     end
+  end
+
+  defp normalize_metadata(metadata) when is_map(metadata), do: metadata
+
+  defp normalize_metadata(metadata) do
+    raise ArgumentError, "evidence_ref.metadata must be a map, got: #{inspect(metadata)}"
   end
 end

@@ -9,7 +9,9 @@
       "README.md",
       "assets/citadel.svg",
       "components/bridges/boundary_bridge",
+      "components/bridges/host_ingress_bridge",
       "components/bridges/invocation_bridge",
+      "components/bridges/jido_integration_bridge",
       "components/bridges/memory_bridge",
       "components/bridges/projection_bridge",
       "components/bridges/query_bridge",
@@ -32,15 +34,24 @@
       "mix.exs",
       "projection.lock.json"
     ],
-    "git_revision": "4f33fdc5542b21e7cfc8303fb1bb6500b762af15",
-    "tree_digest": "14159967eb9ac965e0b94a39412fa039703b936f1c5c5bf7260852d9ddd2b1d1",
+    "git_revision": "d49a068608f6c33b8063e219e4f665786d6de81d",
+    "tree_digest": "35f38bd322c078c3058e23622f1473ed9818afd1de4e54d3363a4a3dd4b5877c",
     "copied_files": [
       ".credo.exs",
       ".formatter.exs",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/boundary_bridge/lib/citadel/boundary_bridge.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/boundary_bridge/lib/citadel/boundary_bridge/boundary_projection_adapter.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/host_ingress_bridge/lib/citadel/host_ingress.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/host_ingress_bridge/lib/citadel/host_ingress/accepted.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/host_ingress_bridge/lib/citadel/host_ingress/invocation_compiler.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/host_ingress_bridge/lib/citadel/host_ingress/invocation_payload.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/host_ingress_bridge/lib/citadel/host_ingress/request_context.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/invocation_bridge/lib/citadel/invocation_bridge.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/invocation_bridge/lib/citadel/invocation_bridge/execution_intent_adapter.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/jido_integration_bridge/lib/citadel/jido_integration_bridge.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/jido_integration_bridge/lib/citadel/jido_integration_bridge/brain_invocation_adapter.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/jido_integration_bridge/lib/citadel/jido_integration_bridge/invocation_downstream.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/jido_integration_bridge/lib/citadel/jido_integration_bridge/lineage_codec.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/memory_bridge/lib/citadel/memory_bridge.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/projection_bridge/lib/citadel/projection_bridge.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/projection_bridge/lib/citadel/projection_bridge/derived_state_attachment_adapter.ex",
@@ -91,11 +102,22 @@
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/contract_core/lib/citadel/contract_core/value.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/execution_governance_contract/lib/citadel/execution_governance/v1.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/execution_governance_contract/lib/citadel/execution_governance_contract.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/authority_audit_envelope.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/brain_invocation.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/canonical_json.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/contracts.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/derived_state_attachment.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/evidence_ref.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/execution_governance_projection.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/execution_governance_projection/compiler.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/execution_governance_projection/verifier.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/governance_ref.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/review_projection.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/schema.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/subject_ref.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/submission_acceptance.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/submission_identity.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/submission_rejection.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_v2_contracts/lib/jido/integration/v2/support.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract/telemetry.ex",
@@ -140,7 +162,9 @@
         "apps/host_surface_harness",
         "apps/operator_assist",
         "bridges/boundary_bridge",
+        "bridges/host_ingress_bridge",
         "bridges/invocation_bridge",
+        "bridges/jido_integration_bridge",
         "bridges/memory_bridge",
         "bridges/projection_bridge",
         "bridges/query_bridge",
@@ -165,7 +189,7 @@
       ],
       "root_project?": true
     },
-    "project_count": 20
+    "project_count": 22
   },
   "graph": {
     "edges": [
@@ -377,6 +401,41 @@
         "app": "citadel_authority_contract",
         "to": "core/authority_contract",
         "requirement": null,
+        "from": "bridges/host_ingress_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "bridges/host_ingress_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_runtime",
+        "to": "core/citadel_runtime",
+        "requirement": null,
+        "from": "bridges/host_ingress_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_execution_governance_contract",
+        "to": "core/execution_governance_contract",
+        "requirement": null,
+        "from": "bridges/host_ingress_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_policy_packs",
+        "to": "core/policy_packs",
+        "requirement": null,
+        "from": "bridges/host_ingress_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_authority_contract",
+        "to": "core/authority_contract",
+        "requirement": null,
         "from": "bridges/invocation_bridge"
       },
       {
@@ -413,6 +472,41 @@
         "to": "core/observability_contract",
         "requirement": null,
         "from": "bridges/invocation_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_invocation_bridge",
+        "to": "bridges/invocation_bridge",
+        "requirement": null,
+        "from": "bridges/jido_integration_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_authority_contract",
+        "to": "core/authority_contract",
+        "requirement": null,
+        "from": "bridges/jido_integration_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "bridges/jido_integration_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_execution_governance_contract",
+        "to": "core/execution_governance_contract",
+        "requirement": null,
+        "from": "bridges/jido_integration_bridge"
+      },
+      {
+        "kind": "runtime",
+        "app": "jido_integration_v2_contracts",
+        "to": "core/jido_integration_v2_contracts",
+        "requirement": null,
+        "from": "bridges/jido_integration_bridge"
       },
       {
         "kind": "runtime",
@@ -737,7 +831,7 @@
         "from": "core/policy_packs"
       }
     ],
-    "digest": "dd446aa45d3cc4bba00def326ea8e5eba85b5d6f4bbc88e80f697940c243fc92",
+    "digest": "39e0b20e08a35d51f92cbc79b90c56e711357495f79c81059934806cacc1c791",
     "excluded_projects": [
       ".",
       "apps/coding_assist",
@@ -747,7 +841,9 @@
     ],
     "selected_projects": [
       "bridges/boundary_bridge",
+      "bridges/host_ingress_bridge",
       "bridges/invocation_bridge",
+      "bridges/jido_integration_bridge",
       "bridges/memory_bridge",
       "bridges/projection_bridge",
       "bridges/query_bridge",

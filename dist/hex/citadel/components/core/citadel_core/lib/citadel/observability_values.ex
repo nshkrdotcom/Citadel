@@ -238,6 +238,58 @@ defmodule Citadel.RuntimeObservation do
     }
   end
 
+  @doc """
+  Returns the stable upper-consumer field set for structured runtime reads.
+  """
+  def stable_read_fields do
+    [
+      :observation_id,
+      :request_id,
+      :session_id,
+      :signal_id,
+      :signal_cursor,
+      :runtime_ref_id,
+      :event_kind,
+      :event_at,
+      :status,
+      :subject_ref,
+      :evidence_refs,
+      :governance_refs
+    ]
+  end
+
+  @doc """
+  Returns the wake reason surface used by semantic and northbound consumers.
+  """
+  def wake_reason(%__MODULE__{} = observation) do
+    %{
+      event_kind: observation.event_kind,
+      status: observation.status,
+      subject_kind: observation.subject_ref.kind,
+      subject_id: observation.subject_ref.id
+    }
+  end
+
+  @doc """
+  Returns the stable structured read descriptor for one observation.
+  """
+  def read_descriptor(%__MODULE__{} = observation) do
+    %{
+      observation_id: observation.observation_id,
+      request_id: observation.request_id,
+      session_id: observation.session_id,
+      signal_id: observation.signal_id,
+      signal_cursor: observation.signal_cursor,
+      runtime_ref_id: observation.runtime_ref_id,
+      event_kind: observation.event_kind,
+      event_at: observation.event_at,
+      status: observation.status,
+      subject_ref: SubjectRef.dump(observation.subject_ref),
+      evidence_ref_count: length(observation.evidence_refs),
+      governance_ref_count: length(observation.governance_refs)
+    }
+  end
+
   defp validate_payload!(payload) do
     offending_keys =
       payload
