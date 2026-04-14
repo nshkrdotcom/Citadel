@@ -30,7 +30,7 @@ defmodule Citadel.Workspace.MixProject do
   defp deps do
     [
       {:blitz, "~> 0.2.0", runtime: false},
-      {:weld, "~> 0.5.0", runtime: false},
+      {:weld, "~> 0.7.0", runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.40.1", only: :dev, runtime: false}
@@ -71,6 +71,14 @@ defmodule Citadel.Workspace.MixProject do
     ]
 
     [
+      "weld.inspect": ["weld.inspect packaging/weld/citadel.exs"],
+      "weld.verify": ["weld.verify packaging/weld/citadel.exs"],
+      "weld.release.prepare": ["weld.release.prepare packaging/weld/citadel.exs"],
+      "weld.release.track": ["weld.release.track packaging/weld/citadel.exs"],
+      "weld.release.archive": ["weld.release.archive packaging/weld/citadel.exs"],
+      "release.prepare": ["weld.release.prepare"],
+      "release.track": ["weld.release.track"],
+      "release.archive": ["weld.release.archive"],
       "hardening.pure_core.adversarial": [
         "cmd --cd core/policy_packs mix hardening.adversarial",
         "cmd --cd core/citadel_core mix hardening.adversarial"
@@ -100,7 +108,8 @@ defmodule Citadel.Workspace.MixProject do
         "monorepo.format --check-formatted",
         "monorepo.compile",
         "static.analysis",
-        "monorepo.test"
+        "monorepo.test",
+        "weld.verify"
       ],
       "docs.root": ["docs"]
     ] ++ monorepo_aliases ++ mr_aliases

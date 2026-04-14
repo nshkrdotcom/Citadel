@@ -35,7 +35,8 @@ across its runtime-facing seams:
   `Jido.Integration.V2.BrainInvocation`
 - copied upstream validation helpers:
   `Jido.Integration.V2.Contracts`,
-  `Jido.Integration.V2.Schema`
+  the shared schema helper module from the `jido_integration_v2_contracts`
+  package
 
 ## Publication Rule
 

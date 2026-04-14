@@ -31,11 +31,14 @@ tracks inside the same monorepo.
 Use the repo-local Weld manifest instead of hand-built packaging steps:
 
 ```bash
-mix weld.inspect packaging/weld/citadel.exs
-mix weld.verify packaging/weld/citadel.exs
-mix weld.release.prepare packaging/weld/citadel.exs
-mix weld.release.archive packaging/weld/citadel.exs
+mix release.prepare
+mix release.track
+mix release.archive
 ```
+
+`mix release.track` updates the orphan-backed `projection/citadel` branch so
+downstream repos can pin a real generated-source ref before any formal release
+boundary exists.
 
 `mix weld.verify` is the packet-facing publication gate. It projects the
 artifact, runs verification against the generated package, and confirms that

@@ -2,6 +2,7 @@ defmodule Citadel.WorkspaceTest do
   use ExUnit.Case, async: true
 
   alias Citadel.Workspace
+  alias Citadel.Workspace.MixProject
   alias Weld
 
   test "tracks the packet workspace package contract on disk" do
@@ -22,6 +23,18 @@ defmodule Citadel.WorkspaceTest do
 
   test "pins the packet toolchain baseline" do
     assert Workspace.toolchain() == %{elixir: "~> 1.19", otp: "28"}
+  end
+
+  test "uses the released Weld 0.7.0 line directly" do
+    assert {:weld, "~> 0.7.0", runtime: false} in MixProject.project()[:deps]
+  end
+
+  test "exposes the release aliases for projection tracking" do
+    aliases = MixProject.project()[:aliases]
+
+    assert Keyword.fetch!(aliases, :"release.prepare") == ["weld.release.prepare"]
+    assert Keyword.fetch!(aliases, :"release.track") == ["weld.release.track"]
+    assert Keyword.fetch!(aliases, :"release.archive") == ["weld.release.archive"]
   end
 
   test "exposes an explicit shared-contract dependency strategy" do
@@ -86,7 +99,7 @@ defmodule Citadel.WorkspaceTest do
 
   test "weld manifest can be inspected through the mix task entrypoint" do
     {output, 0} =
-      System.cmd("mix", ["weld.inspect", Workspace.publication_manifest_path()],
+      System.cmd("mix", ["weld.inspect"],
         env: [
           {"CITADEL_JIDO_INTEGRATION_CONTRACTS_PATH", "published"},
           {"AITRACE_PATH", "published"}

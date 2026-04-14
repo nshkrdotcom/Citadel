@@ -99,7 +99,7 @@ Citadel is pinned to Elixir `~> 1.19` and OTP 28. The repo-level `.tool-versions
 The root Mix project is a tooling-only workspace orchestrator. Wave 1 materializes the packet-pinned workspace tooling and dependency posture explicitly:
 
 - `{:blitz, "~> 0.2.0", runtime: false}` for workspace fanout
-- `{:weld, "~> 0.5.0", runtime: false}` for repo-local package projection and release preparation
+- `{:weld, "~> 0.7.0", runtime: false}` for repo-local package projection and release preparation
 - `{:jcs, "~> 0.2.0"}` in `core/contract_core` for RFC 8785 / JCS ownership
 
 Common commands:
@@ -154,11 +154,14 @@ ownership instead of flattening the workspace into a monolith.
 Common publication commands:
 
 ```bash
-mix weld.inspect packaging/weld/citadel.exs
-mix weld.verify packaging/weld/citadel.exs
-mix weld.release.prepare packaging/weld/citadel.exs
-mix weld.release.archive packaging/weld/citadel.exs
+mix release.prepare
+mix release.track
+mix release.archive
 ```
+
+`mix release.track` updates the orphan-backed `projection/citadel` branch so
+downstream repos can pin a real generated-source ref before any formal release
+boundary exists.
 
 ## Shared Contract Strategy
 
