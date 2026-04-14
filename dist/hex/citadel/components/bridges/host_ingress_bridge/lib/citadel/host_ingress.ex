@@ -7,6 +7,8 @@ defmodule Citadel.HostIngress do
   alias Citadel.HostIngress.Accepted
   alias Citadel.HostIngress.InvocationCompiler
   alias Citadel.HostIngress.RequestContext
+  alias Citadel.HostIngress.RunRequest
+  alias Citadel.HostIngress.RunRequestLowering
   alias Citadel.IntentEnvelope
   alias Citadel.PersistedSessionBlob
   alias Citadel.PersistedSessionEnvelope
@@ -25,6 +27,7 @@ defmodule Citadel.HostIngress do
     owns: [
       :public_host_ingress_surface,
       :structured_ingress_compilation,
+      :higher_order_run_request_lowering,
       :durable_invocation_enqueue
     ],
     internal_dependencies: [
@@ -104,6 +107,49 @@ defmodule Citadel.HostIngress do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  @spec compile_run_request(
+          RunRequest.t() | RunRequest.attrs(),
+          RequestContext.t() | map() | keyword(),
+          [map()],
+          keyword()
+        ) ::
+          {:ok, InvocationCompiler.compiled()}
+          | {:rejected, DecisionRejection.t()}
+          | {:error, term()}
+  def compile_run_request(run_request, request_context, policy_packs, opts \\ []) do
+    envelope =
+      run_request
+      |> RunRequest.new!()
+      |> RunRequestLowering.intent_envelope!()
+
+    case InvocationCompiler.compile(envelope, request_context, policy_packs, opts) do
+      {:error, %ArgumentError{} = error} ->
+        {:error, {:invalid_run_request, Exception.message(error)}}
+
+      result ->
+        result
+    end
+  rescue
+    error in ArgumentError -> {:error, {:invalid_run_request, Exception.message(error)}}
+  end
+
+  @spec submit_run_request(
+          t(),
+          RunRequest.t() | RunRequest.attrs(),
+          RequestContext.t() | map() | keyword(),
+          keyword()
+        ) :: submission_result()
+  def submit_run_request(%__MODULE__{} = ingress, run_request, request_context, opts \\ []) do
+    envelope =
+      run_request
+      |> RunRequest.new!()
+      |> RunRequestLowering.intent_envelope!()
+
+    submit_envelope(ingress, envelope, request_context, opts)
+  rescue
+    error in ArgumentError -> {:error, {:invalid_run_request, Exception.message(error)}}
   end
 
   defp persist_compiled_invocation(ingress, request_context, compiled, opts) do

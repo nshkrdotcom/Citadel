@@ -7,6 +7,8 @@ Status: canonical public structured host-ingress surface.
 - the projected public host-ingress seam above Citadel
 - typed request-context normalization for structured host submissions
 - pure compilation from `IntentEnvelope` into `InvocationRequest.V2`
+- pure lowering from higher-order `RunRequest` into the same structured
+  `IntentEnvelope` seam
 - canonical `submit_invocation` outbox payload encoding and decoding
 - durable ingress persistence through `SessionServer` / `SessionDirectory`
 

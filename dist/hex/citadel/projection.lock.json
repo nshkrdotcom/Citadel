@@ -11,6 +11,8 @@
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/host_ingress_bridge/lib/citadel/host_ingress/invocation_compiler.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/host_ingress_bridge/lib/citadel/host_ingress/invocation_payload.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/host_ingress_bridge/lib/citadel/host_ingress/request_context.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/host_ingress_bridge/lib/citadel/host_ingress/run_request.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/host_ingress_bridge/lib/citadel/host_ingress/run_request_lowering.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/invocation_bridge/lib/citadel/invocation_bridge.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/invocation_bridge/lib/citadel/invocation_bridge/execution_intent_adapter.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/bridges/jido_integration_bridge/lib/citadel/jido_integration_bridge.ex",
@@ -137,25 +139,57 @@
       "mix.exs",
       "projection.lock.json"
     ],
-    "git_revision": "3b0647da9142aef1061b17e05869345ac2091681",
-    "tree_digest": "95269547ba93e5790fee026b9c2c2391a8632cf63f62a43eac1a672598fdca2c"
+    "git_revision": "8abe26c8b5831c3b1dc9df4247d46ebb142b9f0a",
+    "tree_digest": "122bd288d793d444453fb8c0db1a59d676d83ecc17528607f9d19b851f442a09"
   },
   "manifest": {
     "path": "/home/home/p/g/n/citadel/packaging/weld/citadel.exs",
     "digest": "50257e2b932ffa7d4300ec0ddc0e034d8cf81a10fcaf5b6736b2e6e90c499cd4"
   },
-  "artifact": {
-    "id": "citadel",
-    "package": {
-      "name": "citadel",
-      "version": "0.1.0",
-      "otp_app": "citadel"
+  "verification": [
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.get"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.compile"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "compile --warnings-as-errors --no-compile-deps"
+    },
+    {
+      "env": "test",
+      "status": "ok",
+      "task": "test",
+      "failure_count": 0,
+      "test_count": 2
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "docs --warnings-as-errors"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "hex.build"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "hex.publish --dry-run --yes"
     }
-  },
+  ],
   "workspace": {
     "root": "/home/home/p/g/n/citadel",
     "discovery": {
       "source": "manifest",
+      "adapter": null,
       "project_ids": [
         ".",
         "apps/coding_assist",
@@ -181,7 +215,6 @@
         "core/policy_packs",
         "surfaces/citadel_domain_surface"
       ],
-      "adapter": null,
       "globs": [
         ".",
         "apps/*",
@@ -192,6 +225,14 @@
       "root_project?": true
     },
     "project_count": 23
+  },
+  "artifact": {
+    "id": "citadel",
+    "package": {
+      "name": "citadel",
+      "version": "0.1.0",
+      "otp_app": "citadel"
+    }
   },
   "graph": {
     "edges": [
@@ -890,44 +931,5 @@
       "core/policy_packs"
     ],
     "violations": []
-  },
-  "verification": [
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "deps.get"
-    },
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "deps.compile"
-    },
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "compile --warnings-as-errors --no-compile-deps"
-    },
-    {
-      "env": "test",
-      "status": "ok",
-      "task": "test",
-      "failure_count": 0,
-      "test_count": 2
-    },
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "docs --warnings-as-errors"
-    },
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "hex.build"
-    },
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "hex.publish --dry-run --yes"
-    }
-  ]
+  }
 }

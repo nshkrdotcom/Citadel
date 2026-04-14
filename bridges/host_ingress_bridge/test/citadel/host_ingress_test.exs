@@ -7,6 +7,7 @@ defmodule Citadel.HostIngressTest do
   alias Citadel.HostIngress.Accepted
   alias Citadel.HostIngress.InvocationCompiler
   alias Citadel.HostIngress.InvocationPayload
+  alias Citadel.HostIngress.RunRequest
   alias Citadel.IntentEnvelope
   alias Citadel.Runtime.KernelSnapshot
   alias Citadel.Runtime.SessionDirectory
@@ -182,6 +183,82 @@ defmodule Citadel.HostIngressTest do
              "boundary_reuse_requires_attached_session"
   end
 
+  test "higher-order run requests lower through the same structured ingress compiler" do
+    assert {:ok, compiled} =
+             HostIngress.compile_run_request(
+               higher_order_run_request(),
+               request_context("req-higher-order"),
+               [policy_pack()]
+             )
+
+    request = InvocationPayload.decode!(compiled.outbox_entry.action.payload)
+
+    assert %RunRequest{} =
+             higher_order_run_request()
+             |> RunRequest.new!()
+
+    assert request.request_id == "req-higher-order"
+    assert request.selected_step_id == "step/req-higher-order/compile.workspace"
+    assert request.allowed_operations == ["shell.exec"]
+    assert request.authority_packet.boundary_class == "workspace_session"
+    assert request.topology_intent.session_mode == "attached"
+    assert request.extensions["citadel"]["execution_intent"]["command"] == "echo"
+  end
+
+  test "public host ingress persists higher-order run requests through the durable path", env do
+    session_id = "sess-live-run-request"
+    test_pid = self()
+
+    {:ok, session_server} =
+      SessionServer.start_link(
+        name: unique_name(:session_server_run_request),
+        session_id: session_id,
+        session_directory: env.session_directory,
+        kernel_snapshot: env.kernel_snapshot,
+        boundary_lease_tracker: env.boundary_tracker,
+        service_catalog: env.service_catalog,
+        signal_ingress: env.signal_ingress,
+        invocation_supervisor: env.invocation_supervisor,
+        projection_supervisor: env.projection_supervisor,
+        local_supervisor: env.local_supervisor,
+        invocation_handler: fn payload, attempt_entry ->
+          request = InvocationPayload.decode!(payload)
+          send(test_pid, {:run_request_invocation, request, attempt_entry})
+
+          {:accepted,
+           SubmissionAcceptance.new!(%{
+             submission_key: "sha256:#{String.duplicate("b", 64)}",
+             submission_receipt_ref: "submission/#{request.request_id}",
+             status: :accepted,
+             accepted_at: ~U[2026-04-13 01:00:00Z],
+             ledger_version: 1
+           })}
+        end
+      )
+
+    ingress =
+      HostIngress.new!(
+        session_directory: env.session_directory,
+        policy_packs: [policy_pack()],
+        lookup_session: fn ^session_id -> {:ok, session_server} end
+      )
+
+    assert {:accepted, %Accepted{} = accepted} =
+             HostIngress.submit_run_request(
+               ingress,
+               higher_order_run_request(),
+               request_context("req-run-request", session_id)
+             )
+
+    assert accepted.entry_id == "submit/req-run-request"
+    assert accepted.lifecycle_event == :live_owner
+
+    assert_receive {:run_request_invocation, request, attempt_entry}
+    assert request.request_id == "req-run-request"
+    assert request.extensions["citadel"]["execution_intent_family"] == "process"
+    assert attempt_entry.entry_id == "submit/req-run-request"
+  end
+
   defp valid_envelope do
     IntentEnvelope.new!(%{
       intent_envelope_id: "intent/compile-workspace",
@@ -341,6 +418,85 @@ defmodule Citadel.HostIngressTest do
         extensions: %{}
       },
       extensions: %{}
+    }
+  end
+
+  defp higher_order_run_request do
+    %{
+      run_request_id: "run-request/compile.workspace",
+      capability_id: "compile.workspace",
+      objective: "Compile the current workspace capability request",
+      result_kind: "workspace_patch",
+      scope: %{
+        scope_kind: "workspace",
+        scope_id: "workspace/main",
+        workspace_root: "/workspace/main",
+        environment: "dev",
+        preference: :required
+      },
+      target: %{
+        target_kind: "workspace",
+        target_id: "workspace/main",
+        service_id: "svc.compiler",
+        boundary_class: "workspace_session",
+        session_mode_preference: :attached,
+        coordination_mode_preference: :single_target,
+        routing_tags: ["primary"]
+      },
+      constraints: %{
+        boundary_requirement: :fresh_or_reuse,
+        max_steps: 1,
+        review_required: false
+      },
+      execution: %{
+        execution_intent_family: "process",
+        execution_intent: %{
+          "contract_version" => "v1",
+          "command" => "echo",
+          "args" => ["compile"],
+          "working_directory" => "/workspace/main",
+          "environment" => %{},
+          "stdin" => nil,
+          "extensions" => %{}
+        },
+        allowed_operations: ["shell.exec"],
+        allowed_tools: ["bash", "git"],
+        effect_classes: ["filesystem", "process"],
+        workspace_mutability: "read_write",
+        placement_intent: "host_local",
+        downstream_scope: "process:workspace"
+      },
+      risk_hints: [
+        %{
+          risk_code: "writes_workspace",
+          severity: :medium,
+          requires_governance: false,
+          extensions: %{}
+        }
+      ],
+      success_criteria: [
+        %{
+          criterion_kind: :completion,
+          metric: "workspace_patch_applied",
+          target: %{"status" => "accepted"},
+          required: true,
+          extensions: %{}
+        }
+      ],
+      resolution_provenance: %{
+        source_kind: "mezzanine",
+        confidence: 1.0,
+        ambiguity_flags: [],
+        raw_input_refs: [],
+        raw_input_hashes: [],
+        extensions: %{}
+      },
+      extensions: %{
+        "mezzanine" => %{
+          "work_object_id" => "work-1",
+          "run_id" => "run-1"
+        }
+      }
     }
   end
 
