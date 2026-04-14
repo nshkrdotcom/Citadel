@@ -105,11 +105,7 @@ defmodule Citadel.Conformance.TelemetryAndContractGateTest do
         assert Conformance.shared_contract_mode() == :staged_artifact
 
       :path_local ->
-        assert Conformance.shared_contract_mode() in [
-                 :path_local,
-                 :staged_artifact,
-                 :published_artifact
-               ]
+        assert Conformance.shared_contract_mode() == :path_local
     end
   end
 
