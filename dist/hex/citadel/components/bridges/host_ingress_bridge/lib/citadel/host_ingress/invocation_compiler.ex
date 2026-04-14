@@ -35,7 +35,12 @@ defmodule Citadel.HostIngress.InvocationCompiler do
   @allowed_egress_policies ["blocked", "restricted", "open"]
   @allowed_workspace_mutabilities ["read_only", "read_write", "ephemeral"]
   @allowed_execution_families ["process", "http", "json_rpc", "service"]
-  @allowed_placement_intents ["host_local", "remote_scope", "remote_workspace", "ephemeral_session"]
+  @allowed_placement_intents [
+    "host_local",
+    "remote_scope",
+    "remote_workspace",
+    "ephemeral_session"
+  ]
   @allowed_sandbox_levels ["strict", "standard", "none"]
 
   @type compiled :: %{
@@ -46,7 +51,12 @@ defmodule Citadel.HostIngress.InvocationCompiler do
           entry_id: String.t()
         }
 
-  @spec compile(IntentEnvelope.t() | map() | keyword(), RequestContext.t() | map() | keyword(), [Selection.t() | map()], keyword()) ::
+  @spec compile(
+          IntentEnvelope.t() | map() | keyword(),
+          RequestContext.t() | map() | keyword(),
+          [Selection.t() | map()],
+          keyword()
+        ) ::
           {:ok, compiled()} | {:rejected, DecisionRejection.t()} | {:error, term()}
   def compile(envelope, request_context, policy_packs, opts \\ []) do
     envelope = normalize_envelope!(envelope)
@@ -120,19 +130,12 @@ defmodule Citadel.HostIngress.InvocationCompiler do
            outbox_entry(entry_id, request_context, selection, invocation_request, opts),
          entry_id: entry_id
        }}
-    else
-      {:rejected, %DecisionRejection{} = rejection} ->
-        {:rejected, rejection}
-
-      {:error, {:planning, reason_code}} ->
-        {:rejected, classify_rejection!(request_context, selection, reason_code)}
-
-      {:error, reason} ->
-        {:error, reason}
     end
   end
 
-  defp normalize_envelope!(%IntentEnvelope{} = envelope), do: IntentEnvelope.new!(IntentEnvelope.dump(envelope))
+  defp normalize_envelope!(%IntentEnvelope{} = envelope),
+    do: IntentEnvelope.new!(IntentEnvelope.dump(envelope))
+
   defp normalize_envelope!(envelope), do: IntentEnvelope.new!(envelope)
 
   defp select_policy!(policy_packs, envelope, request_context) when is_list(policy_packs) do
@@ -150,16 +153,22 @@ defmodule Citadel.HostIngress.InvocationCompiler do
     })
   end
 
-  defp first_scope_selector(%IntentEnvelope{scope_selectors: [%ScopeSelector{} = selector | _rest]}),
-    do: {:ok, selector}
+  defp first_scope_selector(%IntentEnvelope{
+         scope_selectors: [%ScopeSelector{} = selector | _rest]
+       }),
+       do: {:ok, selector}
 
   defp first_scope_selector(_envelope), do: {:error, {:planning, "missing_scope_selector"}}
 
-  defp first_target_hint(%IntentEnvelope{target_hints: [%TargetHint{} = hint | _rest]}), do: {:ok, hint}
+  defp first_target_hint(%IntentEnvelope{target_hints: [%TargetHint{} = hint | _rest]}),
+    do: {:ok, hint}
+
   defp first_target_hint(_envelope), do: {:error, {:planning, "missing_target_hint"}}
 
-  defp first_candidate_step(%IntentEnvelope{plan_hints: %PlanHints{candidate_steps: [%CandidateStep{} = step | _rest]}}),
-    do: {:ok, step}
+  defp first_candidate_step(%IntentEnvelope{
+         plan_hints: %PlanHints{candidate_steps: [%CandidateStep{} = step | _rest]}
+       }),
+       do: {:ok, step}
 
   defp first_candidate_step(_envelope), do: {:error, {:planning, "missing_candidate_step"}}
 
@@ -239,7 +248,10 @@ defmodule Citadel.HostIngress.InvocationCompiler do
       |> Map.merge(preferred_topology_routing_hints(preferred_topology))
       |> Map.put("execution_intent_family", execution_intent_family)
       |> Map.put("execution_intent", execution_intent)
-      |> Map.put("downstream_scope", downstream_scope(step_extensions, execution_intent_family, target_hint.target_kind))
+      |> Map.put(
+        "downstream_scope",
+        downstream_scope(step_extensions, execution_intent_family, target_hint.target_kind)
+      )
 
     {:ok,
      TopologyIntent.new!(%{
@@ -278,7 +290,11 @@ defmodule Citadel.HostIngress.InvocationCompiler do
     Map.get(step_extensions, "downstream_scope", "#{execution_intent_family}:#{target_kind}")
   end
 
-  defp authority_packet(request_context, %Selection{} = selection, %BoundaryIntent{} = boundary_intent) do
+  defp authority_packet(
+         request_context,
+         %Selection{} = selection,
+         %BoundaryIntent{} = boundary_intent
+       ) do
     {:ok,
      DecisionHash.put_authority_hash!(%{
        contract_version: AuthorityDecisionV1.contract_version(),
@@ -553,7 +569,10 @@ defmodule Citadel.HostIngress.InvocationCompiler do
     classes =
       Enum.reduce(allowed_operations, [], fn operation, acc ->
         acc
-        |> maybe_prepend("filesystem", String.contains?(operation, "write") or String.contains?(operation, "patch"))
+        |> maybe_prepend(
+          "filesystem",
+          String.contains?(operation, "write") or String.contains?(operation, "patch")
+        )
         |> maybe_prepend("process", String.contains?(operation, "exec"))
       end)
 
@@ -561,7 +580,8 @@ defmodule Citadel.HostIngress.InvocationCompiler do
   end
 
   defp selected_step_id(%RequestContext{} = request_context, %CandidateStep{} = candidate_step) do
-    case Map.get(candidate_step.extensions, "step_id") || Map.get(candidate_step.extensions, :step_id) do
+    case Map.get(candidate_step.extensions, "step_id") ||
+           Map.get(candidate_step.extensions, :step_id) do
       value when is_binary(value) and value != "" -> value
       _other -> "step/#{request_context.request_id}/#{candidate_step.capability_id}"
     end
@@ -585,28 +605,28 @@ defmodule Citadel.HostIngress.InvocationCompiler do
     )
   end
 
-  defp rejection_summary("missing_scope_selector"), do: "structured ingress requires at least one scope selector"
-  defp rejection_summary("missing_target_hint"), do: "structured ingress requires at least one target hint"
-  defp rejection_summary("missing_candidate_step"), do: "structured ingress requires at least one candidate step"
-  defp rejection_summary("missing_execution_intent"), do: "candidate step is missing execution intent details"
-  defp rejection_summary("invalid_execution_intent"), do: "candidate step execution intent must be a JSON object"
-  defp rejection_summary("unsupported_execution_intent_family"), do: "candidate step requests an unsupported execution family"
+  defp rejection_summary("missing_scope_selector"),
+    do: "structured ingress requires at least one scope selector"
+
+  defp rejection_summary("missing_target_hint"),
+    do: "structured ingress requires at least one target hint"
+
+  defp rejection_summary("missing_candidate_step"),
+    do: "structured ingress requires at least one candidate step"
+
+  defp rejection_summary("missing_execution_intent"),
+    do: "candidate step is missing execution intent details"
+
+  defp rejection_summary("invalid_execution_intent"),
+    do: "candidate step execution intent must be a JSON object"
+
+  defp rejection_summary("unsupported_execution_intent_family"),
+    do: "candidate step requests an unsupported execution family"
+
   defp rejection_summary("missing_target_id"), do: "structured ingress requires a target identity"
   defp rejection_summary(other), do: other
 
-  defp rejection_causes(reason_code)
-       when reason_code in [
-              "missing_scope_selector",
-              "missing_target_hint",
-              "missing_candidate_step",
-              "missing_execution_intent",
-              "invalid_execution_intent",
-              "unsupported_execution_intent_family",
-              "missing_target_id"
-            ],
-       do: [:planning]
-
-  defp rejection_causes(_other), do: [:planning]
+  defp rejection_causes(_reason_code), do: [:planning]
 
   defp normalize_string_list(value) when is_list(value) do
     value

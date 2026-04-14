@@ -1,41 +1,6 @@
 {
   "projection": {
     "build_path": "/home/home/p/g/n/citadel/dist/hex/citadel",
-    "package_files": [
-      ".credo.exs",
-      ".formatter.exs",
-      "CHANGELOG.md",
-      "LICENSE",
-      "README.md",
-      "assets/citadel.svg",
-      "components/bridges/boundary_bridge",
-      "components/bridges/host_ingress_bridge",
-      "components/bridges/invocation_bridge",
-      "components/bridges/jido_integration_bridge",
-      "components/bridges/memory_bridge",
-      "components/bridges/projection_bridge",
-      "components/bridges/query_bridge",
-      "components/bridges/signal_bridge",
-      "components/bridges/trace_bridge",
-      "components/core/authority_contract",
-      "components/core/citadel_core",
-      "components/core/citadel_runtime",
-      "components/core/contract_core",
-      "components/core/execution_governance_contract",
-      "components/core/jido_integration_v2_contracts",
-      "components/core/observability_contract",
-      "components/core/policy_packs",
-      "config",
-      "docs/README.md",
-      "docs/publication.md",
-      "docs/shared_contract_dependency_strategy.md",
-      "docs/workspace_topology.md",
-      "lib",
-      "mix.exs",
-      "projection.lock.json"
-    ],
-    "git_revision": "d49a068608f6c33b8063e219e4f665786d6de81d",
-    "tree_digest": "35f38bd322c078c3058e23622f1473ed9818afd1de4e54d3363a4a3dd4b5877c",
     "copied_files": [
       ".credo.exs",
       ".formatter.exs",
@@ -138,7 +103,42 @@
       "lib/citadel/application.ex",
       "test/citadel/publication_surface_test.exs",
       "test/test_helper.exs"
-    ]
+    ],
+    "package_files": [
+      ".credo.exs",
+      ".formatter.exs",
+      "CHANGELOG.md",
+      "LICENSE",
+      "README.md",
+      "assets/citadel.svg",
+      "components/bridges/boundary_bridge",
+      "components/bridges/host_ingress_bridge",
+      "components/bridges/invocation_bridge",
+      "components/bridges/jido_integration_bridge",
+      "components/bridges/memory_bridge",
+      "components/bridges/projection_bridge",
+      "components/bridges/query_bridge",
+      "components/bridges/signal_bridge",
+      "components/bridges/trace_bridge",
+      "components/core/authority_contract",
+      "components/core/citadel_core",
+      "components/core/citadel_runtime",
+      "components/core/contract_core",
+      "components/core/execution_governance_contract",
+      "components/core/jido_integration_v2_contracts",
+      "components/core/observability_contract",
+      "components/core/policy_packs",
+      "config",
+      "docs/README.md",
+      "docs/publication.md",
+      "docs/shared_contract_dependency_strategy.md",
+      "docs/workspace_topology.md",
+      "lib",
+      "mix.exs",
+      "projection.lock.json"
+    ],
+    "git_revision": "4e20f1f688f775a4ada12159043b571e5ce0288d",
+    "tree_digest": "43e6f1488c391f000521881b06f1a0aa39de9db5dd3aff86392c515906f8abc8"
   },
   "manifest": {
     "path": "/home/home/p/g/n/citadel/packaging/weld/citadel.exs",
@@ -178,18 +178,20 @@
         "core/execution_governance_contract",
         "core/jido_integration_v2_contracts",
         "core/observability_contract",
-        "core/policy_packs"
+        "core/policy_packs",
+        "surfaces/citadel_domain_surface"
       ],
       "adapter": null,
       "globs": [
         ".",
         "apps/*",
         "bridges/*",
-        "core/*"
+        "core/*",
+        "surfaces/*"
       ],
       "root_project?": true
     },
-    "project_count": 22
+    "project_count": 23
   },
   "graph": {
     "edges": [
@@ -829,15 +831,44 @@
         "to": "core/contract_core",
         "requirement": null,
         "from": "core/policy_packs"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_host_ingress_bridge",
+        "to": "bridges/host_ingress_bridge",
+        "requirement": null,
+        "from": "surfaces/citadel_domain_surface"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_query_bridge",
+        "to": "bridges/query_bridge",
+        "requirement": null,
+        "from": "surfaces/citadel_domain_surface"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_core",
+        "to": "core/citadel_core",
+        "requirement": null,
+        "from": "surfaces/citadel_domain_surface"
+      },
+      {
+        "kind": "runtime",
+        "app": "citadel_runtime",
+        "to": "core/citadel_runtime",
+        "requirement": null,
+        "from": "surfaces/citadel_domain_surface"
       }
     ],
-    "digest": "39e0b20e08a35d51f92cbc79b90c56e711357495f79c81059934806cacc1c791",
+    "digest": "9c62e862fc74488c6a73fcc971a90feda8ceeef884ff0b06f31343aa506de85a",
     "excluded_projects": [
       ".",
       "apps/coding_assist",
       "apps/host_surface_harness",
       "apps/operator_assist",
-      "core/conformance"
+      "core/conformance",
+      "surfaces/citadel_domain_surface"
     ],
     "selected_projects": [
       "bridges/boundary_bridge",
@@ -860,5 +891,43 @@
     ],
     "violations": []
   },
-  "verification": []
+  "verification": [
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.get"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.compile"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "compile --warnings-as-errors --no-compile-deps"
+    },
+    {
+      "env": "test",
+      "status": "ok",
+      "task": "test",
+      "failure_count": 0,
+      "test_count": 2
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "docs --warnings-as-errors"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "hex.build"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "hex.publish --dry-run --yes"
+    }
+  ]
 }

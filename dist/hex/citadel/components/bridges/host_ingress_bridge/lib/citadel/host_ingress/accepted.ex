@@ -74,26 +74,35 @@ defmodule Citadel.HostIngress.Accepted do
 
   defp optional_atom(attrs, key) do
     case Map.get(attrs, key, Map.get(attrs, Atom.to_string(key))) do
-      nil -> nil
-      value when is_atom(value) -> value
+      nil ->
+        nil
+
+      value when is_atom(value) ->
+        value
 
       value when is_binary(value) and value != "" ->
-        String.to_existing_atom(value)
+        case existing_atom(value) do
+          {:ok, atom} ->
+            atom
+
+          :error ->
+            raise ArgumentError,
+                  "host ingress acceptance #{inspect(key)} string value must refer to an existing atom"
+        end
 
       value ->
         raise ArgumentError,
               "host ingress acceptance #{inspect(key)} must be an atom or string, got: #{inspect(value)}"
     end
-  rescue
-    _error in ArgumentError ->
-      raise ArgumentError,
-            "host ingress acceptance #{inspect(key)} string value must refer to an existing atom"
   end
 
   defp optional_non_neg_integer(attrs, key) do
     case Map.get(attrs, key, Map.get(attrs, Atom.to_string(key))) do
-      nil -> nil
-      value when is_integer(value) and value >= 0 -> value
+      nil ->
+        nil
+
+      value when is_integer(value) and value >= 0 ->
+        value
 
       value ->
         raise ArgumentError,
@@ -103,7 +112,8 @@ defmodule Citadel.HostIngress.Accepted do
 
   defp optional_positive_integer(attrs, key, default) do
     case Map.get(attrs, key, Map.get(attrs, Atom.to_string(key), default)) do
-      value when is_integer(value) and value > 0 -> value
+      value when is_integer(value) and value > 0 ->
+        value
 
       value ->
         raise ArgumentError,
@@ -136,5 +146,11 @@ defmodule Citadel.HostIngress.Accepted do
       |> Map.drop(known_keys ++ Enum.map(known_keys, &Atom.to_string/1))
 
     Map.merge(extras, metadata)
+  end
+
+  defp existing_atom(value) when is_binary(value) do
+    {:ok, String.to_existing_atom(value)}
+  rescue
+    ArgumentError -> :error
   end
 end

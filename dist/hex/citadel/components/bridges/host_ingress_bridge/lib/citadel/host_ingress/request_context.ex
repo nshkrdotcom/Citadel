@@ -82,7 +82,8 @@ defmodule Citadel.HostIngress.RequestContext do
     if is_binary(value) and String.trim(value) != "" do
       value
     else
-      raise ArgumentError, "host ingress request context #{inspect(key)} must be a non-empty string"
+      raise ArgumentError,
+            "host ingress request context #{inspect(key)} must be a non-empty string"
     end
   end
 
@@ -134,9 +135,15 @@ defmodule Citadel.HostIngress.RequestContext do
   defp normalize_metadata_keys(value) when is_list(value) do
     value
     |> Enum.map(fn
-      item when is_atom(item) -> Atom.to_string(item)
-      item when is_binary(item) and item != "" -> item
-      item -> raise ArgumentError, "host ingress metadata_keys entries must be atoms or non-empty strings, got: #{inspect(item)}"
+      item when is_atom(item) ->
+        Atom.to_string(item)
+
+      item when is_binary(item) and item != "" ->
+        item
+
+      item ->
+        raise ArgumentError,
+              "host ingress metadata_keys entries must be atoms or non-empty strings, got: #{inspect(item)}"
     end)
     |> Enum.uniq()
     |> Enum.sort()

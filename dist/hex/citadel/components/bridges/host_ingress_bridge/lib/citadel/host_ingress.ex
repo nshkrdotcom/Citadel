@@ -22,7 +22,11 @@ defmodule Citadel.HostIngress do
     package: :citadel_host_ingress_bridge,
     layer: :bridge,
     status: :public_structured_ingress_frozen,
-    owns: [:public_host_ingress_surface, :structured_ingress_compilation, :durable_invocation_enqueue],
+    owns: [
+      :public_host_ingress_surface,
+      :structured_ingress_compilation,
+      :durable_invocation_enqueue
+    ],
     internal_dependencies: [
       :citadel_core,
       :citadel_runtime,
@@ -74,7 +78,12 @@ defmodule Citadel.HostIngress do
     }
   end
 
-  @spec submit_envelope(t(), IntentEnvelope.t() | map() | keyword(), RequestContext.t() | map() | keyword(), keyword()) ::
+  @spec submit_envelope(
+          t(),
+          IntentEnvelope.t() | map() | keyword(),
+          RequestContext.t() | map() | keyword(),
+          keyword()
+        ) ::
           submission_result()
   def submit_envelope(%__MODULE__{} = ingress, envelope, request_context, opts \\ []) do
     request_context = RequestContext.new!(request_context)
@@ -112,10 +121,22 @@ defmodule Citadel.HostIngress do
     end
   catch
     :exit, {:noproc, _details} ->
-      persist_without_live_owner(ingress, request_context, compiled, claim_opts(request_context, compiled.scope_ref), opts)
+      persist_without_live_owner(
+        ingress,
+        request_context,
+        compiled,
+        claim_opts(request_context, compiled.scope_ref),
+        opts
+      )
 
     :exit, :noproc ->
-      persist_without_live_owner(ingress, request_context, compiled, claim_opts(request_context, compiled.scope_ref), opts)
+      persist_without_live_owner(
+        ingress,
+        request_context,
+        compiled,
+        claim_opts(request_context, compiled.scope_ref),
+        opts
+      )
   end
 
   defp persist_with_live_owner(session_server, request_context, compiled, _claim_opts) do
@@ -173,7 +194,13 @@ defmodule Citadel.HostIngress do
            ),
          {:ok, committed_blob, inserted?} <-
            commit_outbox_without_live_owner(ingress, claimed_blob, compiled.outbox_entry),
-         :ok <- maybe_enqueue_activation(ingress.session_directory, request_context.session_id, inserted?, priority_class) do
+         :ok <-
+           maybe_enqueue_activation(
+             ingress.session_directory,
+             request_context.session_id,
+             inserted?,
+             priority_class
+           ) do
       {:accepted,
        Accepted.new!(%{
          request_id: request_context.request_id,
@@ -210,7 +237,12 @@ defmodule Citadel.HostIngress do
         end
 
       {:error, :not_found} ->
-        persist_rejection_without_live_owner(ingress, request_context.session_id, rejection, claim_opts)
+        persist_rejection_without_live_owner(
+          ingress,
+          request_context.session_id,
+          rejection,
+          claim_opts
+        )
 
       {:error, reason} ->
         {:error, reason}
@@ -249,13 +281,19 @@ defmodule Citadel.HostIngress do
     :exit, reason -> {:error, reason}
   end
 
-  defp commit_outbox_without_live_owner(ingress, %PersistedSessionBlob{} = claimed_blob, outbox_entry) do
+  defp commit_outbox_without_live_owner(
+         ingress,
+         %PersistedSessionBlob{} = claimed_blob,
+         outbox_entry
+       ) do
     outbox = PersistedSessionBlob.restore_session_outbox!(claimed_blob)
 
     case Map.get(outbox.entries_by_id, outbox_entry.entry_id) do
       nil ->
         updated_outbox = SessionOutbox.put_entry!(outbox, outbox_entry)
-        commit_blob = rebuild_blob_from_outbox(claimed_blob, updated_outbox, ingress.clock.utc_now())
+
+        commit_blob =
+          rebuild_blob_from_outbox(claimed_blob, updated_outbox, ingress.clock.utc_now())
 
         case commit_continuity(ingress.session_directory, claimed_blob, commit_blob) do
           {:ok, committed_blob} -> {:ok, committed_blob, true}
@@ -276,7 +314,11 @@ defmodule Citadel.HostIngress do
   defp inserted_submission_status(true), do: :queued
   defp inserted_submission_status(false), do: :already_present
 
-  defp commit_rejection(ingress, %PersistedSessionBlob{} = claimed_blob, %DecisionRejection{} = rejection) do
+  defp commit_rejection(
+         ingress,
+         %PersistedSessionBlob{} = claimed_blob,
+         %DecisionRejection{} = rejection
+       ) do
     next_blob =
       PersistedSessionBlob.new!(%{
         schema_version: PersistedSessionBlob.schema_version(),
@@ -315,7 +357,11 @@ defmodule Citadel.HostIngress do
     })
   end
 
-  defp commit_continuity(session_directory, %PersistedSessionBlob{} = claimed_blob, %PersistedSessionBlob{} = next_blob) do
+  defp commit_continuity(
+         session_directory,
+         %PersistedSessionBlob{} = claimed_blob,
+         %PersistedSessionBlob{} = next_blob
+       ) do
     commit =
       SessionContinuityCommit.new!(%{
         session_id: claimed_blob.session_id,
