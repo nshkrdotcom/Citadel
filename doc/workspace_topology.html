@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.1">
+    <meta name="project" content="citadel v0.1.0">
+
+
+    <title>Workspace Topology — citadel v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-YJO4MOOW.css" />
+
+    <script defer src="dist/sidebar_items-58942EDF.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-YU4BZFVS.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="workspace_topology.html" class="sidebar-projectName" translate="no">
+citadel
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-extra" id="main" data-type="extras">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of citadel</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>Workspace Topology</h1>
+
+<a href="workspace_topology.md" title="Copy Markdown (hold Ctrl/Cmd and click it to open as Markdown)" class="copy-markdown icon-action" rel="help">
+  <i class="ri-markdown-line" aria-hidden="true"></i>
+  <span class="sr-only">Copy Markdown</span>
+</a>
+
+
+  </div>
+
+
+<p>Citadel is a non-umbrella Elixir monorepo with explicit package ownership.</p><h2 id="core-packages" class="section-heading"><a href="#core-packages" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Core Packages</span></h2><ul><li><code class="inline">core/contract_core</code>: neutral identifiers, host-local refs, and RFC 8785 / JCS canonicalization helpers</li><li><code class="inline">core/jido_integration_v2_contracts</code>: workspace-carried higher-order shared lineage and durable submission contract slice</li><li><code class="inline">core/authority_contract</code>: Brain-authored <code class="inline">AuthorityDecision.v1</code> schema ownership</li><li><code class="inline">core/execution_governance_contract</code>: Brain-to-Spine <code class="inline">ExecutionGovernance.v1</code> packet ownership</li><li><code class="inline">core/observability_contract</code>: trace and telemetry vocabulary ownership</li><li><code class="inline">core/policy_packs</code>: policy pack definitions and normalization helpers</li><li><code class="inline">core/citadel_core</code>: pure values, compilers, reducers, and projectors</li><li><code class="inline">core/citadel_runtime</code>: runtime coordination, session continuity, and local ownership processes</li><li><code class="inline">core/conformance</code>: black-box conformance and composition coverage</li></ul><h2 id="bridge-packages" class="section-heading"><a href="#bridge-packages" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Bridge Packages</span></h2><ul><li><code class="inline">bridges/invocation_bridge</code>: invocation handoff and lower-seam alignment placeholder</li><li><code class="inline">bridges/jido_integration_bridge</code>: Citadel-owned Brain-to-Spine durable submission adapter</li><li><code class="inline">bridges/query_bridge</code>: durable-state rehydration adapters</li><li><code class="inline">bridges/signal_bridge</code>: signal ingress normalization adapters</li><li><code class="inline">bridges/boundary_bridge</code>: boundary lifecycle and metadata adapters</li><li><code class="inline">bridges/projection_bridge</code>: shared review and derived-state publication adapters</li><li><code class="inline">bridges/trace_bridge</code>: AITrace-facing trace publication adapters</li><li><code class="inline">bridges/memory_bridge</code>: advisory memory integration adapters</li></ul><p>Bridge packages stay vertical. They depend on core and runtime surfaces, not on sibling bridges.</p><h2 id="app-packages" class="section-heading"><a href="#app-packages" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">App Packages</span></h2><ul><li><code class="inline">apps/coding_assist</code>: thin coding-focused proof app shell</li><li><code class="inline">apps/operator_assist</code>: thin operator workflow proof app shell</li><li><code class="inline">apps/host_surface_harness</code>: thin host/kernel seam proof app with baseline direct <code class="inline">IntentEnvelope</code> construction</li></ul><p>App packages remain composition shells. They do not become second cores.</p><h2 id="surface-packages" class="section-heading"><a href="#surface-packages" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Surface Packages</span></h2><ul><li><code class="inline">surfaces/citadel_domain_surface</code>: typed host-facing command, query, route,
+admin, and capability surface above the Citadel kernel</li></ul><p>Surface packages remain northbound publishable boundaries. They are not kernel
+core packages and they are not bridge packages.</p><h2 id="publication-posture" class="section-heading"><a href="#publication-posture" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Publication Posture</span></h2><p>Publication remains derivative of the workspace architecture, but the default
+public artifact is now explicit:</p><ul><li>repo-local Weld manifest: <code class="inline">packaging/weld/citadel.exs</code></li><li>artifact id and package name: <code class="inline">citadel</code></li><li>mode: package projection, not monolith</li><li>roots: <code class="inline">core/citadel_runtime</code></li><li>selected bridge closure: all <code class="inline">bridges/*</code></li><li>excluded by default: <code class="inline">apps/*</code>, <code class="inline">core/conformance</code>,
+<code class="inline">surfaces/citadel_domain_surface</code>, and the root tooling project</li></ul><p>The welded artifact keeps the source workspace authoritative. It projects the
+runtime-facing core packages, the in-workspace shared contract slice, and
+selected bridges without collapsing ownership or turning proof packages into
+runtime dependencies.</p><p><code class="inline">surfaces/citadel_domain_surface</code> remains directly publishable as its own
+workspace package rather than being absorbed into the default welded <code class="inline">citadel</code>
+artifact.</p>
+
+</div>
+
+<div class="bottom-actions" id="bottom-actions">
+  <div class="bottom-actions-item">
+
+      <a href="shared_contract_dependency_strategy.html" class="bottom-actions-button" rel="prev">
+        <span class="subheader">
+          ← Previous Page
+        </span>
+        <span class="title">
+Shared Contract Dependency Strategy
+        </span>
+      </a>
+
+  </div>
+  <div class="bottom-actions-item">
+
+  </div>
+</div>
+    <footer class="footer">
+
+        <p>
+
+            <span class="line">
+              <a href="https://hex.pm/packages/citadel/0.1.0">Hex Package</a>
+
+              <a href="https://preview.hex.pm/preview/citadel/0.1.0">Hex Preview</a>
+
+                (<a href="https://preview.hex.pm/preview/citadel/0.1.0/show/docs/workspace_topology.md">current file</a>)
+
+            </span>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+              <a href="llms.txt" target="_blank">
+                View llms.txt
+              </a>
+
+
+              <a href="citadel.epub">
+                Download ePub version
+              </a>
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.1) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.1">
+    <meta name="project" content="citadel v0.1.0">
+
+
+    <title>README — citadel v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-YJO4MOOW.css" />
+
+    <script defer src="dist/sidebar_items-58942EDF.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-YU4BZFVS.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="workspace_topology.html" class="sidebar-projectName" translate="no">
+citadel
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-extra" id="main" data-type="extras">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of citadel</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>README</h1>
+
+<a href="readme-1.md" title="Copy Markdown (hold Ctrl/Cmd and click it to open as Markdown)" class="copy-markdown icon-action" rel="help">
+  <i class="ri-markdown-line" aria-hidden="true"></i>
+  <span class="sr-only">Copy Markdown</span>
+</a>
+
+
+  </div>
+
+
+<p align="center">  <img src="assets/citadel.svg" alt="Citadel" width="220" /></p><h1>Citadel</h1><p>Citadel is the host-local Brain kernel for a generic agentic OS. It accepts structured ingress at the kernel boundary, compiles Brain policy and planning decisions, preserves host-local session continuity, and projects Brain-authored packets toward the shared <code class="inline">jido_integration</code> contracts layer.</p><p>This repository is now aligned to the packet-defined non-umbrella workspace. The old single-package scaffold is gone; the package graph and ownership boundaries are the source of truth.</p><p>The workspace now also carries a separately publishable northbound typed surface
+package:</p><ul><li><code class="inline">surfaces/citadel_domain_surface</code></li><li>public namespace: <code class="inline">Citadel.DomainSurface</code></li><li>role: typed host-facing command, query, route, and capability boundary above
+the Citadel kernel</li></ul><h2 id="stack-position" class="section-heading"><a href="#stack-position" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Stack Position</span></h2><pre><code class="text">host surfaces / shells
+  -&gt; Citadel
+      -&gt; jido_integration
+          -&gt; execution plane
+              -&gt; providers, runtimes, services, connectors</code></pre><p>Citadel owns:</p><ul><li>canonical Brain context construction</li><li>structured ingress handling at <code class="inline">IntentEnvelope</code></li><li>objective, plan, topology, and authority compilation</li><li>host-local session continuity and runtime coordination</li><li>projection into shared authority, invocation, review, and derived-state seams</li></ul><p>Citadel does not own:</p><ul><li>durable run, attempt, approval, review, or artifact truth</li><li>lower execution transports or provider runtimes</li><li>raw credential lifecycle</li><li>raw natural-language interpretation</li><li>product-shell UI or channel state</li></ul><h2 id="workspace" class="section-heading"><a href="#workspace" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Workspace</span></h2><pre><code class="text">citadel/
+  core/
+    contract_core/
+    jido_integration_v2_contracts/
+    authority_contract/
+    execution_governance_contract/
+    observability_contract/
+    policy_packs/
+    citadel_core/
+    citadel_runtime/
+    conformance/
+  bridges/
+    invocation_bridge/
+    query_bridge/
+    signal_bridge/
+    boundary_bridge/
+    host_ingress_bridge/
+    projection_bridge/
+    trace_bridge/
+    memory_bridge/
+  apps/
+    coding_assist/
+    operator_assist/
+    host_surface_harness/
+  surfaces/
+    citadel_domain_surface/</code></pre><p>Package ownership is explicit:</p><ul><li><code class="inline">core/*</code> owns values, contracts, policy packs, runtime coordination, and conformance.</li><li><code class="inline">bridges/*</code> owns adapter code only.</li><li><code class="inline">apps/*</code> owns thin proof-app composition shells and stays above the kernel.</li><li><code class="inline">surfaces/*</code> owns northbound publishable typed surfaces that sit above the
+kernel without becoming second cores.</li></ul><p>The third proof app, <code class="inline">apps/host_surface_harness</code>, is part of the workspace from day one. It exists to prove host/kernel seams, multi-session behavior, and structured ingress above Citadel without pushing those concerns into the core.</p><p>The public structured host-ingress seam now lives in
+<code class="inline">bridges/host_ingress_bridge</code>. That package owns the typed host-facing request
+context, accepted-result contract, pure invocation compiler, and the public
+<a href="Citadel.HostIngress.html"><code class="inline">Citadel.HostIngress</code></a> facade that host applications call before the lower
+<code class="inline">jido_integration</code> seam.</p><h2 id="toolchain-and-build" class="section-heading"><a href="#toolchain-and-build" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Toolchain And Build</span></h2><p>Citadel is pinned to Elixir <code class="inline">~&gt; 1.19</code> and OTP 28. The repo-level <code class="inline">.tool-versions</code> file tracks the exact bootstrap pair:</p><ul><li><code class="inline">elixir 1.19.5-otp-28</code></li><li><code class="inline">erlang 28.3</code></li></ul><p>The root Mix project is a tooling-only workspace orchestrator. Wave 1 materializes the packet-pinned workspace tooling and dependency posture explicitly:</p><ul><li><code class="inline">{:blitz, &quot;~&gt; 0.2.0&quot;, runtime: false}</code> for workspace fanout</li><li><code class="inline">{:weld, &quot;~&gt; 0.7.0&quot;, runtime: false}</code> for repo-local package projection and release preparation</li><li><code class="inline">{:jcs, &quot;~&gt; 0.2.0&quot;}</code> in <code class="inline">core/contract_core</code> for RFC 8785 / JCS ownership</li></ul><p>Common commands:</p><pre><code class="makeup bash" translate="no"><span class="">mix deps.get
+</span><span class="">mix monorepo.deps.get
+</span><span class="">mix monorepo.compile
+</span><span class="">mix monorepo.test
+</span></code></pre><p>Static analysis and build hardening commands:</p><pre><code class="makeup bash" translate="no"><span class="">mix lint.packet_seams
+</span><span class="">mix lint.strict
+</span><span class="">mix monorepo.dialyzer
+</span><span class="">mix static.analysis
+</span><span class="">mix ci
+</span></code></pre><p>Pure-core adversarial hardening commands:</p><pre><code class="makeup bash" translate="no"><span class="">mix hardening.pure_core.adversarial
+</span><span class="">mix hardening.pure_core.mutation
+</span><span class="">mix hardening.pure_core
+</span></code></pre><ul><li><code class="inline">mix hardening.pure_core.adversarial</code> runs the Wave 10 property suites in <code class="inline">core/citadel_core</code> and <code class="inline">core/policy_packs</code></li><li><code class="inline">mix hardening.pure_core.mutation</code> runs build-failing mutation checks for the same pure-core packages</li><li><code class="inline">mix hardening.pure_core</code> runs both gates</li></ul><p>The Wave 9 hardening posture is enforced in code and CI:</p><ul><li><code class="inline">mix lint.packet_seams</code> fails on <a href="https://hexdocs.pm/elixir/String.html#to_atom/1"><code class="inline">String.to_atom/1</code></a> anywhere in packet-critical workspace paths and blocks raw <code class="inline">map()</code> or <code class="inline">keyword()</code> public seam specs on the tracked ingress, bridge, runtime, and trace modules.</li><li><code class="inline">mix lint.strict</code> runs a curated high-signal Credo config across the workspace libraries instead of style-noise checks that do not protect packet seams.</li><li><code class="inline">mix static.analysis</code> also runs the <code class="inline">citadel_domain_surface</code> package-local
+seam lint and strict lint so the northbound typed boundary keeps its own
+publication discipline inside the monorepo.</li><li><code class="inline">mix monorepo.dialyzer</code> fans out <code class="inline">mix dialyzer --halt-exit-status</code> across the real workspace graph through Blitz, so any Dialyzer warning fails the build.</li><li><code class="inline">.github/workflows/ci.yml</code> runs format, compile, packet seam lint, strict lint, Dialyzer, and tests as separate CI steps.</li></ul><p>Publication is now finalized as a derivative workspace boundary. The repo-local
+Weld manifest lives at <code class="inline">packaging/weld/citadel.exs</code>, projects the public
+<code class="inline">citadel</code> artifact in package-projection mode, keeps <code class="inline">apps/*</code>,
+<code class="inline">core/conformance</code>, and <code class="inline">surfaces/citadel_domain_surface</code> out of the default
+artifact, carries the
+<code class="inline">core/jido_integration_v2_contracts</code> slice in-workspace, and preserves package
+ownership instead of flattening the workspace into a monolith.</p><p>Common publication commands:</p><pre><code class="makeup bash" translate="no"><span class="">mix release.prepare
+</span><span class="">mix release.track
+</span><span class="">mix release.archive
+</span></code></pre><p><code class="inline">mix release.track</code> updates the orphan-backed <code class="inline">projection/citadel</code> branch so
+downstream repos can pin a real generated-source ref before any formal release
+boundary exists.</p><h2 id="shared-contract-strategy" class="section-heading"><a href="#shared-contract-strategy" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Shared Contract Strategy</span></h2><p>Citadel now carries the higher-order <code class="inline">Jido.Integration.V2</code> lineage contract
+slice as an in-workspace package at <code class="inline">core/jido_integration_v2_contracts</code>.</p><p>That package provides the shared modules the public Citadel surface publishes
+today:</p><ul><li><a href="Jido.Integration.V2.SubjectRef.html"><code class="inline">Jido.Integration.V2.SubjectRef</code></a></li><li><a href="Jido.Integration.V2.EvidenceRef.html"><code class="inline">Jido.Integration.V2.EvidenceRef</code></a></li><li><a href="Jido.Integration.V2.GovernanceRef.html"><code class="inline">Jido.Integration.V2.GovernanceRef</code></a></li><li><a href="Jido.Integration.V2.ReviewProjection.html"><code class="inline">Jido.Integration.V2.ReviewProjection</code></a></li><li><a href="Jido.Integration.V2.DerivedStateAttachment.html"><code class="inline">Jido.Integration.V2.DerivedStateAttachment</code></a></li></ul><p>Keeping that slice inside the workspace lets the welded <code class="inline">citadel</code> artifact stay
+self-contained and Hex-buildable while preserving the shared public module
+names.</p><h2 id="documentation" class="section-heading"><a href="#documentation" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Documentation</span></h2><p>The packet that drives this repo lives at:</p><ul><li><code class="inline">/home/home/p/g/n/jido_brainstorm/nshkrdotcom/docs/20260409/citadel_ground_up_design_docset</code></li></ul><p>Local workspace docs now live in:</p><ul><li><code class="inline">README.md</code></li><li><code class="inline">docs/README.md</code></li><li><code class="inline">docs/workspace_topology.md</code></li><li><code class="inline">docs/shared_contract_dependency_strategy.md</code></li><li>package-level <code class="inline">README.md</code> files under every <code class="inline">core/*</code>, <code class="inline">bridges/*</code>, <code class="inline">apps/*</code>,
+and <code class="inline">surfaces/*</code> package</li></ul><h2 id="fault-injection-harness" class="section-heading"><a href="#fault-injection-harness" class="hover-link"><i class="ri-link-m" aria-hidden="true"></i></a><span class="text">Fault Injection Harness</span></h2><p>The canonical Docker-based Toxiproxy harness remains at <code class="inline">dev/docker/toxiproxy</code>.</p><pre><code class="makeup bash" translate="no"><span class="">docker compose -f dev/docker/toxiproxy/docker-compose.yml -p citadel-toxiproxy up -d
+</span><span class="">dev/docker/toxiproxy/verify.sh
+</span><span class="">mix hardening.infrastructure_faults
+</span></code></pre>
+
+</div>
+
+<div class="bottom-actions" id="bottom-actions">
+  <div class="bottom-actions-item">
+
+      <a href="license.html" class="bottom-actions-button" rel="prev">
+        <span class="subheader">
+          ← Previous Page
+        </span>
+        <span class="title">
+LICENSE
+        </span>
+      </a>
+
+  </div>
+  <div class="bottom-actions-item">
+
+      <a href="readme-2.html" class="bottom-actions-button" rel="next">
+        <span class="subheader">
+          Next Page →
+        </span>
+        <span class="title">
+Citadel Docs
+        </span>
+      </a>
+
+  </div>
+</div>
+    <footer class="footer">
+
+        <p>
+
+            <span class="line">
+              <a href="https://hex.pm/packages/citadel/0.1.0">Hex Package</a>
+
+              <a href="https://preview.hex.pm/preview/citadel/0.1.0">Hex Preview</a>
+
+                (<a href="https://preview.hex.pm/preview/citadel/0.1.0/show/README.md">current file</a>)
+
+            </span>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+              <a href="llms.txt" target="_blank">
+                View llms.txt
+              </a>
+
+
+              <a href="citadel.epub">
+                Download ePub version
+              </a>
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.1) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>

@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.1">
+    <meta name="project" content="citadel v0.1.0">
+
+
+    <title>Citadel.Runtime.SessionDirectory — citadel v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-YJO4MOOW.css" />
+
+    <script defer src="dist/sidebar_items-58942EDF.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-YU4BZFVS.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="workspace_topology.html" class="sidebar-projectName" translate="no">
+citadel
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-module" id="main" data-type="modules">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of citadel</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>
+      <span translate="no">Citadel.<wbr>Runtime.<wbr>SessionDirectory</span> 
+      <small class="app-vsn" translate="no">(citadel v0.1.0)</small>
+
+    </h1>
+
+<a href="Citadel.Runtime.SessionDirectory.md" title="Copy Markdown (hold Ctrl/Cmd and click it to open as Markdown)" class="copy-markdown icon-action" rel="help">
+  <i class="ri-markdown-line" aria-hidden="true"></i>
+  <span class="sr-only">Copy Markdown</span>
+</a>
+
+
+
+  </div>
+
+
+    <section id="moduledoc">
+<p>Continuity-store owner for persisted session blobs, activation policy, and
+dead-letter maintenance.</p>
+    </section>
+
+</div>
+
+  <section id="summary" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#summary">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Summary</span>
+    </h2>
+<div class="summary-types summary">
+  <h3>
+    <a href="#types">Types</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#t:continuity_fault/0" data-no-tooltip="" translate="no">continuity_fault()</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#t:state/0" data-no-tooltip="" translate="no">state()</a>
+
+      </div>
+
+    </div>
+
+</div>
+<div class="summary-functions summary">
+  <h3>
+    <a href="#functions">Functions</a>
+  </h3>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#batch_load_committed_cursors/2" data-no-tooltip="" translate="no">batch_load_committed_cursors(server \\ __MODULE__, session_ids)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#bulk_recover_dead_letters/3" data-no-tooltip="" translate="no">bulk_recover_dead_letters(server \\ __MODULE__, selector, operation)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#child_spec/1" data-no-tooltip="" translate="no">child_spec(init_arg)</a>
+
+      </div>
+
+        <div class="summary-synopsis"><p>Returns a specification to start this module under a supervisor.</p></div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#claim_session/3" data-no-tooltip="" translate="no">claim_session(server \\ __MODULE__, session_id, opts \\ [])</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#clear_dead_letter/3" data-no-tooltip="" translate="no">clear_dead_letter(server \\ __MODULE__, entry_id, override_reason)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#commit_continuity/2" data-no-tooltip="" translate="no">commit_continuity(server \\ __MODULE__, commit)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#configure_fault_injection/2" data-no-tooltip="" translate="no">configure_fault_injection(server \\ __MODULE__, fault_injection)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#enqueue_activation/3" data-no-tooltip="" translate="no">enqueue_activation(server \\ __MODULE__, session_id, priority_class)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#fetch_persisted_blob/2" data-no-tooltip="" translate="no">fetch_persisted_blob(server \\ __MODULE__, session_id)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#force_evict_quarantined/2" data-no-tooltip="" translate="no">force_evict_quarantined(server \\ __MODULE__, session_id)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#inspect_session/2" data-no-tooltip="" translate="no">inspect_session(server \\ __MODULE__, session_id)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#list_active_session_cursors/1" data-no-tooltip="" translate="no">list_active_session_cursors(server \\ __MODULE__)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#next_activation_batch/1" data-no-tooltip="" translate="no">next_activation_batch(server \\ __MODULE__)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#project_binding_epoch/1" data-no-tooltip="" translate="no">project_binding_epoch(server \\ __MODULE__)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#quarantine_session/4" data-no-tooltip="" translate="no">quarantine_session(server \\ __MODULE__, session_id, reason_family, opts \\ [])</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#quarantined_sessions/1" data-no-tooltip="" translate="no">quarantined_sessions(server \\ __MODULE__)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#register_active_session/3" data-no-tooltip="" translate="no">register_active_session(server \\ __MODULE__, session_id, opts \\ [])</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#replace_dead_letter/4" data-no-tooltip="" translate="no">replace_dead_letter(server \\ __MODULE__, entry_id, replacement_entry, override_reason)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#reset!/1" data-no-tooltip="" translate="no">reset!(server \\ __MODULE__)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#resolve_outbox_entry/2" data-no-tooltip="" translate="no">resolve_outbox_entry(server \\ __MODULE__, entry_id)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#retry_dead_letter_with_override/4" data-no-tooltip="" translate="no">retry_dead_letter_with_override(server \\ __MODULE__, entry_id, override_reason, opts \\ [])</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#seed_raw_blob/3" data-no-tooltip="" translate="no">seed_raw_blob(server \\ __MODULE__, session_id, raw_blob)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#start_link/1" data-no-tooltip="" translate="no">start_link(opts)</a>
+
+      </div>
+
+    </div>
+
+    <div class="summary-row">
+      <div class="summary-signature">
+        <a href="#unregister_active_session/2" data-no-tooltip="" translate="no">unregister_active_session(server \\ __MODULE__, session_id)</a>
+
+      </div>
+
+    </div>
+
+</div>
+
+  </section>
+
+
+  <section id="types" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#types">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Types</span>
+    </h2>
+
+    <div class="types-list">
+<section class="detail" id="t:continuity_fault/0">
+
+  <div class="detail-header">
+    <a href="#t:continuity_fault/0" class="detail-link" data-no-tooltip="" aria-label="Link to this type">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">continuity_fault()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@type</span> continuity_fault() ::
+  :ok
+  | {:error, :acknowledgement_missing}
+  | {:error, :acknowledgement_ambiguous, :committed}
+  | {:error, :acknowledgement_ambiguous, :not_committed}</pre>
+
+      </div>
+
+
+  </section>
+</section>
+<section class="detail" id="t:state/0">
+
+  <div class="detail-header">
+    <a href="#t:state/0" class="detail-link" data-no-tooltip="" aria-label="Link to this type">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">state()</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+      <div class="specs">
+
+          <pre translate="no"><span class="attribute">@type</span> state() :: %{
+  clock: <a href="https://hexdocs.pm/elixir/typespecs.html#built-in-types">module</a>(),
+  kernel_snapshot: <a href="https://hexdocs.pm/elixir/typespecs.html#built-in-types">term</a>(),
+  flush_interval_ms: <a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">non_neg_integer</a>(),
+  activation_policy: <a href="Citadel.SessionActivationPolicy.html#t:t/0">Citadel.SessionActivationPolicy.t</a>(),
+  store_key: <a href="https://hexdocs.pm/elixir/typespecs.html#built-in-types">term</a>(),
+  store: <a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">map</a>(),
+  fault_injection:
+    (<a href="Citadel.SessionContinuityCommit.html#t:t/0">Citadel.SessionContinuityCommit.t</a>() -&gt; <a href="#t:continuity_fault/0">continuity_fault</a>()) | nil,
+  pending_project_binding_epoch: <a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">non_neg_integer</a>() | nil,
+  pending_updated_at: <a href="https://hexdocs.pm/elixir/DateTime.html#t:t/0">DateTime.t</a>() | nil,
+  flush_timer_ref: <a href="https://hexdocs.pm/elixir/typespecs.html#basic-types">reference</a>() | nil,
+  activation_queue: %{
+    optional(<a href="https://hexdocs.pm/elixir/String.html#t:t/0">String.t</a>()) =&gt; %{
+      priority_class: <a href="https://hexdocs.pm/elixir/String.html#t:t/0">String.t</a>(),
+      queued_at: <a href="https://hexdocs.pm/elixir/DateTime.html#t:t/0">DateTime.t</a>()
+    }
+  }
+}</pre>
+
+      </div>
+
+
+  </section>
+</section>
+
+    </div>
+  </section>
+
+  <section id="functions" class="details-list">
+    <h2 class="section-heading">
+      <a class="hover-link" href="#functions">
+        <i class="ri-link-m" aria-hidden="true"></i>
+      </a>
+      <span class="text">Functions</span>
+    </h2>
+
+    <div class="functions-list">
+<section class="detail" id="batch_load_committed_cursors/2">
+
+    <span id="batch_load_committed_cursors/1"></span>
+
+  <div class="detail-header">
+    <a href="#batch_load_committed_cursors/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">batch_load_committed_cursors(server \\ __MODULE__, session_ids)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="bulk_recover_dead_letters/3">
+
+    <span id="bulk_recover_dead_letters/2"></span>
+
+  <div class="detail-header">
+    <a href="#bulk_recover_dead_letters/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">bulk_recover_dead_letters(server \\ __MODULE__, selector, operation)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="child_spec/1">
+
+  <div class="detail-header">
+    <a href="#child_spec/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">child_spec(init_arg)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+<p>Returns a specification to start this module under a supervisor.</p><p>See <a href="https://hexdocs.pm/elixir/Supervisor.html"><code class="inline">Supervisor</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="claim_session/3">
+
+    <span id="claim_session/1"></span>
+
+    <span id="claim_session/2"></span>
+
+  <div class="detail-header">
+    <a href="#claim_session/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">claim_session(server \\ __MODULE__, session_id, opts \\ [])</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="clear_dead_letter/3">
+
+    <span id="clear_dead_letter/2"></span>
+
+  <div class="detail-header">
+    <a href="#clear_dead_letter/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">clear_dead_letter(server \\ __MODULE__, entry_id, override_reason)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="commit_continuity/2">
+
+    <span id="commit_continuity/1"></span>
+
+  <div class="detail-header">
+    <a href="#commit_continuity/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">commit_continuity(server \\ __MODULE__, commit)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="configure_fault_injection/2">
+
+    <span id="configure_fault_injection/1"></span>
+
+  <div class="detail-header">
+    <a href="#configure_fault_injection/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">configure_fault_injection(server \\ __MODULE__, fault_injection)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="enqueue_activation/3">
+
+    <span id="enqueue_activation/2"></span>
+
+  <div class="detail-header">
+    <a href="#enqueue_activation/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">enqueue_activation(server \\ __MODULE__, session_id, priority_class)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="fetch_persisted_blob/2">
+
+    <span id="fetch_persisted_blob/1"></span>
+
+  <div class="detail-header">
+    <a href="#fetch_persisted_blob/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">fetch_persisted_blob(server \\ __MODULE__, session_id)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="force_evict_quarantined/2">
+
+    <span id="force_evict_quarantined/1"></span>
+
+  <div class="detail-header">
+    <a href="#force_evict_quarantined/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">force_evict_quarantined(server \\ __MODULE__, session_id)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="inspect_session/2">
+
+    <span id="inspect_session/1"></span>
+
+  <div class="detail-header">
+    <a href="#inspect_session/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">inspect_session(server \\ __MODULE__, session_id)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="list_active_session_cursors/1">
+
+    <span id="list_active_session_cursors/0"></span>
+
+  <div class="detail-header">
+    <a href="#list_active_session_cursors/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">list_active_session_cursors(server \\ __MODULE__)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="next_activation_batch/1">
+
+    <span id="next_activation_batch/0"></span>
+
+  <div class="detail-header">
+    <a href="#next_activation_batch/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">next_activation_batch(server \\ __MODULE__)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="project_binding_epoch/1">
+
+    <span id="project_binding_epoch/0"></span>
+
+  <div class="detail-header">
+    <a href="#project_binding_epoch/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">project_binding_epoch(server \\ __MODULE__)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="quarantine_session/4">
+
+    <span id="quarantine_session/2"></span>
+
+    <span id="quarantine_session/3"></span>
+
+  <div class="detail-header">
+    <a href="#quarantine_session/4" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">quarantine_session(server \\ __MODULE__, session_id, reason_family, opts \\ [])</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="quarantined_sessions/1">
+
+    <span id="quarantined_sessions/0"></span>
+
+  <div class="detail-header">
+    <a href="#quarantined_sessions/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">quarantined_sessions(server \\ __MODULE__)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="register_active_session/3">
+
+    <span id="register_active_session/1"></span>
+
+    <span id="register_active_session/2"></span>
+
+  <div class="detail-header">
+    <a href="#register_active_session/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">register_active_session(server \\ __MODULE__, session_id, opts \\ [])</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="replace_dead_letter/4">
+
+    <span id="replace_dead_letter/3"></span>
+
+  <div class="detail-header">
+    <a href="#replace_dead_letter/4" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">replace_dead_letter(server \\ __MODULE__, entry_id, replacement_entry, override_reason)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="reset!/1">
+
+    <span id="reset!/0"></span>
+
+  <div class="detail-header">
+    <a href="#reset!/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">reset!(server \\ __MODULE__)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="resolve_outbox_entry/2">
+
+    <span id="resolve_outbox_entry/1"></span>
+
+  <div class="detail-header">
+    <a href="#resolve_outbox_entry/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">resolve_outbox_entry(server \\ __MODULE__, entry_id)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="retry_dead_letter_with_override/4">
+
+    <span id="retry_dead_letter_with_override/2"></span>
+
+    <span id="retry_dead_letter_with_override/3"></span>
+
+  <div class="detail-header">
+    <a href="#retry_dead_letter_with_override/4" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">retry_dead_letter_with_override(server \\ __MODULE__, entry_id, override_reason, opts \\ [])</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="seed_raw_blob/3">
+
+    <span id="seed_raw_blob/2"></span>
+
+  <div class="detail-header">
+    <a href="#seed_raw_blob/3" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">seed_raw_blob(server \\ __MODULE__, session_id, raw_blob)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="start_link/1">
+
+  <div class="detail-header">
+    <a href="#start_link/1" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">start_link(opts)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="unregister_active_session/2">
+
+    <span id="unregister_active_session/1"></span>
+
+  <div class="detail-header">
+    <a href="#unregister_active_session/2" class="detail-link" data-no-tooltip="" aria-label="Link to this function">
+      <i class="ri-link-m" aria-hidden="true"></i>
+    </a>
+    <div class="heading-with-actions">
+      <h1 class="signature" translate="no">unregister_active_session(server \\ __MODULE__, session_id)</h1>
+
+
+    </div>
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+
+    </div>
+  </section>
+
+    <footer class="footer">
+
+        <p>
+
+            <span class="line">
+              <a href="https://hex.pm/packages/citadel/0.1.0">Hex Package</a>
+
+              <a href="https://preview.hex.pm/preview/citadel/0.1.0">Hex Preview</a>
+
+            </span>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+              <a href="llms.txt" target="_blank">
+                View llms.txt
+              </a>
+
+
+              <a href="citadel.epub">
+                Download ePub version
+              </a>
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.1) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>

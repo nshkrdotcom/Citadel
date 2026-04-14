@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.40.1">
+    <meta name="project" content="citadel v0.1.0">
+
+
+    <title>API Reference — citadel v0.1.0</title>
+
+    <link rel="stylesheet" href="dist/html-elixir-YJO4MOOW.css" />
+
+    <script defer src="dist/sidebar_items-58942EDF.js"></script>
+    <script defer src="docs_config.js"></script>
+    <script defer src="dist/html-YU4BZFVS.js"></script>
+
+  </head>
+  <body>
+    <script>(()=>{var t="ex_doc:settings",e="dark";var o="dark",s="light";var E="sidebar_state",n="closed";var r="sidebar_width";var a="sidebar-open";var i=new URLSearchParams(window.location.search),S=i.get("theme")||JSON.parse(localStorage.getItem(t)||"{}").theme;(S===o||S!==s&&window.matchMedia("(prefers-color-scheme: dark)").matches)&&document.body.classList.add(e);var d=sessionStorage.getItem(E),A=d!==n&&!window.matchMedia(`screen and (max-width: ${768}px)`).matches;document.body.classList.toggle(a,A);var c=sessionStorage.getItem(r);c&&document.body.style.setProperty("--sidebarWidth",`${c}px`);var p=/(Macintosh|iPhone|iPad|iPod)/.test(window.navigator.userAgent);document.documentElement.classList.toggle("apple-os",p);})();
+</script>
+
+<div class="body-wrapper">
+
+<button id="sidebar-menu" class="sidebar-button sidebar-toggle" aria-label="toggle sidebar" aria-controls="sidebar">
+  <i class="ri-menu-line ri-lg" title="Collapse/expand sidebar"></i>
+</button>
+
+<nav id="sidebar" class="sidebar">
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectInfo">
+
+      <div>
+        <a href="workspace_topology.html" class="sidebar-projectName" translate="no">
+citadel
+        </a>
+        <div class="sidebar-projectVersion" translate="no">
+          v0.1.0
+        </div>
+      </div>
+    </div>
+    <ul id="sidebar-list-nav" class="sidebar-list-nav" role="tablist" data-extras="Pages"></ul>
+  </div>
+</nav>
+
+<output role="status" id="toast"></output>
+
+<main class="content page-extra" id="main" data-type="extras">
+  <div id="content" class="content-inner">
+    <div class="top-search">
+      <div class="search-settings">
+        <form class="search-bar" action="search.html">
+          <label class="search-label">
+            <span class="sr-only">Search documentation of citadel</span>
+            <div class="search-input-wrapper">
+              <input name="q" type="text" class="search-input" placeholder="Press / to search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+              <button type="button" tabindex="-1" class="search-close-button" aria-hidden="true">
+                <i class="ri-close-line ri-lg" title="Cancel search"></i>
+              </button>
+            </div>
+          </label>
+        </form>
+        <div class="autocomplete">
+        </div>
+        <div class="engine-selector" data-multiple="false">
+          <button type="button" class="engine-button" aria-label="Select search engine" aria-haspopup="true" aria-expanded="false">
+            <i class="ri-search-2-line" aria-hidden="true"></i>
+            <span class="engine-name">Default</span>
+            <i class="ri-arrow-down-s-line" aria-hidden="true"></i>
+          </button>
+          <div class="engine-dropdown" hidden role="menu">
+
+              <button type="button"
+                      class="engine-option"
+                      data-engine-url="search.html?q="
+                      role="menuitemradio"
+                      aria-checked="true">
+                <span class="name">Default</span>
+                <span class="help">In-browser search</span>
+              </button>
+
+          </div>
+        </div>
+        <button class="icon-settings display-settings">
+          <i class="ri-settings-3-line"></i>
+          <span class="sr-only">Settings</span>
+        </button>
+      </div>
+    </div>
+
+<div id="top-content">
+  <div class="heading-with-actions top-heading">
+    <h1>API Reference <small class="app-vsn">citadel v#0.1.0</small></h1>
+<a href="api-reference.md" title="Copy Markdown (hold Ctrl/Cmd and click it to open as Markdown)" class="copy-markdown icon-action" rel="help">
+  <i class="ri-markdown-line" aria-hidden="true"></i>
+  <span class="sr-only">Copy Markdown</span>
+</a>
+
+
+  </div>
+
+    <section class="details-list">
+      <h2 id="modules" class="section-heading">Modules</h2>
+      <div class="summary">
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ActionOutboxEntry.html" translate="no">Citadel.<wbr>ActionOutboxEntry</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Replay-safe persisted local action envelope.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.AttachGrant.V1.html" translate="no">Citadel.<wbr>AttachGrant.<wbr>V1</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Durable lower attach-grant fact normalized by <code class="inline">boundary_bridge</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.AuthorityContract.html" translate="no">Citadel.<wbr>AuthorityContract</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Packet-aligned ownership surface for the shared Brain authority packet.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.AuthorityContract.AuthorityDecision.V1.html" translate="no">Citadel.<wbr>AuthorityContract.<wbr>AuthorityDecision.<wbr>V1</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Frozen <code class="inline">AuthorityDecision.v1</code> Brain authority packet.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.AuthorityDecision.html" translate="no">Citadel.<wbr>AuthorityDecision</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Internal Brain authority value projected into <code class="inline">AuthorityDecision.v1</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.BackoffPolicy.html" translate="no">Citadel.<wbr>BackoffPolicy</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit deterministic retry schedule contract.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.BoundaryBridge.html" translate="no">Citadel.<wbr>BoundaryBridge</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit boundary lifecycle seam for Brain-side boundary direction and lower lifecycle facts.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.BoundaryBridge.BoundaryProjectionAdapter.html" translate="no">Citadel.<wbr>BoundaryBridge.<wbr>BoundaryProjectionAdapter</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Isolates the boundary-intent projection shape at the bridge edge.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.BoundaryIntent.html" translate="no">Citadel.<wbr>BoundaryIntent</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Frozen <code class="inline">BoundaryIntent</code> carrier shape owned by Citadel.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.BoundaryLeaseView.html" translate="no">Citadel.<wbr>BoundaryLeaseView</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Host-local view of one boundary's liveness and reuse posture.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.BoundaryResumePolicy.html" translate="no">Citadel.<wbr>BoundaryResumePolicy</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit bounded targeted boundary-classification policy for attach or resume.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.BoundarySessionDescriptor.V1.html" translate="no">Citadel.<wbr>BoundarySessionDescriptor.<wbr>V1</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Durable lower boundary-session fact normalized by <code class="inline">boundary_bridge</code> and <code class="inline">query_bridge</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.BridgeCircuit.html" translate="no">Citadel.<wbr>BridgeCircuit</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Pure bridge-side circuit state keyed by the policy-selected downstream scope.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.BridgeCircuitPolicy.html" translate="no">Citadel.<wbr>BridgeCircuitPolicy</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit fail-fast policy for outbound bridge calls.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.BridgeState.html" translate="no">Citadel.<wbr>BridgeState</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Process-backed owner for bridge circuit state and optional deduplication receipts.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ContractCore.html" translate="no">Citadel.<wbr>ContractCore</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Packet-aligned ownership surface for <code class="inline">core/contract_core</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ContractCore.CanonicalJson.html" translate="no">Citadel.<wbr>ContractCore.<wbr>CanonicalJson</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Canonical JSON normalization and RFC 8785 / JCS encoding helpers.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Core.html" translate="no">Citadel.<wbr>Core</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Packet-aligned ownership surface for <code class="inline">core/citadel_core</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.CredentialHandleRef.V1.html" translate="no">Citadel.<wbr>CredentialHandleRef.<wbr>V1</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Lower credential-handle carrier owned below the Citadel invoke seam.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.DecisionHash.html" translate="no">Citadel.<wbr>DecisionHash</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Canonical <code class="inline">decision_hash</code> implementation for <code class="inline">AuthorityDecision.v1</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.DecisionRejection.html" translate="no">Citadel.<wbr>DecisionRejection</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit pure-core rejection result for valid but unplannable or disallowed work.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.DecisionRejectionClassifier.html" translate="no">Citadel.<wbr>DecisionRejectionClassifier</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Pure rejection classification step driven by explicit policy-pack rules.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.DecisionSnapshot.html" translate="no">Citadel.<wbr>DecisionSnapshot</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Immutable aggregate decision snapshot captured before a pure decision pass.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ExecutionEvent.V1.html" translate="no">Citadel.<wbr>ExecutionEvent.<wbr>V1</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Raw lower execution fact consumed as an event.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ExecutionGovernance.V1.html" translate="no">Citadel.<wbr>ExecutionGovernance.<wbr>V1</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Frozen <code class="inline">ExecutionGovernance.v1</code> Brain-to-Spine packet.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ExecutionGovernanceCompiler.html" translate="no">Citadel.<wbr>ExecutionGovernanceCompiler</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Pure compiler from existing Citadel decision values into <code class="inline">ExecutionGovernance.v1</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ExecutionGovernanceContract.html" translate="no">Citadel.<wbr>ExecutionGovernanceContract</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Packet-aligned ownership surface for the Brain-to-Spine execution-governance packet.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ExecutionIntentEnvelope.V1.html" translate="no">Citadel.<wbr>ExecutionIntentEnvelope.<wbr>V1</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit Wave 5 handoff from <a href="Citadel.InvocationRequest.html"><code class="inline">Citadel.InvocationRequest</code></a> into the lower execution packet family.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ExecutionIntentEnvelope.V2.html" translate="no">Citadel.<wbr>ExecutionIntentEnvelope.<wbr>V2</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Successor lower execution handoff with typed execution-governance carriage.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ExecutionOutcome.V1.html" translate="no">Citadel.<wbr>ExecutionOutcome.<wbr>V1</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Raw lower execution terminal fact consumed as an outcome.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ExecutionRoute.V1.html" translate="no">Citadel.<wbr>ExecutionRoute.<wbr>V1</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Durable lower execution route fact.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ExtensionAdmission.html" translate="no">Citadel.<wbr>ExtensionAdmission</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit admission result for one visible local service.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.HostIngress.html" translate="no">Citadel.<wbr>HostIngress</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Public structured host-ingress seam above Citadel's runtime and lower bridge.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.HostIngress.Accepted.html" translate="no">Citadel.<wbr>HostIngress.<wbr>Accepted</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Typed successful result for the public host-ingress seam.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.HostIngress.InvocationCompiler.html" translate="no">Citadel.<wbr>HostIngress.<wbr>InvocationCompiler</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Pure compiler from structured host ingress into durable Citadel invocation work.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.HostIngress.InvocationPayload.html" translate="no">Citadel.<wbr>HostIngress.<wbr>InvocationPayload</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Canonical outbox payload codec for <code class="inline">submit_invocation</code> host-ingress entries.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.HostIngress.RequestContext.html" translate="no">Citadel.<wbr>HostIngress.<wbr>RequestContext</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Typed request context for the public structured host-ingress seam.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.HttpExecutionIntent.V1.html" translate="no">Citadel.<wbr>HttpExecutionIntent.<wbr>V1</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Initial provisional HTTP lower intent packet.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.IntentEnvelope.html" translate="no">Citadel.<wbr>IntentEnvelope</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Frozen Wave 3 structured ingress contract for Citadel.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.IntentEnvelope.Constraints.html" translate="no">Citadel.<wbr>IntentEnvelope.<wbr>Constraints</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Structured planning and execution constraints carried by <a href="Citadel.IntentEnvelope.html"><code class="inline">Citadel.IntentEnvelope</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.IntentEnvelope.DesiredOutcome.html" translate="no">Citadel.<wbr>IntentEnvelope.<wbr>DesiredOutcome</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Structured desired-outcome record carried by <a href="Citadel.IntentEnvelope.html"><code class="inline">Citadel.IntentEnvelope</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.IntentEnvelope.RiskHint.html" translate="no">Citadel.<wbr>IntentEnvelope.<wbr>RiskHint</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Structured risk hint carried by <a href="Citadel.IntentEnvelope.html"><code class="inline">Citadel.IntentEnvelope</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.IntentEnvelope.ScopeSelector.html" translate="no">Citadel.<wbr>IntentEnvelope.<wbr>ScopeSelector</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Structured scope selector carried by <a href="Citadel.IntentEnvelope.html"><code class="inline">Citadel.IntentEnvelope</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.IntentEnvelope.SuccessCriterion.html" translate="no">Citadel.<wbr>IntentEnvelope.<wbr>SuccessCriterion</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Structured success criterion carried by <a href="Citadel.IntentEnvelope.html"><code class="inline">Citadel.IntentEnvelope</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.IntentEnvelope.TargetHint.html" translate="no">Citadel.<wbr>IntentEnvelope.<wbr>TargetHint</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Structured target hint carried by <a href="Citadel.IntentEnvelope.html"><code class="inline">Citadel.IntentEnvelope</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.IntentMappingConstraints.html" translate="no">Citadel.<wbr>IntentMappingConstraints</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Frozen Wave 3 value-level mappings that later feed <code class="inline">BoundaryIntent</code> and <code class="inline">TopologyIntent</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.InvocationBridge.html" translate="no">Citadel.<wbr>InvocationBridge</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit invocation bridge that stops at <a href="Citadel.InvocationRequest.V2.html"><code class="inline">Citadel.InvocationRequest.V2</code></a> and
+projects the lower <code class="inline">ExecutionIntentEnvelope.V2</code> handoff locally.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.InvocationBridge.ExecutionIntentAdapter.html" translate="no">Citadel.<wbr>InvocationBridge.<wbr>ExecutionIntentAdapter</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit adapter that freezes the <code class="inline">InvocationRequest.V2 -&gt; ExecutionIntentEnvelope.V2</code>
+handoff without pretending the lower family already exists downstream.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.InvocationRequest.html" translate="no">Citadel.<wbr>InvocationRequest</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Frozen Citadel-owned invoke seam handed to <code class="inline">invocation_bridge</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.InvocationRequest.V2.html" translate="no">Citadel.<wbr>InvocationRequest.<wbr>V2</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Successor Citadel-owned invoke seam with typed execution-governance carriage.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.JidoIntegrationBridge.html" translate="no">Citadel.<wbr>JidoIntegrationBridge</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Citadel-owned transport seam for Brain-to-Spine durable submission.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.JidoIntegrationBridge.BrainInvocationAdapter.html" translate="no">Citadel.<wbr>JidoIntegrationBridge.<wbr>BrainInvocationAdapter</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Pure projection from Citadel's execution-intent handoff into the durable
+<a href="Jido.Integration.V2.BrainInvocation.html"><code class="inline">Jido.Integration.V2.BrainInvocation</code></a> packet.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.JidoIntegrationBridge.InvocationDownstream.html" translate="no">Citadel.<wbr>JidoIntegrationBridge.<wbr>InvocationDownstream</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Concrete downstream for <a href="Citadel.InvocationBridge.html"><code class="inline">Citadel.InvocationBridge</code></a> that projects into the
+durable <code class="inline">BrainInvocation</code> packet and delegates transport.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.JidoIntegrationBridge.LineageCodec.html" translate="no">Citadel.<wbr>JidoIntegrationBridge.<wbr>LineageCodec</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Mandatory choke point for reconstructing Citadel-local vendored
+<code class="inline">Jido.Integration.V2</code> lineage structs.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.JsonRpcExecutionIntent.V1.html" translate="no">Citadel.<wbr>JsonRpcExecutionIntent.<wbr>V1</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Initial provisional JSON-RPC lower intent packet.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.KernelContext.html" translate="no">Citadel.<wbr>KernelContext</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Canonical pre-planning context assembled from structured ingress and policy selection.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.KernelEpochUpdate.html" translate="no">Citadel.<wbr>KernelEpochUpdate</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit constituent epoch update emitted into <code class="inline">KernelSnapshot</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.LocalAction.html" translate="no">Citadel.<wbr>LocalAction</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Deferred post-commit local action.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.MemoryBridge.html" translate="no">Citadel.<wbr>MemoryBridge</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Advisory memory bridge keyed lexically by <code class="inline">memory_id</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.MemoryRecord.html" translate="no">Citadel.<wbr>MemoryRecord</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Host-local advisory memory item surfaced through <a href="Citadel.Ports.Memory.html"><code class="inline">Citadel.Ports.Memory</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Objective.html" translate="no">Citadel.<wbr>Objective</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Normalized structured objective derived from <code class="inline">IntentEnvelope</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ObservabilityContract.html" translate="no">Citadel.<wbr>ObservabilityContract</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Packet-aligned ownership surface for <code class="inline">core/observability_contract</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ObservabilityContract.Telemetry.html" translate="no">Citadel.<wbr>ObservabilityContract.<wbr>Telemetry</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Frozen low-cardinality telemetry event names, measurements, and metadata.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ObservabilityContract.Trace.html" translate="no">Citadel.<wbr>ObservabilityContract.<wbr>Trace</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Frozen minimum trace vocabulary, correlation keys, and failure codes.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.PersistedSessionBlob.html" translate="no">Citadel.<wbr>PersistedSessionBlob</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Single durable continuity write unit keyed by session id.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.PersistedSessionEnvelope.html" translate="no">Citadel.<wbr>PersistedSessionEnvelope</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Versioned durable session continuity envelope.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Plan.html" translate="no">Citadel.<wbr>Plan</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Ordered plan for one objective.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.PlanHints.html" translate="no">Citadel.<wbr>PlanHints</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Advisory plan shaping hints attached to structured ingress.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.PlanHints.BudgetHints.html" translate="no">Citadel.<wbr>PlanHints.<wbr>BudgetHints</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Budget hint used inside <a href="Citadel.PlanHints.html"><code class="inline">Citadel.PlanHints</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.PlanHints.CandidateStep.html" translate="no">Citadel.<wbr>PlanHints.<wbr>CandidateStep</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Candidate-step hint used inside <a href="Citadel.PlanHints.html"><code class="inline">Citadel.PlanHints</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.PlanHints.PreferredTopology.html" translate="no">Citadel.<wbr>PlanHints.<wbr>PreferredTopology</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Preferred-topology hint used inside <a href="Citadel.PlanHints.html"><code class="inline">Citadel.PlanHints</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.PolicyPacks.html" translate="no">Citadel.<wbr>PolicyPacks</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit policy-pack definitions and deterministic profile selection.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.PolicyPacks.PolicyPack.html" translate="no">Citadel.<wbr>PolicyPacks.<wbr>PolicyPack</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>One explicit policy pack plus its selector, profile set, and rejection policy.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.PolicyPacks.Profiles.html" translate="no">Citadel.<wbr>PolicyPacks.<wbr>Profiles</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit decision-shaping profiles selected from one policy pack.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.PolicyPacks.RejectionPolicy.html" translate="no">Citadel.<wbr>PolicyPacks.<wbr>RejectionPolicy</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Pure policy inputs for rejection retryability and publication classification.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.PolicyPacks.Selection.html" translate="no">Citadel.<wbr>PolicyPacks.<wbr>Selection</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Deterministic output of policy-pack profile selection.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.PolicyPacks.Selector.html" translate="no">Citadel.<wbr>PolicyPacks.<wbr>Selector</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit policy-pack selector inputs.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Ports.BoundaryLifecycle.html" translate="no">Citadel.<wbr>Ports.<wbr>BoundaryLifecycle</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Projects boundary intent and normalizes boundary lifecycle facts.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Ports.Clock.html" translate="no">Citadel.<wbr>Ports.<wbr>Clock</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Small local clock capability used by runtime owners and adapters.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Ports.Id.html" translate="no">Citadel.<wbr>Ports.<wbr>Id</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Small bounded local id capability.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Ports.IntentResolver.html" translate="no">Citadel.<wbr>Ports.<wbr>IntentResolver</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Optional host-facing structured ingress resolver above the kernel.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Ports.InvocationSink.html" translate="no">Citadel.<wbr>Ports.<wbr>InvocationSink</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Host-local invocation seam consumed by runtime after commit.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Ports.Memory.html" translate="no">Citadel.<wbr>Ports.<wbr>Memory</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Advisory memory seam keyed lexically by <code class="inline">memory_id</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Ports.ProjectionSink.html" translate="no">Citadel.<wbr>Ports.<wbr>ProjectionSink</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Northbound publication seam for review and derived-state packets.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Ports.RuntimeQuery.html" translate="no">Citadel.<wbr>Ports.<wbr>RuntimeQuery</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Rehydrates durable lower truth into normalized Citadel read models.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Ports.SignalSource.html" translate="no">Citadel.<wbr>Ports.<wbr>SignalSource</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Normalizes runtime signals into <a href="Citadel.RuntimeObservation.html"><code class="inline">Citadel.RuntimeObservation</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Ports.Trace.html" translate="no">Citadel.<wbr>Ports.<wbr>Trace</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Frozen minimum trace publication seam.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ProcessExecutionIntent.V1.html" translate="no">Citadel.<wbr>ProcessExecutionIntent.<wbr>V1</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Initial provisional process lower intent packet.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ProjectBinding.html" translate="no">Citadel.<wbr>ProjectBinding</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Durable host-local binding between a session and project/workspace.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ProjectionBridge.html" translate="no">Citadel.<wbr>ProjectionBridge</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit northbound publication bridge for review projections and derived-state attachments.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ProjectionBridge.DerivedStateAttachmentAdapter.html" translate="no">Citadel.<wbr>ProjectionBridge.<wbr>DerivedStateAttachmentAdapter</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Isolates <code class="inline">DerivedStateAttachment</code> contract-shape evolution at the bridge edge.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ProjectionBridge.ReviewProjectionAdapter.html" translate="no">Citadel.<wbr>ProjectionBridge.<wbr>ReviewProjectionAdapter</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Isolates <code class="inline">ReviewProjection</code> contract-shape evolution at the bridge edge.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.QueryBridge.html" translate="no">Citadel.<wbr>QueryBridge</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Rehydrates durable lower truth into normalized Citadel read models.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ResolutionProvenance.html" translate="no">Citadel.<wbr>ResolutionProvenance</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit provenance for how a structured <code class="inline">IntentEnvelope</code> was formed.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Runtime.html" translate="no">Citadel.<wbr>Runtime</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Packet-aligned ownership surface for <code class="inline">core/citadel_runtime</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Runtime.BoundaryLeaseTracker.html" translate="no">Citadel.<wbr>Runtime.<wbr>BoundaryLeaseTracker</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Host-local boundary liveness and targeted resume-classification owner.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Runtime.KernelSnapshot.html" translate="no">Citadel.<wbr>Runtime.<wbr>KernelSnapshot</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Single serialized writer for aggregate <code class="inline">DecisionSnapshot</code> publication.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Runtime.ObservationSignalSource.html" translate="no">Citadel.<wbr>Runtime.<wbr>ObservationSignalSource</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Default runtime signal source for already-normalized observations.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Runtime.PolicyCache.html" translate="no">Citadel.<wbr>Runtime.<wbr>PolicyCache</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Host-local mutable policy snapshot owner.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Runtime.ScopeCatalog.html" translate="no">Citadel.<wbr>Runtime.<wbr>ScopeCatalog</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Host-local scope and target visibility owner.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Runtime.ServiceCatalog.html" translate="no">Citadel.<wbr>Runtime.<wbr>ServiceCatalog</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Host-local dynamic service visibility and admission owner.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Runtime.SessionDirectory.html" translate="no">Citadel.<wbr>Runtime.<wbr>SessionDirectory</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Continuity-store owner for persisted session blobs, activation policy, and
+dead-letter maintenance.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Runtime.SessionMigration.html" translate="no">Citadel.<wbr>Runtime.<wbr>SessionMigration</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit bounded migration for persisted session continuity blobs.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Runtime.SessionServer.html" translate="no">Citadel.<wbr>Runtime.<wbr>SessionServer</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Dynamic owner for one session's mutable host-local runtime state.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Runtime.SignalIngress.html" translate="no">Citadel.<wbr>Runtime.<wbr>SignalIngress</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Always-on signal ingress root with per-session logical subscription isolation.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Runtime.TopologyCatalog.html" translate="no">Citadel.<wbr>Runtime.<wbr>TopologyCatalog</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Host-local topology defaults and routing-constraint owner.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Runtime.TracePublisher.html" translate="no">Citadel.<wbr>Runtime.<wbr>TracePublisher</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Best-effort bounded trace publisher used after commit.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Runtime.TracePublisher.Buffer.html" translate="no">Citadel.<wbr>Runtime.<wbr>TracePublisher.<wbr>Buffer</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Segmented bounded buffer preserving a protected error-family evidence window.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.RuntimeObservation.html" translate="no">Citadel.<wbr>RuntimeObservation</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Host-local normalized observation produced from query or signal ingress.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ScopeRef.html" translate="no">Citadel.<wbr>ScopeRef</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit host-local scope reference for kernel interpretation.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.ServiceDescriptor.html" translate="no">Citadel.<wbr>ServiceDescriptor</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit visible service descriptor.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.SessionActivationPolicy.html" translate="no">Citadel.<wbr>SessionActivationPolicy</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit bounded cold-boot or mass-recovery activation policy.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.SessionContinuityCommit.html" translate="no">Citadel.<wbr>SessionContinuityCommit</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Single atomic continuity-write command crossing the <code class="inline">SessionDirectory</code> seam.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.SessionOutbox.html" translate="no">Citadel.<wbr>SessionOutbox</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Live in-memory session outbox working set with explicit one-to-one invariants.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.SessionState.html" translate="no">Citadel.<wbr>SessionState</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Live mutable session state reconstructed from persisted continuity plus local visibility.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.SignalBridge.html" translate="no">Citadel.<wbr>SignalBridge</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Normalizes non-boundary runtime signals into <a href="Citadel.RuntimeObservation.html"><code class="inline">Citadel.RuntimeObservation</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.SignalIngressRebuildPolicy.html" translate="no">Citadel.<wbr>SignalIngressRebuildPolicy</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit rebuild policy for <code class="inline">SignalIngress</code>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.StalenessRequirements.html" translate="no">Citadel.<wbr>StalenessRequirements</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit replay-safe stale-check contract for one persisted action.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.Step.html" translate="no">Citadel.<wbr>Step</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>One explicit planned step.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.TargetResolution.html" translate="no">Citadel.<wbr>TargetResolution</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Explicit result of host-local target resolution.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.TopologyIntent.html" translate="no">Citadel.<wbr>TopologyIntent</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Frozen <code class="inline">TopologyIntent</code> carrier shape owned by Citadel.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.TraceBridge.html" translate="no">Citadel.<wbr>TraceBridge</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>AITrace-facing trace publication bridge consuming canonical <a href="Citadel.TraceEnvelope.html"><code class="inline">Citadel.TraceEnvelope</code></a> values.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Citadel.TraceEnvelope.html" translate="no">Citadel.<wbr>TraceEnvelope</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Canonical Citadel-owned trace publication value.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.AuthorityAuditEnvelope.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>AuthorityAuditEnvelope</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Spine-owned machine-readable authority audit payload derived from the Brain packet.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.BrainInvocation.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>BrainInvocation</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Durable Brain-to-Spine invocation handoff packet.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.CanonicalJson.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>CanonicalJson</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Spine-owned canonical JSON normalization and RFC 8785 / JCS encoding helpers.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.Contracts.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>Contracts</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Shared public types and validation helpers for the greenfield integration platform.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.DerivedStateAttachment.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>DerivedStateAttachment</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Canonical attachment contract for higher-order derived state.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.EvidenceRef.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>EvidenceRef</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Stable reference to a source record backing a packet, decision, or interpretation.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.ExecutionGovernanceProjection.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>ExecutionGovernanceProjection</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Spine-owned machine-readable governance projection carried in Brain submissions.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.ExecutionGovernanceProjection.Compiler.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>ExecutionGovernanceProjection.<wbr>Compiler</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Compiles Spine-owned governance projections into operational shadow sections.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.ExecutionGovernanceProjection.Verifier.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>ExecutionGovernanceProjection.<wbr>Verifier</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Verifies that supplied operational shadow sections still match the Spine compiler.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.GovernanceRef.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>GovernanceRef</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Stable reference to governance lineage such as approval, denial, override, rollback, or policy decisions.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.ReviewProjection.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>ReviewProjection</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Contracts-only northbound review projection carried in review packet metadata.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.SubjectRef.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>SubjectRef</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Stable reference to the primary node-local subject a higher-order record is about.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.SubmissionAcceptance.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>SubmissionAcceptance</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Durable Spine acceptance receipt for a Brain submission.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.SubmissionIdentity.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>SubmissionIdentity</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Spine-owned stable identity for a durable Brain submission.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="Jido.Integration.V2.SubmissionRejection.html" translate="no">Jido.<wbr>Integration.<wbr>V2.<wbr>SubmissionRejection</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Typed Spine rejection for a Brain submission.</p></div>
+
+</div>
+
+      </div>
+    </section>
+
+
+</div>
+    <footer class="footer">
+
+        <p>
+
+            <span class="line">
+              <a href="https://hex.pm/packages/citadel/0.1.0">Hex Package</a>
+
+              <a href="https://preview.hex.pm/preview/citadel/0.1.0">Hex Preview</a>
+
+            </span>
+
+          <span class="line">
+            <button class="a-main footer-button display-quick-switch" title="Go to package docs">
+              Go to package docs
+            </button>
+
+              <a href="llms.txt" target="_blank">
+                View llms.txt
+              </a>
+
+
+              <a href="citadel.epub">
+                Download ePub version
+              </a>
+
+          </span>
+        </p>
+
+        <p class="built-using">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener" translate="no">ExDoc</a> (v0.40.1) for the
+
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank" translate="no">Elixir programming language</a>
+
+        </p>
+
+
+    </footer>
+  </div>
+</main>
+</div>
+
+  </body>
+</html>
