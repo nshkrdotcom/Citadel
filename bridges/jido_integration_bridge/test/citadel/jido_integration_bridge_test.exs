@@ -105,14 +105,35 @@ defmodule Citadel.JidoIntegrationBridgeTest do
     assert invocation.submission_key == acceptance.submission_key
   end
 
-  defp envelope_fixture(entry_id) do
-    request = invocation_request_fixture()
+  test "projects substrate lineage without host-ingress continuity payloads" do
+    envelope =
+      envelope_fixture(
+        "entry-lineage",
+        session_id: "substrate-lineage/session-1",
+        request_id: "req-lineage-1",
+        invocation_request_id: "invoke-lineage-1"
+      )
+
+    invocation = BrainInvocationAdapter.project!(envelope)
+
+    assert invocation.session_id == "substrate-lineage/session-1"
+    assert invocation.submission_identity.session_id == "substrate-lineage/session-1"
+    assert invocation.submission_identity.request_id == "req-lineage-1"
+    assert invocation.submission_identity.invocation_request_id == "invoke-lineage-1"
+    assert invocation.extensions["citadel"]["selected_step_id"] == "step-bridge-1"
+    refute Map.has_key?(invocation.extensions["citadel"], "host_request_id")
+    refute Map.has_key?(invocation.extensions["citadel"], "session_continuity")
+    refute Map.has_key?(invocation.extensions["citadel"], "persisted_session_blob")
+  end
+
+  defp envelope_fixture(entry_id, request_overrides \\ []) do
+    request = invocation_request_fixture(request_overrides)
     entry = outbox_entry(entry_id)
     ExecutionIntentAdapter.project!(request, entry)
   end
 
-  defp invocation_request_fixture do
-    InvocationRequestV2.new!(%{
+  defp invocation_request_fixture(overrides) do
+    base_request = %{
       schema_version: 2,
       invocation_request_id: "invoke-bridge-1",
       request_id: "req-bridge-1",
@@ -205,7 +226,11 @@ defmodule Citadel.JidoIntegrationBridgeTest do
           }
         }
       }
-    })
+    }
+
+    base_request
+    |> Map.merge(Map.new(overrides))
+    |> InvocationRequestV2.new!()
   end
 
   defp authority_packet_fixture do

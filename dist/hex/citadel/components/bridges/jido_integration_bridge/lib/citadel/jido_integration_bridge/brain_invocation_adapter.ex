@@ -2,6 +2,10 @@ defmodule Citadel.JidoIntegrationBridge.BrainInvocationAdapter do
   @moduledoc """
   Pure projection from Citadel's execution-intent handoff into the durable
   `Jido.Integration.V2.BrainInvocation` packet.
+
+  The bridge carries the frozen lineage `session_id` required by the shared
+  contracts, but it does not depend on HostIngress session ownership,
+  continuity blobs, or any second durable submission queue.
   """
 
   alias Citadel.AuthorityContract.AuthorityDecision.V1, as: AuthorityDecisionV1

@@ -35,6 +35,17 @@ defmodule Citadel.InvocationBridgeTest do
     def submit_execution_intent(_envelope), do: {:error, :timeout}
   end
 
+  defmodule CountingFailingDownstream do
+    def submit_execution_intent(envelope) do
+      send(Process.get(:invocation_bridge_test_pid), {:submit_attempt, envelope.entry_id})
+      {:error, :timeout}
+    end
+  end
+
+  defmodule LegacyReceiptDownstream do
+    def submit_execution_intent(_envelope), do: {:ok, "receipt:legacy"}
+  end
+
   defmodule RejectedDownstream do
     def submit_execution_intent(envelope) do
       {:rejected,
@@ -141,6 +152,23 @@ defmodule Citadel.InvocationBridgeTest do
 
     assert rejection.retry_class == :after_redecision
     assert rejection.reason_code == "workspace_ref_unresolved"
+  end
+
+  test "does not retry inline when the downstream transport errors" do
+    bridge = InvocationBridge.new!(downstream: CountingFailingDownstream)
+
+    assert {:error, :timeout, _bridge} =
+             InvocationBridge.submit(bridge, invocation_request(), outbox_entry("entry-timeout"))
+
+    assert_receive {:submit_attempt, "entry-timeout"}
+    refute_receive {:submit_attempt, _}
+  end
+
+  test "rejects legacy receipt-only success tuples so retry ownership stays upstream" do
+    bridge = InvocationBridge.new!(downstream: LegacyReceiptDownstream)
+
+    assert {:error, :legacy_ok_result, _bridge} =
+             InvocationBridge.submit(bridge, invocation_request(), outbox_entry("entry-legacy"))
   end
 
   test "fast-fails once the downstream circuit is open" do

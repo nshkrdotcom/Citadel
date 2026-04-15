@@ -24,3 +24,7 @@ Status: durable submission bridge slice.
 - bridge ownership stays in `citadel`
 - the runtime-facing shared packet family stays `Jido.Integration.V2`
 - transport is pluggable; packet projection and lineage coercion stay pure
+- the carried `session_id` is frozen lineage required by the shared contracts,
+  not HostIngress session-continuity ownership
+- typed `{:accepted, ...}` and `{:rejected, ...}` results stay synchronous;
+  durable retry ownership remains upstream

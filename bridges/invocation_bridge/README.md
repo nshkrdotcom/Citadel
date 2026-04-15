@@ -27,3 +27,7 @@ The bridge now freezes its entry posture:
   unsupported versions before lower projection begins
 - it still does not assume the lower execution-envelope family already exists
   downstream
+- it requires typed downstream `{:accepted, ...}` or `{:rejected, ...}` results
+  and refuses legacy receipt-only success tuples
+- it carries the frozen lineage `session_id` from `InvocationRequest.V2`
+  without consulting HostIngress continuity state
