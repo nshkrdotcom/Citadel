@@ -28,3 +28,5 @@ Status: durable submission bridge slice.
   not HostIngress session-continuity ownership
 - typed `{:accepted, ...}` and `{:rejected, ...}` results stay synchronous;
   durable retry ownership remains upstream
+- duplicate acceptances stay explicit in the typed `SubmissionAcceptance.status`
+  field so replay-safe retries can remain idempotent without extra local queues

@@ -37,6 +37,45 @@ defmodule Citadel.JidoIntegrationBridgeTest do
     end
   end
 
+  defmodule DuplicateTransport do
+    @behaviour Citadel.JidoIntegrationBridge.Transport
+
+    @impl true
+    def submit_brain_invocation(invocation) do
+      send(Process.get(:ji_bridge_test_pid), {:brain_invocation, invocation, :duplicate})
+
+      {:accepted,
+       Jido.Integration.V2.SubmissionAcceptance.new!(%{
+         submission_key: invocation.submission_key,
+         submission_receipt_ref:
+           "submission/#{invocation.submission_identity.invocation_request_id}",
+         status: :duplicate,
+         accepted_at: ~U[2026-04-11 09:01:00Z],
+         ledger_version: 3
+       })}
+    end
+  end
+
+  defmodule RejectedTransport do
+    @behaviour Citadel.JidoIntegrationBridge.Transport
+
+    @impl true
+    def submit_brain_invocation(invocation) do
+      send(Process.get(:ji_bridge_test_pid), {:brain_invocation, invocation, :rejected})
+
+      {:rejected,
+       Jido.Integration.V2.SubmissionRejection.new!(%{
+         submission_key: invocation.submission_key,
+         rejection_family: :scope_unresolvable,
+         reason_code: "workspace_ref_unresolved",
+         retry_class: :after_redecision,
+         redecision_required: true,
+         details: %{"logical_workspace_ref" => "workspace://tenant-bridge-1/root"},
+         rejected_at: ~U[2026-04-11 09:02:00Z]
+       })}
+    end
+  end
+
   setup do
     previous_transport = Application.get_env(:citadel_jido_integration_bridge, :transport_module)
     Process.put(:ji_bridge_test_pid, self())
@@ -103,6 +142,31 @@ defmodule Citadel.JidoIntegrationBridgeTest do
 
     assert_receive {:brain_invocation, invocation}
     assert invocation.submission_key == acceptance.submission_key
+  end
+
+  test "preserves duplicate acceptances from the transport without collapsing them into errors" do
+    :ok = JidoIntegrationBridge.put_transport_module(DuplicateTransport)
+    envelope = envelope_fixture("entry-duplicate")
+
+    assert {:accepted, %SubmissionAcceptance{} = acceptance} =
+             InvocationDownstream.submit_execution_intent(envelope)
+
+    assert acceptance.status == :duplicate
+    assert acceptance.submission_receipt_ref == "submission/invoke-bridge-1"
+
+    assert_receive {:brain_invocation, invocation, :duplicate}
+    assert invocation.submission_key == acceptance.submission_key
+  end
+
+  test "propagates typed submission rejections from the transport" do
+    :ok = JidoIntegrationBridge.put_transport_module(RejectedTransport)
+    envelope = envelope_fixture("entry-rejected")
+
+    assert {:rejected, rejection} = InvocationDownstream.submit_execution_intent(envelope)
+    assert rejection.retry_class == :after_redecision
+    assert rejection.reason_code == "workspace_ref_unresolved"
+
+    assert_receive {:brain_invocation, _invocation, :rejected}
   end
 
   test "projects substrate lineage without host-ingress continuity payloads" do

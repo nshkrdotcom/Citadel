@@ -29,5 +29,7 @@ The bridge now freezes its entry posture:
   downstream
 - it requires typed downstream `{:accepted, ...}` or `{:rejected, ...}` results
   and refuses legacy receipt-only success tuples
+- duplicate acceptances remain typed synchronous results; they are not
+  downgraded into transport errors or hidden local deduplication
 - it carries the frozen lineage `session_id` from `InvocationRequest.V2`
   without consulting HostIngress continuity state

@@ -62,6 +62,20 @@ defmodule Citadel.InvocationBridgeTest do
     end
   end
 
+  defmodule DuplicateDownstream do
+    def submit_execution_intent(envelope) do
+      {:accepted,
+       Jido.Integration.V2.SubmissionAcceptance.new!(%{
+         submission_key:
+           Citadel.InvocationBridgeTest.submission_key_for!("bridge/#{envelope.entry_id}"),
+         submission_receipt_ref: "receipt:#{envelope.entry_id}",
+         status: :duplicate,
+         accepted_at: ~U[2026-04-11 06:06:00Z],
+         ledger_version: 2
+       })}
+    end
+  end
+
   setup do
     Process.put(:invocation_bridge_test_pid, self())
     :ok
@@ -152,6 +166,20 @@ defmodule Citadel.InvocationBridgeTest do
 
     assert rejection.retry_class == :after_redecision
     assert rejection.reason_code == "workspace_ref_unresolved"
+  end
+
+  test "preserves duplicate acceptances so replay-safe submission stays synchronous and typed" do
+    bridge = InvocationBridge.new!(downstream: DuplicateDownstream)
+
+    assert {:accepted, %SubmissionAcceptance{} = acceptance, _bridge} =
+             InvocationBridge.submit(
+               bridge,
+               invocation_request(),
+               outbox_entry("entry-duplicate")
+             )
+
+    assert acceptance.status == :duplicate
+    assert acceptance.submission_receipt_ref == "receipt:entry-duplicate"
   end
 
   test "does not retry inline when the downstream transport errors" do
