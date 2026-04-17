@@ -60,7 +60,8 @@ defmodule Citadel.InvocationBridge do
   def new!(opts) do
     downstream = Keyword.fetch!(opts, :downstream)
 
-    unless is_atom(downstream) and function_exported?(downstream, :submit_execution_intent, 1) do
+    unless is_atom(downstream) and Code.ensure_loaded?(downstream) and
+             function_exported?(downstream, :submit_execution_intent, 1) do
       raise ArgumentError,
             "Citadel.InvocationBridge.downstream must export submit_execution_intent/1"
     end
