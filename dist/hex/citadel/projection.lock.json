@@ -37,6 +37,7 @@
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_governance/lib/citadel/execution_packets.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_governance/lib/citadel/execution_packets_v2.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_governance/lib/citadel/governance.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_governance/lib/citadel/governance/substrate_ingress.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_governance/lib/citadel/intent_envelope.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_governance/lib/citadel/invocation_request.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_governance/lib/citadel/invocation_request_v2.ex",
@@ -137,8 +138,8 @@
       "mix.exs",
       "projection.lock.json"
     ],
-    "git_revision": "52da51deeecff0a2e13887088c88de3fb0beaa69",
-    "tree_digest": "75b0486b5a8f9265a2c7cf8ed9a866e3677ddbaaae242d059f443f762ebf94a8"
+    "git_revision": "7fa3eba8282c57c19112ded42618ec667d556f87",
+    "tree_digest": "ed333f43c9b61401c0f074c01ae31d4da29f33872345f497d117abc9a51f72e3"
   },
   "manifest": {
     "path": "/home/home/p/g/n/citadel/packaging/weld/citadel.exs",

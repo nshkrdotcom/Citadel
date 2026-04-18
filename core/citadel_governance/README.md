@@ -9,6 +9,8 @@ Status: Wave 2 seam freeze.
 - deterministic wrappers that must remain runtime-owner-free
 - `Citadel.DecisionHash`
 - the Citadel-owned `InvocationRequest`, `BoundaryIntent`, and `TopologyIntent` seam
+- `Citadel.Governance.SubstrateIngress`, the pure substrate-origin compiler
+  consumed by Mezzanine without host session continuity
 
 ## Dependencies
 
@@ -30,6 +32,10 @@ Wave 2 freezes the public carrier shapes before deeper runtime behavior:
   `AuthorityDecision.v1` packet
 - structured ingress stays explicit through provenance refs or hashes; raw NL
   is not the kernel contract
+- substrate-origin ingress is library-shaped: it selects policy, derives the
+  decision hash, builds the authority packet, and emits the lower invocation
+  request/outbox entry without `Citadel.HostIngress`, `SessionServer`,
+  `SessionDirectory`, or persisted host-session continuity
 - Waves 3 and 4 may tighten ingress mappings, but incompatible carrier-shape
   changes now require an explicit `schema_version` step
 
