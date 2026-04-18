@@ -170,9 +170,12 @@ defmodule Citadel.HostIngress.RunRequestLowering do
   end
 
   defp optional_string(map, key) when is_map(map) do
-    case Map.get(map, key) || Map.get(map, String.to_atom(key)) do
+    case Map.get(map, key) || Map.get(map, known_optional_key(key)) do
       value when is_binary(value) and value != "" -> value
       _other -> nil
     end
   end
+
+  defp known_optional_key("submission_dedupe_key"), do: :submission_dedupe_key
+  defp known_optional_key(_key), do: nil
 end

@@ -884,7 +884,11 @@ defmodule Citadel.DomainSurface.Adapters.CitadelAdapter do
       citadel_extensions =
         %{
           "execution_intent_family" => execution_intent_family,
-          "execution_intent" => execution_intent
+          "execution_intent" => execution_intent,
+          "execution_envelope" => %{
+            "submission_dedupe_key" =>
+              request_context.idempotency_key || request_context.request_id
+          }
         }
         |> maybe_put("allowed_tools", optional_execution_list(execution_mapping, :allowed_tools))
         |> maybe_put(

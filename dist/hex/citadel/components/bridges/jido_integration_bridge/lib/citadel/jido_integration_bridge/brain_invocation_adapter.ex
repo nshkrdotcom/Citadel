@@ -137,5 +137,12 @@ defmodule Citadel.JidoIntegrationBridge.BrainInvocationAdapter do
         "downstream_scope" => Map.get(envelope.extensions, "downstream_scope")
       }
     }
+    |> maybe_put_submission_dedupe_key(Map.get(envelope.extensions, "submission_dedupe_key"))
   end
+
+  defp maybe_put_submission_dedupe_key(extensions, value) when is_binary(value) and value != "" do
+    Map.put(extensions, "submission_dedupe_key", value)
+  end
+
+  defp maybe_put_submission_dedupe_key(extensions, _value), do: extensions
 end

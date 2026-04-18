@@ -98,7 +98,7 @@ defmodule Citadel.Kernel.BoundaryLeaseTracker do
 
         cond do
           circuit_open?(state, coalesce_key) ->
-            emit_circuit_open_telemetry()
+            emit_circuit_open_telemetry(boundary_ref)
             {:reply, {:error, :circuit_open}, state}
 
           Map.has_key?(state.inflight, coalesce_key) ->
@@ -192,7 +192,7 @@ defmodule Citadel.Kernel.BoundaryLeaseTracker do
 
           {:error, :circuit_open} ->
             Enum.each(inflight_entry.waiters, &GenServer.reply(&1, {:error, :circuit_open}))
-            emit_circuit_open_telemetry()
+            emit_circuit_open_telemetry(boundary_ref)
             state = clear_inflight(state, coalesce_key)
             {:noreply, state}
 
@@ -212,7 +212,7 @@ defmodule Citadel.Kernel.BoundaryLeaseTracker do
       inflight_entry ->
         if circuit_open?(state, coalesce_key) do
           Enum.each(inflight_entry.waiters, &GenServer.reply(&1, {:error, :circuit_open}))
-          emit_circuit_open_telemetry()
+          emit_circuit_open_telemetry(inflight_entry.boundary_ref)
           state = clear_inflight(state, coalesce_key)
           {:noreply, state}
         else
@@ -377,11 +377,15 @@ defmodule Citadel.Kernel.BoundaryLeaseTracker do
     MapSet.member?(state.circuit_open_keys, key)
   end
 
-  defp emit_circuit_open_telemetry do
+  defp emit_circuit_open_telemetry(boundary_ref) do
     :telemetry.execute(
       Telemetry.event_name(:bridge_circuit_open),
       %{count: 1},
-      %{bridge_family: :boundary, circuit_scope_class: :targeted_resume_bootstrap}
+      %{
+        bridge_family: :boundary,
+        circuit_scope_class: :targeted_resume_bootstrap,
+        boundary_ref: boundary_ref
+      }
     )
   end
 

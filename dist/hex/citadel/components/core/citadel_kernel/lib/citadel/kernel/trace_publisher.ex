@@ -275,7 +275,7 @@ defmodule Citadel.Kernel.TracePublisher do
               state
 
             {:error, reason_code} ->
-              emit_failure_telemetry(reason_code, length(batch))
+              emit_failure_telemetry(reason_code, batch)
               state
           end
       end
@@ -324,12 +324,20 @@ defmodule Citadel.Kernel.TracePublisher do
     )
   end
 
-  defp emit_failure_telemetry(reason_code, batch_size) do
-    :telemetry.execute(
-      Telemetry.event_name(:trace_publication_failure),
-      %{count: 1, batch_size: batch_size},
-      %{reason_code: reason_code}
-    )
+  defp emit_failure_telemetry(reason_code, batch) when is_list(batch) do
+    batch_size = length(batch)
+
+    Enum.each(batch, fn %TraceEnvelope{} = envelope ->
+      :telemetry.execute(
+        Telemetry.event_name(:trace_publication_failure),
+        %{count: 1, batch_size: batch_size},
+        %{
+          reason_code: reason_code,
+          family: envelope.family
+        }
+        |> Map.merge(trace_envelope_metadata(envelope))
+      )
+    end)
   end
 
   defp maybe_emit_drop_telemetry(nil), do: :ok
@@ -342,6 +350,18 @@ defmodule Citadel.Kernel.TracePublisher do
         dropped_family: dropped.family,
         dropped_family_classification: TraceEnvelope.family_classification(dropped)
       }
+      |> Map.merge(trace_envelope_metadata(dropped))
     )
+  end
+
+  defp trace_envelope_metadata(%TraceEnvelope{} = envelope) do
+    %{
+      trace_id: envelope.trace_id,
+      tenant_id: envelope.tenant_id,
+      request_id: envelope.request_id,
+      decision_id: envelope.decision_id,
+      boundary_ref: envelope.boundary_ref,
+      trace_envelope_id: envelope.trace_envelope_id
+    }
   end
 end

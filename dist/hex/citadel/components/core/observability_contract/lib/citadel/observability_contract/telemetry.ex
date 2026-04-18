@@ -62,12 +62,30 @@ defmodule Citadel.ObservabilityContract.Telemetry do
     trace_publication_failure: %{
       event_name: [:citadel, :trace, :publish, :failure],
       measurements: [:count, :batch_size],
-      metadata: [:reason_code]
+      metadata: [
+        :reason_code,
+        :trace_id,
+        :tenant_id,
+        :request_id,
+        :decision_id,
+        :boundary_ref,
+        :trace_envelope_id,
+        :family
+      ]
     },
     trace_publication_drop: %{
       event_name: [:citadel, :trace, :publish, :drop],
       measurements: [:count],
-      metadata: [:dropped_family, :dropped_family_classification]
+      metadata: [
+        :dropped_family,
+        :dropped_family_classification,
+        :trace_id,
+        :tenant_id,
+        :request_id,
+        :decision_id,
+        :boundary_ref,
+        :trace_envelope_id
+      ]
     },
     outbox_pending_backlog: %{
       event_name: [:citadel, :outbox, :pending_backlog],
@@ -117,7 +135,7 @@ defmodule Citadel.ObservabilityContract.Telemetry do
     bridge_circuit_open: %{
       event_name: [:citadel, :bridge, :circuit, :open],
       measurements: [:count],
-      metadata: [:bridge_family, :circuit_scope_class]
+      metadata: [:bridge_family, :circuit_scope_class, :boundary_ref]
     },
     policy_peek_latency: %{
       event_name: [:citadel, :policy, :peek_latency],

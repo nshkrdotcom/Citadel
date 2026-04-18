@@ -9,6 +9,27 @@ defmodule Citadel.DomainSurface.CitadelAdapterTest do
 
   @rejection_fixtures_path Path.expand("fixtures/citadel_rejections.json", __DIR__)
   @rejection_fixtures @rejection_fixtures_path |> File.read!() |> Jason.decode!()
+  @fixture_atoms %{
+    "after_governance_change" => :after_governance_change,
+    "after_input_change" => :after_input_change,
+    "after_runtime_change" => :after_runtime_change,
+    "authority_compilation" => :authority_compilation,
+    "derived_state_attachment" => :derived_state_attachment,
+    "host_only" => :host_only,
+    "ingress_normalization" => :ingress_normalization,
+    "planning" => :planning,
+    "planning_rejected" => :planning_rejected,
+    "policy_rejected" => :policy_rejected,
+    "projection" => :projection,
+    "projection_rejected" => :projection_rejected,
+    "request_rejected" => :request_rejected,
+    "review_projection" => :review_projection,
+    "scope_rejected" => :scope_rejected,
+    "scope_resolution" => :scope_resolution,
+    "service_admission" => :service_admission,
+    "service_rejected" => :service_rejected,
+    "terminal" => :terminal
+  }
 
   defmodule RequestSubmissionStub do
     @behaviour Citadel.DomainSurface.Adapters.CitadelAdapter.RequestSubmission
@@ -202,6 +223,11 @@ defmodule Citadel.DomainSurface.CitadelAdapterTest do
            |> hd()
            |> Map.get(:extensions)
            |> get_in(["citadel", "execution_intent", "args"]) == ["compile", "workspace/main"]
+
+    assert submission.envelope.plan_hints.candidate_steps
+           |> hd()
+           |> Map.get(:extensions)
+           |> get_in(["citadel", "execution_envelope", "submission_dedupe_key"]) == "cmd-42"
 
     assert submission.envelope.target_hints |> hd() |> Map.get(:preferred_target_id) ==
              "workspace/main"
@@ -554,10 +580,10 @@ defmodule Citadel.DomainSurface.CitadelAdapterTest do
         |> Error.from_rejection(trace_id: "trace/fixture")
 
       assert error.category == :rejected
-      assert error.code == String.to_existing_atom(fixture["expected_code"])
-      assert error.retryability == String.to_existing_atom(fixture["retryability"])
-      assert error.publication == String.to_existing_atom(fixture["publication_requirement"])
-      assert error.source.stage == String.to_existing_atom(fixture["stage"])
+      assert error.code == fixture_atom!(fixture["expected_code"])
+      assert error.retryability == fixture_atom!(fixture["retryability"])
+      assert error.publication == fixture_atom!(fixture["publication_requirement"])
+      assert error.source.stage == fixture_atom!(fixture["stage"])
     end)
   end
 
@@ -598,12 +624,16 @@ defmodule Citadel.DomainSurface.CitadelAdapterTest do
   defp fixture_to_rejection(fixture) do
     %{
       rejection_id: fixture["rejection_id"],
-      stage: String.to_existing_atom(fixture["stage"]),
+      stage: fixture_atom!(fixture["stage"]),
       reason_code: fixture["reason_code"],
       summary: fixture["summary"],
-      retryability: String.to_existing_atom(fixture["retryability"]),
-      publication_requirement: String.to_existing_atom(fixture["publication_requirement"]),
+      retryability: fixture_atom!(fixture["retryability"]),
+      publication_requirement: fixture_atom!(fixture["publication_requirement"]),
       extensions: %{"fixture" => true}
     }
+  end
+
+  defp fixture_atom!(value) do
+    Map.fetch!(@fixture_atoms, value)
   end
 end

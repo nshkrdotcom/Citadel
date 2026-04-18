@@ -122,16 +122,27 @@ defmodule Citadel.HostIngress.RunRequestLowering do
         _other -> %{}
       end
 
+    execution_envelope_extensions =
+      case optional_string(run_request.extensions, "submission_dedupe_key") do
+        nil ->
+          %{}
+
+        submission_dedupe_key ->
+          %{"execution_envelope" => %{"submission_dedupe_key" => submission_dedupe_key}}
+      end
+
     Map.merge(step_id_extensions, %{
-      "citadel" => %{
-        "execution_intent_family" => run_request.execution.execution_intent_family,
-        "execution_intent" => run_request.execution.execution_intent,
-        "allowed_tools" => run_request.execution.allowed_tools,
-        "effect_classes" => run_request.execution.effect_classes,
-        "workspace_mutability" => run_request.execution.workspace_mutability,
-        "placement_intent" => run_request.execution.placement_intent,
-        "downstream_scope" => run_request.execution.downstream_scope
-      }
+      "citadel" =>
+        %{
+          "execution_intent_family" => run_request.execution.execution_intent_family,
+          "execution_intent" => run_request.execution.execution_intent,
+          "allowed_tools" => run_request.execution.allowed_tools,
+          "effect_classes" => run_request.execution.effect_classes,
+          "workspace_mutability" => run_request.execution.workspace_mutability,
+          "placement_intent" => run_request.execution.placement_intent,
+          "downstream_scope" => run_request.execution.downstream_scope
+        }
+        |> Map.merge(execution_envelope_extensions)
     })
   end
 
@@ -157,4 +168,14 @@ defmodule Citadel.HostIngress.RunRequestLowering do
       }
     })
   end
+
+  defp optional_string(map, key) when is_map(map) do
+    case Map.get(map, key) || Map.get(map, known_optional_key(key)) do
+      value when is_binary(value) and value != "" -> value
+      _other -> nil
+    end
+  end
+
+  defp known_optional_key("submission_dedupe_key"), do: :submission_dedupe_key
+  defp known_optional_key(_key), do: nil
 end
