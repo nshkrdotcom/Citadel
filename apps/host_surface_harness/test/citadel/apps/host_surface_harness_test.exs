@@ -8,13 +8,13 @@ defmodule Citadel.Apps.HostSurfaceHarnessTest do
   alias Citadel.PersistedSessionBlob
   alias Citadel.PersistedSessionEnvelope
   alias Citadel.ProjectionBridge
-  alias Citadel.Runtime.BoundaryLeaseTracker
-  alias Citadel.Runtime.KernelSnapshot
-  alias Citadel.Runtime.ServiceCatalog
+  alias Citadel.Kernel.BoundaryLeaseTracker
+  alias Citadel.Kernel.KernelSnapshot
+  alias Citadel.Kernel.ServiceCatalog
   alias Citadel.RuntimeObservation
-  alias Citadel.Runtime.SessionDirectory
-  alias Citadel.Runtime.SessionServer
-  alias Citadel.Runtime.SignalIngress
+  alias Citadel.Kernel.SessionDirectory
+  alias Citadel.Kernel.SessionServer
+  alias Citadel.Kernel.SignalIngress
   alias Citadel.SignalBridge
 
   defmodule Resolver do

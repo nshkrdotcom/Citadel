@@ -12,10 +12,10 @@ defmodule Citadel.HostIngress do
   alias Citadel.IntentEnvelope
   alias Citadel.PersistedSessionBlob
   alias Citadel.PersistedSessionEnvelope
-  alias Citadel.Runtime
-  alias Citadel.Runtime.SessionDirectory
-  alias Citadel.Runtime.SessionServer
-  alias Citadel.Runtime.SystemClock
+  alias Citadel.Kernel
+  alias Citadel.Kernel.SessionDirectory
+  alias Citadel.Kernel.SessionServer
+  alias Citadel.Kernel.SystemClock
   alias Citadel.ScopeRef
   alias Citadel.SessionContinuityCommit
   alias Citadel.SessionOutbox
@@ -31,8 +31,8 @@ defmodule Citadel.HostIngress do
       :durable_invocation_enqueue
     ],
     internal_dependencies: [
-      :citadel_core,
-      :citadel_runtime,
+      :citadel_governance,
+      :citadel_kernel,
       :citadel_authority_contract,
       :citadel_execution_governance_contract,
       :citadel_policy_packs
@@ -54,7 +54,7 @@ defmodule Citadel.HostIngress do
 
   defstruct session_directory: SessionDirectory,
             policy_packs: [],
-            lookup_session: &Runtime.lookup_session/1,
+            lookup_session: &Kernel.lookup_session/1,
             clock: SystemClock
 
   @spec manifest() :: map()
@@ -62,7 +62,7 @@ defmodule Citadel.HostIngress do
 
   @spec new!(keyword()) :: t()
   def new!(opts) do
-    lookup_session = Keyword.get(opts, :lookup_session, &Runtime.lookup_session/1)
+    lookup_session = Keyword.get(opts, :lookup_session, &Kernel.lookup_session/1)
     clock = Keyword.get(opts, :clock, SystemClock)
 
     unless is_function(lookup_session, 1) do

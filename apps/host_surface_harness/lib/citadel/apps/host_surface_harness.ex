@@ -29,9 +29,9 @@ defmodule Citadel.Apps.HostSurfaceHarness do
   alias Citadel.PolicyPacks.Selection
   alias Citadel.ProjectionBridge
   alias Citadel.ResolutionProvenance
-  alias Citadel.Runtime.SessionDirectory
-  alias Citadel.Runtime.SessionServer
-  alias Citadel.Runtime.SystemClock
+  alias Citadel.Kernel.SessionDirectory
+  alias Citadel.Kernel.SessionServer
+  alias Citadel.Kernel.SystemClock
   alias Citadel.ScopeRef
   alias Citadel.SessionContinuityCommit
   alias Citadel.SignalBridge
@@ -49,9 +49,9 @@ defmodule Citadel.Apps.HostSurfaceHarness do
       :explicit_host_dead_letter_surfaces
     ],
     internal_dependencies: [
-      :citadel_core,
+      :citadel_governance,
       :citadel_policy_packs,
-      :citadel_runtime,
+      :citadel_kernel,
       :citadel_signal_bridge,
       :citadel_projection_bridge,
       :citadel_boundary_bridge,
@@ -85,7 +85,7 @@ defmodule Citadel.Apps.HostSurfaceHarness do
             policy_packs: [],
             policy_snapshot: nil,
             intent_resolver: nil,
-            lookup_session: &Citadel.Runtime.lookup_session/1,
+            lookup_session: &Citadel.Kernel.lookup_session/1,
             clock: SystemClock
 
   @spec proof_focus() :: [atom()]
@@ -132,7 +132,7 @@ defmodule Citadel.Apps.HostSurfaceHarness do
             "intent_resolver must export resolve_intent/1 when configured, got: #{inspect(intent_resolver)}"
     end
 
-    lookup_session = Keyword.get(opts, :lookup_session, &Citadel.Runtime.lookup_session/1)
+    lookup_session = Keyword.get(opts, :lookup_session, &Citadel.Kernel.lookup_session/1)
 
     unless is_function(lookup_session, 1) do
       raise ArgumentError, "lookup_session must be an arity-1 function"
@@ -1062,7 +1062,7 @@ defmodule Citadel.Apps.HostSurfaceHarness do
 
   defp runtime_policy_snapshot do
     try do
-      snapshot = Citadel.Runtime.PolicyCache.peek()
+      snapshot = Citadel.Kernel.PolicyCache.peek()
 
       if snapshot.policy_version == "policy/uninitialized" do
         {:error, :uninitialized}

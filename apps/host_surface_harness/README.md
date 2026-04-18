@@ -12,9 +12,9 @@ Status: Wave 7 host-surface proof harness.
 
 ## Dependencies
 
-- `core/citadel_core`
+- `core/citadel_governance`
 - `core/policy_packs`
-- `core/citadel_runtime`
+- `core/citadel_kernel`
 - `bridges/projection_bridge`
 - `bridges/signal_bridge`
 - `bridges/boundary_bridge`

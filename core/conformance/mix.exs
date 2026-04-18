@@ -25,19 +25,18 @@ defmodule Citadel.Conformance.MixProject do
       {:citadel_execution_governance_contract, path: "../execution_governance_contract"},
       {:citadel_observability_contract, path: "../observability_contract"},
       {:citadel_policy_packs, path: "../policy_packs"},
-      {:citadel_core, path: "../citadel_core"},
-      {:citadel_runtime, path: "../citadel_runtime"},
+      {:citadel_governance, path: "../citadel_governance"},
+      {:citadel_kernel, path: "../citadel_kernel"},
       {:citadel_invocation_bridge, path: "../../bridges/invocation_bridge"},
       {:citadel_query_bridge, path: "../../bridges/query_bridge"},
       {:citadel_signal_bridge, path: "../../bridges/signal_bridge"},
       {:citadel_boundary_bridge, path: "../../bridges/boundary_bridge"},
       {:citadel_projection_bridge, path: "../../bridges/projection_bridge"},
       {:citadel_trace_bridge, path: "../../bridges/trace_bridge"},
-      {:citadel_memory_bridge, path: "../../bridges/memory_bridge"},
       {:citadel_coding_assist, path: "../../apps/coding_assist"},
       {:citadel_operator_assist, path: "../../apps/operator_assist"},
       {:citadel_host_surface_harness, path: "../../apps/host_surface_harness"},
-      {:jido_integration_v2_contracts, path: "../jido_integration_v2_contracts"},
+      {:jido_integration_contracts, path: "../jido_integration_contracts"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end

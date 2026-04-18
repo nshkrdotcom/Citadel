@@ -57,7 +57,7 @@ That runner:
 1. verifies the canonical Docker harness with `dev/docker/toxiproxy/verify.sh`
 2. runs the `invocation_bridge` hostile-infrastructure suite
 3. runs the `projection_bridge` hostile-infrastructure suite
-4. runs the `citadel_runtime` outbox and worker-saturation suite
+4. runs the `citadel_kernel` outbox and worker-saturation suite
 
 The package tests are opt-in behind `CITADEL_REQUIRE_TOXIPROXY=1` so ordinary `mix test` runs stay independent of Docker, while Wave 12 remains a first-class scripted regression path.
 
@@ -67,7 +67,7 @@ The Wave 12 suites currently prove these classes explicitly:
 
 - `invocation_bridge`: real-socket latency injection through Toxiproxy, explicit connection drop via disabled proxy, repeated hostile failures that open the bridge circuit, and a faithful equivalent half-open socket server for hanging-response behavior
 - `projection_bridge`: real-socket bandwidth starvation through Toxiproxy, explicit connection drop via disabled proxy, and circuit-open fast-fail after repeated transient downstream failure
-- `citadel_runtime`: replay-safe outbox retry, deterministic backoff scheduling, payload preservation, explicit dead-letter or blocked state on exhaustion, and no invocation dispatch backlog once the shared bridge circuit is already open
+- `citadel_kernel`: replay-safe outbox retry, deterministic backoff scheduling, payload preservation, explicit dead-letter or blocked state on exhaustion, and no invocation dispatch backlog once the shared bridge circuit is already open
 
 The one deliberate substitution is half-open behavior. The pinned Toxiproxy image in this repo exposes latency, bandwidth, timeout, limit-data, and slow-close toxics, but it does not provide a stable half-open hang primitive for the bridge tests. `test_support.exs` therefore supplies a real local socket fixture that accepts the connection and never returns a response, which preserves the packet's required hanging-connection assertion strength without changing bridge architecture.
 

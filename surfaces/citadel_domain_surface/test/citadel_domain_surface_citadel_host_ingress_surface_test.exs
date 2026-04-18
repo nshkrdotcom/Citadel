@@ -2,12 +2,12 @@ defmodule Citadel.DomainSurface.CitadelHostIngressSurfaceTest do
   use ExUnit.Case, async: false
 
   alias Citadel.HostIngress.InvocationPayload
-  alias Citadel.Runtime.BoundaryLeaseTracker
-  alias Citadel.Runtime.KernelSnapshot
-  alias Citadel.Runtime.ServiceCatalog
-  alias Citadel.Runtime.SessionDirectory
-  alias Citadel.Runtime.SessionServer
-  alias Citadel.Runtime.SignalIngress
+  alias Citadel.Kernel.BoundaryLeaseTracker
+  alias Citadel.Kernel.KernelSnapshot
+  alias Citadel.Kernel.ServiceCatalog
+  alias Citadel.Kernel.SessionDirectory
+  alias Citadel.Kernel.SessionServer
+  alias Citadel.Kernel.SignalIngress
   alias Citadel.DomainSurface.Adapters.CitadelAdapter
   alias Citadel.DomainSurface.Adapters.CitadelAdapter.Accepted
   alias Citadel.DomainSurface.Examples.ProvingGround.Commands

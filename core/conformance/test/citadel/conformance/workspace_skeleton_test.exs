@@ -21,16 +21,16 @@ defmodule Citadel.Conformance.WorkspaceSkeletonTest do
            ]
 
     assert Citadel.PolicyPacks.stable_selection_ordering() == :priority_desc_then_pack_id_asc
-    assert Citadel.Core.shared_contract_strategy() == :higher_order_shared_contracts_only
+    assert Citadel.Governance.shared_contract_strategy() == :higher_order_shared_contracts_only
 
-    assert Citadel.Core.authority_packet_module() ==
+    assert Citadel.Governance.authority_packet_module() ==
              Citadel.AuthorityContract.AuthorityDecision.V1
 
-    assert Citadel.Core.invocation_request_module() == Citadel.InvocationRequest.V2
-    assert Citadel.Core.execution_governance_module() == Citadel.ExecutionGovernance.V1
-    assert Citadel.Core.structured_ingress_posture() == :structured_only
+    assert Citadel.Governance.invocation_request_module() == Citadel.InvocationRequest.V2
+    assert Citadel.Governance.execution_governance_module() == Citadel.ExecutionGovernance.V1
+    assert Citadel.Governance.structured_ingress_posture() == :structured_only
 
-    assert Citadel.Core.shared_lineage_contracts() == [
+    assert Citadel.Governance.shared_lineage_contracts() == [
              Jido.Integration.V2.SubjectRef,
              Jido.Integration.V2.EvidenceRef,
              Jido.Integration.V2.GovernanceRef,
@@ -38,7 +38,7 @@ defmodule Citadel.Conformance.WorkspaceSkeletonTest do
              Jido.Integration.V2.DerivedStateAttachment
            ]
 
-    assert Citadel.Runtime.manifest().package == :citadel_runtime
+    assert Citadel.Kernel.manifest().package == :citadel_kernel
 
     assert Citadel.InvocationBridge.shared_contract_strategy() ==
              :citadel_invocation_request_entrypoint
@@ -55,7 +55,7 @@ defmodule Citadel.Conformance.WorkspaceSkeletonTest do
     assert Citadel.Conformance.manifest().status == :wave_7_black_box_conformance
 
     assert Citadel.Conformance.manifest().external_dependencies == [
-             :jido_integration_v2_contracts
+             :jido_integration_contracts
            ]
   end
 end

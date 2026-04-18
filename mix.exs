@@ -44,9 +44,9 @@ defmodule Citadel.Workspace.MixProject do
         dialyzer: :test,
         ci: :test,
         "hardening.infrastructure_faults": :test,
-        "hardening.pure_core": :test,
-        "hardening.pure_core.adversarial": :test,
-        "hardening.pure_core.mutation": :test,
+        "hardening.governance": :test,
+        "hardening.governance.adversarial": :test,
+        "hardening.governance.mutation": :test,
         "lint.packet_seams": :test,
         "lint.strict": :test,
         "static.analysis": :test
@@ -71,17 +71,17 @@ defmodule Citadel.Workspace.MixProject do
     ]
 
     [
-      "hardening.pure_core.adversarial": [
+      "hardening.governance.adversarial": [
         "cmd --cd core/policy_packs mix hardening.adversarial",
-        "cmd --cd core/citadel_core mix hardening.adversarial"
+        "cmd --cd core/citadel_governance mix hardening.adversarial"
       ],
-      "hardening.pure_core.mutation": [
+      "hardening.governance.mutation": [
         "cmd --cd core/policy_packs mix hardening.mutation",
-        "cmd --cd core/citadel_core mix hardening.mutation"
+        "cmd --cd core/citadel_governance mix hardening.mutation"
       ],
-      "hardening.pure_core": [
-        "hardening.pure_core.adversarial",
-        "hardening.pure_core.mutation"
+      "hardening.governance": [
+        "hardening.governance.adversarial",
+        "hardening.governance.mutation"
       ],
       "hardening.infrastructure_faults": [
         "cmd ./dev/docker/toxiproxy/run_fault_injection_suite.sh"

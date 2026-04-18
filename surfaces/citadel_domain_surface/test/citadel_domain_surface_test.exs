@@ -82,8 +82,8 @@ defmodule Citadel.DomainSurface.Wave15Test do
   test "keeps the direct baseline dependency set lean" do
     deps = Mix.Project.config()[:deps]
 
-    assert dep_opts(deps, :citadel_core)[:path] == "../../core/citadel_core"
-    assert dep_opts(deps, :citadel_runtime)[:path] == "../../core/citadel_runtime"
+    assert dep_opts(deps, :citadel_governance)[:path] == "../../core/citadel_governance"
+    assert dep_opts(deps, :citadel_kernel)[:path] == "../../core/citadel_kernel"
 
     assert dep_opts(deps, :citadel_host_ingress_bridge)[:path] ==
              "../../bridges/host_ingress_bridge"
@@ -98,7 +98,7 @@ defmodule Citadel.DomainSurface.Wave15Test do
 
     refute dep_opts(deps, :citadel)
     refute dep_opts(deps, :jido_integration)
-    refute dep_opts(deps, :jido_integration_v2_contracts)
+    refute dep_opts(deps, :jido_integration_contracts)
   end
 
   test "keeps the bounded admin surface explicit" do

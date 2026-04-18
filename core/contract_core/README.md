@@ -15,7 +15,7 @@ Status: Wave 2 seam freeze.
 
 ## Wave 2 Posture
 
-`Citadel.DecisionHash` stays in `core/citadel_core`, but all canonical JSON
+`Citadel.DecisionHash` stays in `core/citadel_governance`, but all canonical JSON
 normalization and `Jcs.encode/1` ownership flows through this package. Shared
 packet hashing must not bypass this helper surface with ad hoc `Jason.encode!/1`
 or implicit struct enumeration.

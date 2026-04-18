@@ -8,8 +8,8 @@ defmodule Citadel.Application do
 
     children = [
       %{
-        id: Citadel.Runtime.Application,
-        start: {Citadel.Runtime.Application, :start, [:normal, []]},
+        id: Citadel.Kernel.Application,
+        start: {Citadel.Kernel.Application, :start, [:normal, []]},
         type: :supervisor
       }
     ]

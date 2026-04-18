@@ -1,6 +1,6 @@
 defmodule Citadel.ExecutionGovernance.V1 do
   @moduledoc """
-  Frozen `ExecutionGovernance.v1` Brain-to-Spine packet.
+  Frozen `ExecutionGovernance.v1` brain-authored packet.
 
   This packet compiles the Brain-authored execution and sandbox posture into a
   typed lower handoff without collapsing provider or backend details into the

@@ -21,7 +21,7 @@ defmodule Mix.Tasks.Lint.PacketSeams do
 
     constructor_hits =
       scan_file(
-        "core/citadel_core/lib/citadel/invocation_request.ex",
+        "core/citadel_governance/lib/citadel/invocation_request.ex",
         @invocation_request_constructor_pattern,
         :untyped_packet_seam_spec
       )

@@ -1,6 +1,6 @@
 defmodule Citadel.JidoIntegrationBridge do
   @moduledoc """
-  Citadel-owned transport seam for Brain-to-Spine durable submission.
+  Citadel-owned transport seam for brain-to-lower-gateway durable submission.
   """
 
   alias Jido.Integration.V2.BrainInvocation
@@ -37,12 +37,12 @@ defmodule Citadel.JidoIntegrationBridge do
     status: :durable_submission_contract_frozen,
     owns: [:brain_invocation_projection, :shared_lineage_coercion, :transport_configuration],
     internal_dependencies: [
-      :citadel_core,
+      :citadel_governance,
       :citadel_authority_contract,
       :citadel_execution_governance_contract,
       :citadel_invocation_bridge
     ],
-    external_dependencies: [:jido_integration_v2_contracts]
+    external_dependencies: [:jido_integration_contracts]
   }
 
   @spec manifest() :: map()

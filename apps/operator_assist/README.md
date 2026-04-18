@@ -10,15 +10,14 @@ Status: Wave 1 workspace skeleton.
 
 ## Dependencies
 
-- `core/citadel_core`
-- `core/citadel_runtime`
+- `core/citadel_governance`
+- `core/citadel_kernel`
 - `bridges/invocation_bridge`
 - `bridges/query_bridge`
 - `bridges/signal_bridge`
 - `bridges/boundary_bridge`
 - `bridges/projection_bridge`
 - `bridges/trace_bridge`
-- `bridges/memory_bridge`
 
 ## Wave 1 Posture
 

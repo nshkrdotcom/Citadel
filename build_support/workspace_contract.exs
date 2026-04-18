@@ -6,8 +6,8 @@ defmodule Citadel.Build.WorkspaceContract do
     "core/authority_contract",
     "core/observability_contract",
     "core/policy_packs",
-    "core/citadel_core",
-    "core/citadel_runtime",
+    "core/citadel_governance",
+    "core/citadel_kernel",
     "core/conformance",
     "bridges/invocation_bridge",
     "bridges/query_bridge",
@@ -15,7 +15,6 @@ defmodule Citadel.Build.WorkspaceContract do
     "bridges/boundary_bridge",
     "bridges/projection_bridge",
     "bridges/trace_bridge",
-    "bridges/memory_bridge",
     "apps/coding_assist",
     "apps/operator_assist",
     "apps/host_surface_harness"

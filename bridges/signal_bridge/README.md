@@ -10,7 +10,7 @@ Status: Wave 1 workspace skeleton.
 
 ## Dependencies
 
-- `core/citadel_runtime`
+- `core/citadel_kernel`
 - `core/observability_contract`
 
 ## Wave 1 Posture

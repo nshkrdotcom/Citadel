@@ -9,12 +9,12 @@ defmodule Citadel.HostIngressTest do
   alias Citadel.HostIngress.InvocationPayload
   alias Citadel.HostIngress.RunRequest
   alias Citadel.IntentEnvelope
-  alias Citadel.Runtime.KernelSnapshot
-  alias Citadel.Runtime.SessionDirectory
-  alias Citadel.Runtime.SessionServer
-  alias Citadel.Runtime.ServiceCatalog
-  alias Citadel.Runtime.BoundaryLeaseTracker
-  alias Citadel.Runtime.SignalIngress
+  alias Citadel.Kernel.KernelSnapshot
+  alias Citadel.Kernel.SessionDirectory
+  alias Citadel.Kernel.SessionServer
+  alias Citadel.Kernel.ServiceCatalog
+  alias Citadel.Kernel.BoundaryLeaseTracker
+  alias Citadel.Kernel.SignalIngress
   alias Citadel.TopologyIntent
   alias Citadel.BoundaryIntent
   alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
@@ -203,6 +203,9 @@ defmodule Citadel.HostIngressTest do
     assert request.authority_packet.boundary_class == "workspace_session"
     assert request.topology_intent.session_mode == "attached"
     assert request.extensions["citadel"]["execution_intent"]["command"] == "echo"
+
+    assert request.extensions["citadel"]["execution_envelope"]["submission_dedupe_key"] ==
+             "tenant-cb:work-1:compile.workspace:1"
   end
 
   test "public host ingress persists higher-order run requests through the durable path", env do
@@ -492,6 +495,7 @@ defmodule Citadel.HostIngressTest do
         extensions: %{}
       },
       extensions: %{
+        "submission_dedupe_key" => "tenant-cb:work-1:compile.workspace:1",
         "mezzanine" => %{
           "work_object_id" => "work-1",
           "run_id" => "run-1"

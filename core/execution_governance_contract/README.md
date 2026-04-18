@@ -5,7 +5,7 @@ Status: Wave 10 data-layer implementation.
 ## Owns
 
 - Citadel-owned `ExecutionGovernance.v1` packet ownership
-- required field inventory and versioning rule for the Brain-to-Spine
+- required field inventory and versioning rule for the brain-authored
   execution-governance handoff
 - the `extensions["citadel"]` posture for Citadel-only extras
 - contract-facing fixtures and validation boundary placement
@@ -21,4 +21,4 @@ Status: Wave 10 data-layer implementation.
 - pure
 - versioned
 - fixture-backed
-- independent from `citadel_core` compiler and projector logic
+- independent from `citadel_governance` compiler and projector logic

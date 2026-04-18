@@ -17,7 +17,7 @@ defmodule Citadel.SignalBridge do
     layer: :bridge,
     status: :wave_5_contract_frozen,
     owns: [:signal_ingress_normalization, :runtime_observation_translation, :lineage_preservation],
-    internal_dependencies: [:citadel_core, :citadel_runtime, :citadel_observability_contract],
+    internal_dependencies: [:citadel_governance, :citadel_kernel, :citadel_observability_contract],
     external_dependencies: []
   }
 

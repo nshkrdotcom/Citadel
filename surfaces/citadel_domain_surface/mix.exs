@@ -30,8 +30,8 @@ defmodule Citadel.DomainSurface.MixProject do
 
   defp deps do
     [
-      {:citadel_core, path: "../../core/citadel_core"},
-      {:citadel_runtime, path: "../../core/citadel_runtime"},
+      {:citadel_governance, path: "../../core/citadel_governance"},
+      {:citadel_kernel, path: "../../core/citadel_kernel"},
       {:citadel_host_ingress_bridge, path: "../../bridges/host_ingress_bridge"},
       {:citadel_query_bridge, path: "../../bridges/query_bridge"},
       {:jason, "~> 1.4"},

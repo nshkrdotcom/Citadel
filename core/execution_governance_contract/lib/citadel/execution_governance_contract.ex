@@ -1,6 +1,6 @@
 defmodule Citadel.ExecutionGovernanceContract do
   @moduledoc """
-  Packet-aligned ownership surface for the Brain-to-Spine execution-governance packet.
+  Packet-aligned ownership surface for the brain-authored execution-governance packet.
   """
 
   alias Citadel.ExecutionGovernance.V1

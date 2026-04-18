@@ -45,8 +45,8 @@ This package no longer depends on the welded `citadel/dist/hex/citadel`
 projection during normal local development. It depends directly on Citadel
 workspace packages:
 
-- `core/citadel_core`
-- `core/citadel_runtime`
+- `core/citadel_governance`
+- `core/citadel_kernel`
 - `bridges/host_ingress_bridge`
 - `bridges/query_bridge`
 

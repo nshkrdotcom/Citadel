@@ -13,11 +13,11 @@ Status: durable submission bridge slice.
 
 ## Dependencies
 
-- `core/citadel_core`
+- `core/citadel_governance`
 - `core/authority_contract`
 - `core/execution_governance_contract`
 - `bridges/invocation_bridge`
-- `core/jido_integration_v2_contracts`
+- `core/jido_integration_contracts`
 
 ## Posture
 

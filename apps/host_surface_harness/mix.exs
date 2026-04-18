@@ -20,9 +20,9 @@ defmodule Citadel.HostSurfaceHarness.MixProject do
 
   defp deps do
     [
-      {:citadel_core, path: "../../core/citadel_core"},
+      {:citadel_governance, path: "../../core/citadel_governance"},
       {:citadel_policy_packs, path: "../../core/policy_packs"},
-      {:citadel_runtime, path: "../../core/citadel_runtime"},
+      {:citadel_kernel, path: "../../core/citadel_kernel"},
       {:citadel_projection_bridge, path: "../../bridges/projection_bridge"},
       {:citadel_signal_bridge, path: "../../bridges/signal_bridge"},
       {:citadel_boundary_bridge, path: "../../bridges/boundary_bridge"},

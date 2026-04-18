@@ -20,11 +20,11 @@ defmodule Citadel.ProjectionBridge.MixProject do
 
   defp deps do
     [
-      {:citadel_core, path: "../../core/citadel_core"},
-      {:citadel_runtime, path: "../../core/citadel_runtime"},
+      {:citadel_governance, path: "../../core/citadel_governance"},
+      {:citadel_kernel, path: "../../core/citadel_kernel"},
       {:citadel_authority_contract, path: "../../core/authority_contract"},
       {:citadel_observability_contract, path: "../../core/observability_contract"},
-      {:jido_integration_v2_contracts, path: "../../core/jido_integration_v2_contracts"},
+      {:jido_integration_contracts, path: "../../core/jido_integration_contracts"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end

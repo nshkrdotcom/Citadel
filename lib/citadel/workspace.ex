@@ -10,12 +10,12 @@ defmodule Citadel.Workspace do
 
   @package_paths [
     "core/contract_core",
-    "core/jido_integration_v2_contracts",
+    "core/jido_integration_contracts",
     "core/authority_contract",
     "core/observability_contract",
     "core/policy_packs",
-    "core/citadel_core",
-    "core/citadel_runtime",
+    "core/citadel_governance",
+    "core/citadel_kernel",
     "core/conformance",
     "bridges/invocation_bridge",
     "bridges/host_ingress_bridge",
@@ -25,7 +25,6 @@ defmodule Citadel.Workspace do
     "bridges/boundary_bridge",
     "bridges/projection_bridge",
     "bridges/trace_bridge",
-    "bridges/memory_bridge",
     "apps/coding_assist",
     "apps/operator_assist",
     "apps/host_surface_harness",
@@ -48,9 +47,9 @@ defmodule Citadel.Workspace do
     "surfaces/*/lib"
   ]
   @packet_seam_spec_paths [
-    "core/citadel_core/lib/citadel/invocation_request.ex",
-    "core/citadel_core/lib/citadel/ports.ex",
-    "core/citadel_runtime/lib/citadel/runtime/trace_publisher.ex",
+    "core/citadel_governance/lib/citadel/invocation_request.ex",
+    "core/citadel_governance/lib/citadel/ports.ex",
+    "core/citadel_kernel/lib/citadel/kernel/trace_publisher.ex",
     "bridges/invocation_bridge/lib/citadel/invocation_bridge.ex",
     "bridges/query_bridge/lib/citadel/query_bridge.ex",
     "bridges/signal_bridge/lib/citadel/signal_bridge.ex",
@@ -58,8 +57,7 @@ defmodule Citadel.Workspace do
     "bridges/boundary_bridge/lib/citadel/boundary_bridge/boundary_projection_adapter.ex",
     "bridges/projection_bridge/lib/citadel/projection_bridge.ex",
     "bridges/projection_bridge/lib/citadel/projection_bridge/review_projection_adapter.ex",
-    "bridges/projection_bridge/lib/citadel/projection_bridge/derived_state_attachment_adapter.ex",
-    "bridges/memory_bridge/lib/citadel/memory_bridge.ex"
+    "bridges/projection_bridge/lib/citadel/projection_bridge/derived_state_attachment_adapter.ex"
   ]
   @tooling_project_paths ["."]
   @public_bridge_package_paths [
@@ -70,13 +68,12 @@ defmodule Citadel.Workspace do
     "bridges/signal_bridge",
     "bridges/boundary_bridge",
     "bridges/projection_bridge",
-    "bridges/trace_bridge",
-    "bridges/memory_bridge"
+    "bridges/trace_bridge"
   ]
   @public_package_paths @package_paths -- @proof_package_paths
   @publication_artifact_id "citadel"
   @publication_manifest_path "packaging/weld/citadel.exs"
-  @publication_root_projects ["core/citadel_runtime"]
+  @publication_root_projects ["core/citadel_kernel"]
   @publication_output_docs [
     "README.md",
     "docs/README.md",
@@ -128,7 +125,7 @@ defmodule Citadel.Workspace do
 
   @spec shared_contract_dependency_source() :: {:hex, String.t()} | {:path, String.t()}
   def shared_contract_dependency_source do
-    DependencyResolver.jido_integration_v2_contracts_source()
+    DependencyResolver.jido_integration_contracts_source()
   end
 
   @spec toolchain() :: %{elixir: String.t(), otp: String.t()}

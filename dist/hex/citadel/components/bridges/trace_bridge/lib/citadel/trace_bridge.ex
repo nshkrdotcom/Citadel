@@ -13,7 +13,7 @@ defmodule Citadel.TraceBridge do
     layer: :bridge,
     status: :wave_5_contract_frozen,
     owns: [:trace_publication, :aitrace_translation, :stable_failure_codes],
-    internal_dependencies: [:citadel_core, :citadel_runtime, :citadel_observability_contract],
+    internal_dependencies: [:citadel_governance, :citadel_kernel, :citadel_observability_contract],
     external_dependencies: [:aitrace]
   }
 

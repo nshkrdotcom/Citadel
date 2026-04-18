@@ -611,7 +611,7 @@ defmodule Citadel.DomainSurface.FaultInjectionAndOperabilityTest do
       env = start_socket_env!()
 
       runtime_opts =
-        citadel_runtime_opts(env, request_submission_opts: socket_opts(env, timeout: 1_000))
+        citadel_kernel_opts(env, request_submission_opts: socket_opts(env, timeout: 1_000))
 
       ToxiproxyHarness.add_toxic!(@proxy_name, "latency", "latency", %{"latency" => 400})
 
@@ -652,7 +652,7 @@ defmodule Citadel.DomainSurface.FaultInjectionAndOperabilityTest do
   test "Citadel command connection drops fail explicitly without hidden retries" do
     run_wave22(fn ->
       env = start_socket_env!()
-      runtime_opts = citadel_runtime_opts(env)
+      runtime_opts = citadel_kernel_opts(env)
 
       ToxiproxyHarness.set_enabled!(@proxy_name, false)
 
@@ -691,7 +691,7 @@ defmodule Citadel.DomainSurface.FaultInjectionAndOperabilityTest do
       server = start_supervised!(HalfOpenSocketServer)
 
       runtime_opts =
-        citadel_runtime_opts(
+        citadel_kernel_opts(
           env,
           request_submission_opts:
             socket_opts(env,
@@ -794,7 +794,7 @@ defmodule Citadel.DomainSurface.FaultInjectionAndOperabilityTest do
       env = start_socket_env!()
 
       runtime_opts =
-        citadel_runtime_opts(
+        citadel_kernel_opts(
           env,
           request_submission_opts: socket_opts(env, ambiguous_once?: true)
         )
@@ -836,7 +836,7 @@ defmodule Citadel.DomainSurface.FaultInjectionAndOperabilityTest do
   test "Citadel queries fail explicitly under downstream degradation" do
     run_wave22(fn ->
       env = start_socket_env!()
-      runtime_opts = citadel_runtime_opts(env)
+      runtime_opts = citadel_kernel_opts(env)
 
       ToxiproxyHarness.set_enabled!(@proxy_name, false)
 
@@ -858,7 +858,7 @@ defmodule Citadel.DomainSurface.FaultInjectionAndOperabilityTest do
   test "Citadel admin surfaces fail explicitly and observably under degradation" do
     run_wave22(fn ->
       env = start_socket_env!()
-      runtime_opts = citadel_runtime_opts(env)
+      runtime_opts = citadel_kernel_opts(env)
 
       ToxiproxyHarness.set_enabled!(@proxy_name, false)
 
@@ -1049,7 +1049,7 @@ defmodule Citadel.DomainSurface.FaultInjectionAndOperabilityTest do
     %{agent: agent, bridge_state: bridge_state, worker_supervisor: worker_supervisor}
   end
 
-  defp citadel_runtime_opts(env, overrides \\ []) do
+  defp citadel_kernel_opts(env, overrides \\ []) do
     [
       request_submission: RequestSubmissionSurface,
       request_submission_opts: socket_opts(env),

@@ -8,8 +8,8 @@ defmodule Citadel.Conformance.TelemetryAndContractGateTest do
   alias Citadel.ObservabilityContract.Telemetry
   alias Citadel.PersistedSessionBlob
   alias Citadel.PersistedSessionEnvelope
-  alias Citadel.Runtime.KernelSnapshot
-  alias Citadel.Runtime.SessionDirectory
+  alias Citadel.Kernel.KernelSnapshot
+  alias Citadel.Kernel.SessionDirectory
 
   defmodule TelemetryForwarder do
     def handle_event(event_name, measurements, metadata, test_pid) do

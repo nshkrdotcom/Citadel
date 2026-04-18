@@ -33,13 +33,13 @@ defmodule Citadel.InvocationBridge do
     status: :wave_5_contract_frozen,
     owns: [:invocation_handoff, :lower_execution_projection, :idempotent_submission],
     internal_dependencies: [
-      :citadel_core,
-      :citadel_runtime,
+      :citadel_governance,
+      :citadel_kernel,
       :citadel_authority_contract,
       :citadel_execution_governance_contract,
       :citadel_observability_contract
     ],
-    external_dependencies: [:jido_integration_v2_contracts]
+    external_dependencies: [:jido_integration_contracts]
   }
 
   @type t :: %__MODULE__{

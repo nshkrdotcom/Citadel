@@ -43,12 +43,12 @@ defmodule Citadel.ProjectionBridge do
     status: :wave_5_contract_frozen,
     owns: [:review_publication, :derived_state_publication, :bridge_edge_adapters],
     internal_dependencies: [
-      :citadel_core,
-      :citadel_runtime,
+      :citadel_governance,
+      :citadel_kernel,
       :citadel_authority_contract,
       :citadel_observability_contract
     ],
-    external_dependencies: [:jido_integration_v2_contracts]
+    external_dependencies: [:jido_integration_contracts]
   }
 
   @type t :: %__MODULE__{

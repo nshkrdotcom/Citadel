@@ -6,10 +6,10 @@ defmodule Citadel.WorkspaceTest do
   alias Weld
 
   test "tracks the packet workspace package contract on disk" do
-    assert Workspace.package_count() == 21
+    assert Workspace.package_count() == 20
     assert Workspace.package_count() == length(Workspace.package_paths())
     assert "apps/host_surface_harness" in Workspace.package_paths()
-    assert "core/jido_integration_v2_contracts" in Workspace.package_paths()
+    assert "core/jido_integration_contracts" in Workspace.package_paths()
     assert "bridges/host_ingress_bridge" in Workspace.package_paths()
     assert "bridges/jido_integration_bridge" in Workspace.package_paths()
     assert "surfaces/citadel_domain_surface" in Workspace.package_paths()
@@ -65,7 +65,7 @@ defmodule Citadel.WorkspaceTest do
     assert Workspace.surface_package_paths() == ["surfaces/citadel_domain_surface"]
     assert Workspace.publication_artifact_id() == "citadel"
     assert Workspace.publication_manifest_path() == "packaging/weld/citadel.exs"
-    assert Workspace.publication_root_projects() == ["core/citadel_runtime"]
+    assert Workspace.publication_root_projects() == ["core/citadel_kernel"]
 
     assert Enum.sort(Workspace.public_bridge_package_paths()) ==
              Enum.sort(
@@ -76,7 +76,7 @@ defmodule Citadel.WorkspaceTest do
     refute "apps/host_surface_harness" in Workspace.public_package_paths()
     assert "surfaces/citadel_domain_surface" in Workspace.public_package_paths()
 
-    refute Keyword.has_key?(publication_deps, :jido_integration_v2_contracts)
+    refute Keyword.has_key?(publication_deps, :jido_integration_contracts)
     assert publication_deps[:aitrace][:opts] == []
     assert is_binary(publication_deps[:aitrace][:requirement])
   end
@@ -92,8 +92,8 @@ defmodule Citadel.WorkspaceTest do
     assert "core/conformance" in result.classifications.proof
     assert "apps/host_surface_harness" in result.classifications.proof
 
-    assert "core/citadel_runtime" in result.artifact.selected_projects
-    assert "core/jido_integration_v2_contracts" in result.artifact.selected_projects
+    assert "core/citadel_kernel" in result.artifact.selected_projects
+    assert "core/jido_integration_contracts" in result.artifact.selected_projects
     assert "bridges/host_ingress_bridge" in result.artifact.selected_projects
     assert "bridges/jido_integration_bridge" in result.artifact.selected_projects
     assert "bridges/trace_bridge" in result.artifact.selected_projects
@@ -103,7 +103,7 @@ defmodule Citadel.WorkspaceTest do
     refute "surfaces/citadel_domain_surface" in result.artifact.selected_projects
 
     assert "aitrace" in result.artifact.external_deps
-    refute "jido_integration_v2_contracts" in result.artifact.external_deps
+    refute "jido_integration_contracts" in result.artifact.external_deps
   end
 
   test "weld manifest can be inspected through the mix task entrypoint" do

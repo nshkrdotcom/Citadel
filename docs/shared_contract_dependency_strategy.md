@@ -1,14 +1,14 @@
 # Shared Contract Dependency Strategy
 
 Citadel carries the higher-order `Jido.Integration.V2` shared contract slice as
-a workspace package at `core/jido_integration_v2_contracts`.
+a workspace package at `core/jido_integration_contracts`.
 
 ## Packages Using The Shared Contract Slice
 
 The public Citadel packages that rely on these shared modules resolve them
 through the in-workspace package:
 
-- `core/citadel_core`
+- `core/citadel_governance`
 - `bridges/invocation_bridge`
 - `bridges/jido_integration_bridge`
 - `bridges/projection_bridge`
@@ -35,13 +35,13 @@ across its runtime-facing seams:
   `Jido.Integration.V2.BrainInvocation`
 - copied upstream validation helpers:
   `Jido.Integration.V2.Contracts`,
-  the shared schema helper module from the `jido_integration_v2_contracts`
+  the shared schema helper module from the `jido_integration_contracts`
   package
 
 ## Publication Rule
 
-The welded `citadel` artifact includes `core/jido_integration_v2_contracts` as
-an internal package instead of emitting `:jido_integration_v2_contracts` as an
+The welded `citadel` artifact includes `core/jido_integration_contracts` as
+an internal package instead of emitting `:jido_integration_contracts` as an
 external Hex, git, or path dependency.
 
 That keeps the projected package self-contained and Hex-buildable while

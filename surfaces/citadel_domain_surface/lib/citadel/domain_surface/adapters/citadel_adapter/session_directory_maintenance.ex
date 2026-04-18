@@ -5,7 +5,7 @@ defmodule Citadel.DomainSurface.Adapters.CitadelAdapter.SessionDirectoryMaintena
 
   alias Citadel.ActionOutboxEntry
   alias Citadel.PersistedSessionBlob
-  alias Citadel.Runtime.SessionDirectory
+  alias Citadel.Kernel.SessionDirectory
   alias Citadel.DomainSurface.Adapters.CitadelAdapter.RequestContext
 
   @type selector :: keyword() | %{optional(atom() | String.t()) => term()}

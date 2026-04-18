@@ -13,20 +13,19 @@ defmodule Citadel.Conformance do
       :citadel_authority_contract,
       :citadel_observability_contract,
       :citadel_policy_packs,
-      :citadel_core,
-      :citadel_runtime,
+      :citadel_governance,
+      :citadel_kernel,
       :citadel_invocation_bridge,
       :citadel_query_bridge,
       :citadel_signal_bridge,
       :citadel_boundary_bridge,
       :citadel_projection_bridge,
       :citadel_trace_bridge,
-      :citadel_memory_bridge,
       :citadel_coding_assist,
       :citadel_operator_assist,
       :citadel_host_surface_harness
     ],
-    external_dependencies: [:jido_integration_v2_contracts]
+    external_dependencies: [:jido_integration_contracts]
   }
 
   @spec manifest() :: map()

@@ -27,8 +27,8 @@ defmodule Citadel.BoundaryBridge do
     status: :wave_5_contract_frozen,
     owns: [:boundary_projection, :attach_grant_normalization, :boundary_session_normalization],
     internal_dependencies: [
-      :citadel_core,
-      :citadel_runtime,
+      :citadel_governance,
+      :citadel_kernel,
       :citadel_authority_contract,
       :citadel_execution_governance_contract
     ],

@@ -23,7 +23,7 @@ defmodule Citadel.QueryBridge do
     layer: :bridge,
     status: :wave_5_contract_frozen,
     owns: [:rehydration_adapters, :runtime_observation_normalization, :boundary_truth_rehydration],
-    internal_dependencies: [:citadel_core, :citadel_runtime],
+    internal_dependencies: [:citadel_governance, :citadel_kernel],
     external_dependencies: []
   }
 

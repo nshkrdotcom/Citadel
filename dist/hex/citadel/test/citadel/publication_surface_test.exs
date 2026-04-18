@@ -4,7 +4,7 @@ defmodule Citadel.PublicationSurfaceTest do
   test "welded artifact keeps runtime-facing packages and excludes proof packages" do
     assert Mix.Project.config()[:app] == :citadel
 
-    assert Code.ensure_loaded?(Citadel.Runtime)
+    assert Code.ensure_loaded?(Citadel.Kernel)
     assert Code.ensure_loaded?(Citadel.HostIngress)
     assert Code.ensure_loaded?(Citadel.TraceBridge)
     assert Code.ensure_loaded?(Citadel.ProjectionBridge)
@@ -12,16 +12,15 @@ defmodule Citadel.PublicationSurfaceTest do
     assert Code.ensure_loaded?(Citadel.QueryBridge)
     assert Code.ensure_loaded?(Citadel.SignalBridge)
     assert Code.ensure_loaded?(Citadel.BoundaryBridge)
-    assert Code.ensure_loaded?(Citadel.MemoryBridge)
 
     refute Code.ensure_loaded?(Citadel.Conformance)
     refute Code.ensure_loaded?(Citadel.Apps.HostSurfaceHarness)
     refute Code.ensure_loaded?(Citadel.Apps.CodingAssist)
     refute Code.ensure_loaded?(Citadel.Apps.OperatorAssist)
 
-    assert File.dir?("components/core/citadel_runtime")
+    assert File.dir?("components/core/citadel_kernel")
     assert File.dir?("components/bridges/host_ingress_bridge")
-    assert File.dir?("components/core/jido_integration_v2_contracts")
+    assert File.dir?("components/core/jido_integration_contracts")
     assert File.dir?("components/bridges/trace_bridge")
     refute File.dir?("components/core/conformance")
     refute File.dir?("components/apps/host_surface_harness")
@@ -31,7 +30,7 @@ defmodule Citadel.PublicationSurfaceTest do
     deps = Mix.Project.config()[:deps]
 
     assert dependency_tuple(deps, :aitrace) == {:aitrace, "~> 0.1.0", []}
-    refute dependency_tuple(deps, :jido_integration_v2_contracts)
+    refute dependency_tuple(deps, :jido_integration_contracts)
   end
 
   defp dependency_tuple(deps, app) do

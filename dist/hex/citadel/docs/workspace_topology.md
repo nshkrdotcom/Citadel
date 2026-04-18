@@ -5,25 +5,24 @@ Citadel is a non-umbrella Elixir monorepo with explicit package ownership.
 ## Core Packages
 
 - `core/contract_core`: neutral identifiers, host-local refs, and RFC 8785 / JCS canonicalization helpers
-- `core/jido_integration_v2_contracts`: workspace-carried higher-order shared lineage and durable submission contract slice
+- `core/jido_integration_contracts`: workspace-carried higher-order shared lineage and durable submission contract slice
 - `core/authority_contract`: Brain-authored `AuthorityDecision.v1` schema ownership
-- `core/execution_governance_contract`: Brain-to-Spine `ExecutionGovernance.v1` packet ownership
+- `core/execution_governance_contract`: brain-authored `ExecutionGovernance.v1` packet ownership
 - `core/observability_contract`: trace and telemetry vocabulary ownership
 - `core/policy_packs`: policy pack definitions and normalization helpers
-- `core/citadel_core`: pure values, compilers, reducers, and projectors
-- `core/citadel_runtime`: runtime coordination, session continuity, and local ownership processes
+- `core/citadel_governance`: pure values, compilers, reducers, and projectors
+- `core/citadel_kernel`: runtime coordination, session continuity, and local ownership processes
 - `core/conformance`: black-box conformance and composition coverage
 
 ## Bridge Packages
 
 - `bridges/invocation_bridge`: invocation handoff and lower-seam alignment placeholder
-- `bridges/jido_integration_bridge`: Citadel-owned Brain-to-Spine durable submission adapter
+- `bridges/jido_integration_bridge`: Citadel-owned lower-gateway durable submission adapter
 - `bridges/query_bridge`: durable-state rehydration adapters
 - `bridges/signal_bridge`: signal ingress normalization adapters
 - `bridges/boundary_bridge`: boundary lifecycle and metadata adapters
 - `bridges/projection_bridge`: shared review and derived-state publication adapters
 - `bridges/trace_bridge`: AITrace-facing trace publication adapters
-- `bridges/memory_bridge`: advisory memory integration adapters
 
 Bridge packages stay vertical. They depend on core and runtime surfaces, not on sibling bridges.
 
@@ -51,7 +50,7 @@ public artifact is now explicit:
 - repo-local Weld manifest: `packaging/weld/citadel.exs`
 - artifact id and package name: `citadel`
 - mode: package projection, not monolith
-- roots: `core/citadel_runtime`
+- roots: `core/citadel_kernel`
 - selected bridge closure: all `bridges/*`
 - excluded by default: `apps/*`, `core/conformance`,
   `surfaces/citadel_domain_surface`, and the root tooling project

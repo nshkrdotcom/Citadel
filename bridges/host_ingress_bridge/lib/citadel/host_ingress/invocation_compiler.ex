@@ -117,7 +117,8 @@ defmodule Citadel.HostIngress.InvocationCompiler do
              topology_intent,
              execution_governance,
              execution_intent_family,
-             execution_intent
+             execution_intent,
+             step_extensions
            ) do
       entry_id = "submit/#{request_context.request_id}"
 
@@ -371,9 +372,23 @@ defmodule Citadel.HostIngress.InvocationCompiler do
          topology_intent,
          execution_governance,
          execution_intent_family,
-         execution_intent
+         execution_intent,
+         step_extensions
        ) do
     selected_step_id = selected_step_id(request_context, candidate_step)
+
+    citadel_extensions =
+      %{
+        "execution_intent_family" => execution_intent_family,
+        "execution_intent" => execution_intent,
+        "ingress_provenance" => %{
+          "host_request_id" => request_context.host_request_id,
+          "trace_origin" => request_context.trace_origin,
+          "idempotency_key" => request_context.idempotency_key,
+          "metadata_keys" => request_context.metadata_keys
+        }
+      }
+      |> maybe_put_execution_envelope(step_extensions)
 
     {:ok,
      InvocationRequestV2.new!(%{
@@ -392,18 +407,7 @@ defmodule Citadel.HostIngress.InvocationCompiler do
        boundary_intent: boundary_intent,
        topology_intent: topology_intent,
        execution_governance: execution_governance,
-       extensions: %{
-         "citadel" => %{
-           "execution_intent_family" => execution_intent_family,
-           "execution_intent" => execution_intent,
-           "ingress_provenance" => %{
-             "host_request_id" => request_context.host_request_id,
-             "trace_origin" => request_context.trace_origin,
-             "idempotency_key" => request_context.idempotency_key,
-             "metadata_keys" => request_context.metadata_keys
-           }
-         }
-       }
+       extensions: %{"citadel" => citadel_extensions}
      })}
   end
 
@@ -640,6 +644,16 @@ defmodule Citadel.HostIngress.InvocationCompiler do
   defp normalize_optional_string(nil), do: nil
   defp normalize_optional_string(value) when is_binary(value) and value != "", do: value
   defp normalize_optional_string(_other), do: nil
+
+  defp maybe_put_execution_envelope(extensions, %{"execution_envelope" => %{} = envelope}) do
+    Map.put(extensions, "execution_envelope", envelope)
+  end
+
+  defp maybe_put_execution_envelope(extensions, %{execution_envelope: %{} = envelope}) do
+    Map.put(extensions, "execution_envelope", envelope)
+  end
+
+  defp maybe_put_execution_envelope(extensions, _step_extensions), do: extensions
 
   defp normalize_optional_non_neg_integer(nil), do: nil
   defp normalize_optional_non_neg_integer(value) when is_integer(value) and value >= 0, do: value

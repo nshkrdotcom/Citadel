@@ -14,8 +14,8 @@ Status: canonical public structured host-ingress surface.
 
 ## Dependencies
 
-- `core/citadel_core`
-- `core/citadel_runtime`
+- `core/citadel_governance`
+- `core/citadel_kernel`
 - `core/authority_contract`
 - `core/execution_governance_contract`
 - `core/policy_packs`

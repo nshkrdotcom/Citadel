@@ -20,8 +20,8 @@ defmodule Citadel.BoundaryBridge.MixProject do
 
   defp deps do
     [
-      {:citadel_core, path: "../../core/citadel_core"},
-      {:citadel_runtime, path: "../../core/citadel_runtime"},
+      {:citadel_governance, path: "../../core/citadel_governance"},
+      {:citadel_kernel, path: "../../core/citadel_kernel"},
       {:citadel_authority_contract, path: "../../core/authority_contract"},
       {:citadel_execution_governance_contract, path: "../../core/execution_governance_contract"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}

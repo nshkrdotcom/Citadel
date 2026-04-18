@@ -81,7 +81,7 @@ defmodule Citadel.InvocationBridgeTest do
     :ok
   end
 
-  test "projects the explicit lower execution handoff and returns typed Spine acceptance" do
+  test "projects the explicit lower execution handoff and returns typed lower-gateway acceptance" do
     bridge = InvocationBridge.new!(downstream: Downstream)
     request = invocation_request()
     entry = outbox_entry("entry-1")
@@ -158,7 +158,7 @@ defmodule Citadel.InvocationBridgeTest do
     assert envelope.invocation_schema_version == 3
   end
 
-  test "surfaces typed Spine rejections without collapsing them into transport errors" do
+  test "surfaces typed lower-gateway rejections without collapsing them into transport errors" do
     bridge = InvocationBridge.new!(downstream: RejectedDownstream)
 
     assert {:rejected, %SubmissionRejection{} = rejection, _bridge} =

@@ -11,9 +11,9 @@ Status: Wave 5 contract frozen, hardened for Wave 8 publication closure.
 
 ## Dependencies
 
-- `core/citadel_runtime`
+- `core/citadel_kernel`
 - `core/observability_contract`
-- `core/citadel_core`
+- `core/citadel_governance`
 - `AITrace`
 
 ## Current Posture

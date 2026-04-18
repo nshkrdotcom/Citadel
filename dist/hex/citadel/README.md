@@ -48,13 +48,13 @@ Citadel does not own:
 citadel/
   core/
     contract_core/
-    jido_integration_v2_contracts/
+    jido_integration_contracts/
     authority_contract/
     execution_governance_contract/
     observability_contract/
     policy_packs/
-    citadel_core/
-    citadel_runtime/
+    citadel_governance/
+    citadel_kernel/
     conformance/
   bridges/
     invocation_bridge/
@@ -64,7 +64,6 @@ citadel/
     host_ingress_bridge/
     projection_bridge/
     trace_bridge/
-    memory_bridge/
   apps/
     coding_assist/
     operator_assist/
@@ -121,17 +120,17 @@ mix static.analysis
 mix ci
 ```
 
-Pure-core adversarial hardening commands:
+Governance adversarial hardening commands:
 
 ```bash
-mix hardening.pure_core.adversarial
-mix hardening.pure_core.mutation
-mix hardening.pure_core
+mix hardening.governance.adversarial
+mix hardening.governance.mutation
+mix hardening.governance
 ```
 
-- `mix hardening.pure_core.adversarial` runs the Wave 10 property suites in `core/citadel_core` and `core/policy_packs`
-- `mix hardening.pure_core.mutation` runs build-failing mutation checks for the same pure-core packages
-- `mix hardening.pure_core` runs both gates
+- `mix hardening.governance.adversarial` runs the Wave 10 property suites in `core/citadel_governance` and `core/policy_packs`
+- `mix hardening.governance.mutation` runs build-failing mutation checks for the same governance packages
+- `mix hardening.governance` runs both gates
 
 The Wave 9 hardening posture is enforced in code and CI:
 
@@ -148,7 +147,7 @@ Weld manifest lives at `packaging/weld/citadel.exs`, projects the public
 `citadel` artifact in package-projection mode, keeps `apps/*`,
 `core/conformance`, and `surfaces/citadel_domain_surface` out of the default
 artifact, carries the
-`core/jido_integration_v2_contracts` slice in-workspace, and preserves package
+`core/jido_integration_contracts` slice in-workspace, and preserves package
 ownership instead of flattening the workspace into a monolith.
 
 Common publication commands:
@@ -166,7 +165,7 @@ boundary exists.
 ## Shared Contract Strategy
 
 Citadel now carries the higher-order `Jido.Integration.V2` lineage contract
-slice as an in-workspace package at `core/jido_integration_v2_contracts`.
+slice as an in-workspace package at `core/jido_integration_contracts`.
 
 That package provides the shared modules the public Citadel surface publishes
 today:

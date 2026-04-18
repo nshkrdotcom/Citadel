@@ -26,8 +26,8 @@ defmodule Citadel.TraceBridge.MixProject do
 
   defp deps do
     [
-      {:citadel_core, path: "../../core/citadel_core"},
-      {:citadel_runtime, path: "../../core/citadel_runtime"},
+      {:citadel_governance, path: "../../core/citadel_governance"},
+      {:citadel_kernel, path: "../../core/citadel_kernel"},
       {:citadel_observability_contract, path: "../../core/observability_contract"},
       DependencyResolver.aitrace(),
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}

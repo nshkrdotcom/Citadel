@@ -21,7 +21,7 @@ defmodule Citadel.DependencyResolverTest do
         {"JIDO_INTEGRATION_PATH", nil}
       ],
       fn ->
-        assert DependencyResolver.jido_integration_v2_contracts_source() ==
+        assert DependencyResolver.jido_integration_contracts_source() ==
                  {:path, Path.expand("../jido_integration/core/contracts", File.cwd!())}
       end
     )
@@ -47,7 +47,7 @@ defmodule Citadel.DependencyResolverTest do
         {"AITRACE_PATH", "published"}
       ],
       fn ->
-        assert DependencyResolver.jido_integration_v2_contracts_source() == {:hex, "~> 0.1.0"}
+        assert DependencyResolver.jido_integration_contracts_source() == {:hex, "~> 0.1.0"}
         assert DependencyResolver.aitrace_source() == {:hex, "~> 0.1.0"}
       end
     )

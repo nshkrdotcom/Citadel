@@ -8,7 +8,7 @@ graph.
 - manifest: `packaging/weld/citadel.exs`
 - artifact id: `citadel`
 - mode: package projection
-- roots: `core/citadel_runtime`
+- roots: `core/citadel_kernel`
 - selected bridge closure: all `bridges/*`
 - excluded by default: `apps/*`, `core/conformance`,
   `surfaces/citadel_domain_surface`, and the root tooling project
@@ -44,7 +44,7 @@ boundary exists.
 artifact, runs verification against the generated package, and confirms that
 workspace-external dependencies are canonicalized to publishable dependency
 declarations. The higher-order `Jido.Integration.V2` contract slice is carried
-as the in-workspace `core/jido_integration_v2_contracts` package, so the
+as the in-workspace `core/jido_integration_contracts` package, so the
 generated `citadel` artifact does not leak a path, git, or unpublished Hex
 dependency for those modules.
 

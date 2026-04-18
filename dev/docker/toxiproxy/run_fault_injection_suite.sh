@@ -31,4 +31,4 @@ run_suite() {
 
 run_suite "bridges/invocation_bridge" "test/citadel/infrastructure_fault_injection_test.exs"
 run_suite "bridges/projection_bridge" "test/citadel/infrastructure_fault_injection_test.exs"
-run_suite "core/citadel_runtime" "test/citadel/runtime/infrastructure_fault_injection_test.exs"
+run_suite "core/citadel_kernel" "test/citadel/kernel/infrastructure_fault_injection_test.exs"

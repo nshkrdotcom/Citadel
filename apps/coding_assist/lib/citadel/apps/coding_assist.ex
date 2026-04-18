@@ -9,15 +9,14 @@ defmodule Citadel.Apps.CodingAssist do
     status: :wave_1_skeleton,
     owns: [:coding_surface, :tooling_workflows, :proof_app_composition],
     internal_dependencies: [
-      :citadel_core,
-      :citadel_runtime,
+      :citadel_governance,
+      :citadel_kernel,
       :citadel_invocation_bridge,
       :citadel_query_bridge,
       :citadel_signal_bridge,
       :citadel_boundary_bridge,
       :citadel_projection_bridge,
-      :citadel_trace_bridge,
-      :citadel_memory_bridge
+      :citadel_trace_bridge
     ],
     external_dependencies: []
   }
