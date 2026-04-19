@@ -35,6 +35,7 @@
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/operator_recovery_action/v1.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/platform_contract_support.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/rejection_envelope/v1.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/enterprise_precut_contracts.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_governance/lib/citadel/boundary_intent.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_governance/lib/citadel/bridge_circuit.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/citadel_governance/lib/citadel/bridge_state.ex",
@@ -146,8 +147,8 @@
       "mix.exs",
       "projection.lock.json"
     ],
-    "git_revision": "5c5ec3883c7203c783761c9f180be0ccd0f4b588",
-    "tree_digest": "ba89a4c35d4c61ad649c8aba19350ab821bea906b102f472c567c6be1b027a0e"
+    "git_revision": "abb87539f69a729aede2b1c5a135cb64edcbac9c",
+    "tree_digest": "f25fc06a7c86bb9ff7a61feda0757e35b69b62d515a127a9b4cea1773dab3087"
   },
   "manifest": {
     "path": "/home/home/p/g/n/citadel/packaging/weld/citadel.exs",
