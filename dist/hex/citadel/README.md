@@ -184,7 +184,7 @@ names.
 
 The packet that drives this repo lives at:
 
-- `/home/home/p/g/n/jido_brainstorm/nshkrdotcom/docs/20260409/citadel_ground_up_design_docset`
+- `/home/home/p/g/n/mezzanine/nshkrdotcom/docs/20260409/citadel_ground_up_design_docset`
 
 Local workspace docs now live in:
 
@@ -204,3 +204,25 @@ docker compose -f dev/docker/toxiproxy/docker-compose.yml -p citadel-toxiproxy u
 dev/docker/toxiproxy/verify.sh
 mix hardening.infrastructure_faults
 ```
+
+## Temporal developer environment
+
+Temporal CLI is expected to be available as `temporal` on this developer workstation for local durable-workflow development. Current provisioning is machine-level dotfiles setup, not a repo-local dependency.
+
+TODO: make Temporal ergonomics explicit for developers by adding repo-local setup scripts, version expectations, and fallback instructions so the tool is not silently assumed from the workstation.
+
+## Native Temporal development substrate
+
+Temporal runtime development is managed from `/home/home/p/g/n/mezzanine` through the repo-owned `just` workflow, not by manually starting ad hoc Temporal processes.
+
+Use:
+
+```bash
+cd /home/home/p/g/n/mezzanine
+just dev-up
+just dev-status
+just dev-logs
+just temporal-ui
+```
+
+Expected local contract: `127.0.0.1:7233`, UI `http://127.0.0.1:8233`, namespace `default`, native service `mezzanine-temporal-dev.service`, persistent state `~/.local/share/temporal/dev-server.db`.

@@ -63,7 +63,8 @@ defmodule Citadel.Governance.SubstrateIngress do
           terminal?: boolean(),
           decision_hash: String.t() | nil,
           audit_attrs: map(),
-          operator_message: String.t()
+          operator_message: String.t(),
+          rejection_classification: map() | nil
         }
 
   @spec action_kind() :: String.t()
@@ -92,7 +93,8 @@ defmodule Citadel.Governance.SubstrateIngress do
          terminal?: true,
          decision_hash: nil,
          audit_attrs: validation_audit_attrs(packet, error),
-         operator_message: Exception.message(error)
+         operator_message: Exception.message(error),
+         rejection_classification: nil
        }}
   end
 
@@ -522,7 +524,7 @@ defmodule Citadel.Governance.SubstrateIngress do
   defp rejection_result(packet, %DecisionRejection{} = rejection) do
     %{
       class: rejection_class(rejection),
-      terminal?: true,
+      terminal?: rejection.retryability == :terminal,
       decision_hash: nil,
       audit_attrs: %{
         tenant_id: packet.tenant_id,
@@ -532,9 +534,13 @@ defmodule Citadel.Governance.SubstrateIngress do
         trace_id: packet.substrate_trace_id,
         rejection_id: rejection.rejection_id,
         rejection_reason: rejection.reason_code,
+        rejection_summary: rejection.summary,
+        retryability: rejection.retryability,
+        publication_requirement: rejection.publication_requirement,
         fact_kind: :substrate_governance_rejected
       },
-      operator_message: rejection.reason_code
+      operator_message: rejection.summary,
+      rejection_classification: DecisionRejection.dump(rejection)
     }
   end
 
@@ -557,13 +563,15 @@ defmodule Citadel.Governance.SubstrateIngress do
   defp rejection_class(%DecisionRejection{}), do: :policy_error
 
   defp classify_rejection!(packet, selection, reason_code) do
+    causes = rejection_causes(packet, selection, reason_code)
+
     DecisionRejectionClassifier.classify!(
       %{
         rejection_id: "rejection/#{packet.execution_id}/#{reason_code}",
         stage: :planning,
         reason_code: reason_code,
         summary: rejection_summary(reason_code),
-        causes: [:planning],
+        causes: causes,
         extensions: %{
           "execution_id" => packet.execution_id,
           "trace_id" => packet.substrate_trace_id,
@@ -572,6 +580,47 @@ defmodule Citadel.Governance.SubstrateIngress do
       },
       selection
     )
+  end
+
+  defp rejection_causes(_packet, %Selection{} = selection, reason_code) do
+    policy_reasons = selection.rejection_policy
+
+    causes =
+      []
+      |> reject_if_not_relevant(
+        :governance,
+        reason_code,
+        policy_reasons.governance_change_reason_codes
+      )
+      |> reject_if_not_relevant(
+        :runtime_state,
+        reason_code,
+        policy_reasons.runtime_change_reason_codes
+      )
+      |> reject_if_not_relevant(
+        :runtime_state,
+        reason_code,
+        policy_reasons.derived_state_reason_codes
+      )
+      |> reject_if_not_relevant(
+        :policy_denial,
+        reason_code,
+        policy_reasons.denial_audit_reason_codes
+      )
+
+    if causes == [] do
+      [:input]
+    else
+      Enum.uniq(causes)
+    end
+  end
+
+  defp reject_if_not_relevant(causes, cause, reason_code, listed_codes) do
+    if reason_code in listed_codes do
+      [cause | causes]
+    else
+      causes
+    end
   end
 
   defp rejection_summary("missing_scope_selector"),
