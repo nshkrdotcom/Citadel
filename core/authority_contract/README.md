@@ -7,6 +7,8 @@ Status: Phase 4 authority packet hardened.
 - frozen Brain-authored `AuthorityDecision.v1` packet ownership
 - Phase 4 `Citadel.AuthorityPacketV2.v1` ownership
 - platform `Platform.RejectionEnvelope.v1` taxonomy ownership
+- platform `Platform.ErrorTaxonomy.v1` formal error class, retry posture, safe
+  action, redaction, and runbook ownership
 - platform `Platform.InstallationRevisionEpoch.v1` revision/epoch fence
   evidence ownership
 - platform `Platform.LeaseRevocation.v1` lease revocation evidence ownership
@@ -43,6 +45,12 @@ authority, lower-scope denial, semantic failure, runtime failure, and product
 bypass cases. `Citadel.OperatorRecoveryAction.v1` is the bounded operator action
 shape for recovery flows; it carries only whitelisted safe action classes and
 must be backed by a Citadel decision.
+
+`Platform.ErrorTaxonomy.v1` is the formal platform taxonomy entry for public and
+operator-visible failure classes. It binds error code, error class, retry
+posture, safe action, redaction class, and runbook path to the same tenant,
+installation, actor, resource, authority, idempotency, trace, and release
+manifest scope used by the authority and rejection envelopes.
 
 `Platform.InstallationRevisionEpoch.v1` is the Phase 4 revision fence evidence
 contract. Accepted fences carry the current installation revision, activation

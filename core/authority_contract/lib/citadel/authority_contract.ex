@@ -5,6 +5,7 @@ defmodule Citadel.AuthorityContract do
 
   alias Citadel.AuthorityContract.AuthorityDecision.V1, as: AuthorityDecisionV1
   alias Citadel.AuthorityContract.AuthorityPacket.V2, as: AuthorityPacketV2
+  alias Citadel.AuthorityContract.ErrorTaxonomy.V1, as: ErrorTaxonomyV1
   alias Citadel.AuthorityContract.InstallationRevisionEpoch.V1, as: InstallationRevisionEpochV1
   alias Citadel.AuthorityContract.LeaseRevocation.V1, as: LeaseRevocationV1
   alias Citadel.AuthorityContract.OperatorRecoveryAction.V1, as: OperatorRecoveryActionV1
@@ -21,6 +22,7 @@ defmodule Citadel.AuthorityContract do
       :authority_packet_v2,
       :operator_recovery_action_v1,
       :packet_versioning,
+      :platform_error_taxonomy_v1,
       :platform_installation_revision_epoch_v1,
       :platform_lease_revocation_v1,
       :platform_rejection_envelope_v1,
@@ -43,6 +45,9 @@ defmodule Citadel.AuthorityContract do
 
   @spec rejection_envelope_module() :: module()
   def rejection_envelope_module, do: RejectionEnvelopeV1
+
+  @spec error_taxonomy_module() :: module()
+  def error_taxonomy_module, do: ErrorTaxonomyV1
 
   @spec installation_revision_epoch_module() :: module()
   def installation_revision_epoch_module, do: InstallationRevisionEpochV1

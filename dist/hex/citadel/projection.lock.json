@@ -29,6 +29,7 @@
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/authority_decision/v1.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/authority_packet/v2.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/error_taxonomy/v1.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/installation_revision_epoch/v1.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/lease_revocation/v1.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/operator_recovery_action/v1.ex",
@@ -145,8 +146,8 @@
       "mix.exs",
       "projection.lock.json"
     ],
-    "git_revision": "9dfe55bda086929e112f6892aeddfb18230af14b",
-    "tree_digest": "1fd0beed67b23400fae44bc068aebedff885bd7900cde3770c8e385fde9c32e8"
+    "git_revision": "5c5ec3883c7203c783761c9f180be0ccd0f4b588",
+    "tree_digest": "ba89a4c35d4c61ad649c8aba19350ab821bea906b102f472c567c6be1b027a0e"
   },
   "manifest": {
     "path": "/home/home/p/g/n/citadel/packaging/weld/citadel.exs",

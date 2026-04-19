@@ -49,12 +49,12 @@ defmodule Citadel.AuthorityContract.PlatformContractSupport do
     |> enum_atomish!(allowed, key, contract_name)
   end
 
-  def enum_atomish!(value, allowed, _key, _contract_name) when is_atom(value) do
+  def enum_atomish!(value, allowed, key, contract_name) when is_atom(value) do
     if value in allowed do
       value
     else
       raise ArgumentError,
-            "enum value must be one of #{inspect(allowed)}, got: #{inspect(value)}"
+            "#{contract_name}.#{key} must be one of #{inspect(allowed)}, got: #{inspect(value)}"
     end
   end
 
