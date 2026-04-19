@@ -3,13 +3,26 @@ defmodule Citadel.Conformance.WorkspaceSkeletonTest do
 
   test "tracks the packet-defined seam and wave posture" do
     assert Citadel.ContractCore.manifest().status == :wave_2_seam_frozen
-    assert Citadel.AuthorityContract.manifest().status == :wave_2_seam_frozen
+    assert Citadel.AuthorityContract.manifest().status == :phase_4_authority_packet_hardened
     assert Citadel.ExecutionGovernanceContract.manifest().status == :wave_10_data_layer_frozen
-    assert Citadel.AuthorityContract.packet_name() == "AuthorityDecision.v1"
+    assert Citadel.AuthorityContract.packet_name() == "Citadel.AuthorityPacketV2.v1"
     assert Citadel.ExecutionGovernanceContract.packet_name() == "ExecutionGovernance.v1"
     assert Citadel.AuthorityContract.extensions_namespaces() == ["citadel"]
     assert Citadel.ExecutionGovernanceContract.extensions_namespaces() == ["citadel"]
-    assert :decision_hash in Citadel.AuthorityContract.required_fields()
+    assert :canonical_json_hash in Citadel.AuthorityContract.required_fields()
+
+    assert Citadel.AuthorityContract.authority_packet_module() ==
+             Citadel.AuthorityContract.AuthorityPacket.V2
+
+    assert Citadel.AuthorityContract.authority_decision_module() ==
+             Citadel.AuthorityContract.AuthorityDecision.V1
+
+    assert Citadel.AuthorityContract.rejection_envelope_module() ==
+             Citadel.AuthorityContract.RejectionEnvelope.V1
+
+    assert Citadel.AuthorityContract.operator_recovery_action_module() ==
+             Citadel.AuthorityContract.OperatorRecoveryAction.V1
+
     assert :execution_governance_id in Citadel.ExecutionGovernanceContract.required_fields()
     assert Citadel.ObservabilityContract.telemetry_prefix() == [:citadel]
 

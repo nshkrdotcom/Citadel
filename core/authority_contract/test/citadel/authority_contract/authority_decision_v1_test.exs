@@ -11,9 +11,7 @@ defmodule Citadel.AuthorityContract.AuthorityDecision.V1Test do
     fixture = read_fixture!("minimal.json")
     packet = V1.new!(fixture)
 
-    assert AuthorityContract.manifest().status == :wave_2_seam_frozen
-    assert AuthorityContract.packet_name() == "AuthorityDecision.v1"
-    assert AuthorityContract.contract_version() == "v1"
+    assert AuthorityContract.authority_decision_module() == V1
     assert AuthorityContract.extensions_namespaces() == ["citadel"]
 
     assert V1.schema() == [

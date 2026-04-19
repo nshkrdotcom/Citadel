@@ -1,11 +1,14 @@
 # Citadel Authority Contract
 
-Status: Wave 2 seam freeze.
+Status: Phase 4 authority packet hardened.
 
 ## Owns
 
-- Brain-authored `AuthorityDecision.v1` packet ownership
-- required field inventory and versioning rule for the Brain authority baseline
+- frozen Brain-authored `AuthorityDecision.v1` packet ownership
+- Phase 4 `Citadel.AuthorityPacketV2.v1` ownership
+- platform `Platform.RejectionEnvelope.v1` taxonomy ownership
+- authorized `Citadel.OperatorRecoveryAction.v1` envelope ownership
+- required field inventory and versioning rule for authority packet successors
 - the `extensions["citadel"]` posture for Citadel-only extras
 - contract-facing fixtures and validation boundary placement
 
@@ -21,3 +24,19 @@ Status: Wave 2 seam freeze.
 - incompatible field or semantic changes require an explicit successor packet
 - Citadel-only extras stay under `extensions["citadel"]`
 - fixture-backed drift checks fail immediately on unauthorized mutation
+
+## Phase 4 Posture
+
+`Citadel.AuthorityPacketV2.v1` is the current authority packet surface exposed by
+`Citadel.AuthorityContract.packet_name/0` and
+`Citadel.AuthorityContract.authority_packet_module/0`. It is intentionally wider
+than the frozen Brain V1 packet and carries the enterprise pre-cut envelope:
+tenant, installation, actor, resource, idempotency, trace, release manifest,
+revision, approval, and policy posture fields.
+
+`Platform.RejectionEnvelope.v1` is the shared fail-closed rejection shape for
+denied command, wrong tenant, stale revision, duplicate idempotency key, missing
+authority, lower-scope denial, semantic failure, runtime failure, and product
+bypass cases. `Citadel.OperatorRecoveryAction.v1` is the bounded operator action
+shape for recovery flows; it carries only whitelisted safe action classes and
+must be backed by a Citadel decision.

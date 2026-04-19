@@ -3,46 +3,51 @@ defmodule Citadel.AuthorityContract do
   Packet-aligned ownership surface for the shared Brain authority packet.
   """
 
-  alias Citadel.AuthorityContract.AuthorityDecision.V1
+  alias Citadel.AuthorityContract.AuthorityDecision.V1, as: AuthorityDecisionV1
+  alias Citadel.AuthorityContract.AuthorityPacket.V2, as: AuthorityPacketV2
+  alias Citadel.AuthorityContract.OperatorRecoveryAction.V1, as: OperatorRecoveryActionV1
+  alias Citadel.AuthorityContract.RejectionEnvelope.V1, as: RejectionEnvelopeV1
 
-  @required_fields [
-    :contract_version,
-    :decision_id,
-    :tenant_id,
-    :request_id,
-    :policy_version,
-    :boundary_class,
-    :trust_profile,
-    :approval_profile,
-    :egress_profile,
-    :workspace_profile,
-    :resource_profile,
-    :decision_hash,
-    :extensions
-  ]
+  @required_fields AuthorityPacketV2.required_fields()
 
   @manifest %{
     package: :citadel_authority_contract,
     layer: :core,
-    status: :wave_2_seam_frozen,
-    owns: [:authority_decision_v1, :packet_versioning, :contract_fixtures],
+    status: :phase_4_authority_packet_hardened,
+    owns: [
+      :authority_decision_v1,
+      :authority_packet_v2,
+      :operator_recovery_action_v1,
+      :packet_versioning,
+      :platform_rejection_envelope_v1,
+      :contract_fixtures
+    ],
     internal_dependencies: [:citadel_contract_core],
     external_dependencies: []
   }
 
-  @extensions_namespaces ["citadel"]
+  @extensions_namespaces AuthorityPacketV2.extensions_namespaces()
 
   @spec required_fields() :: [atom()]
   def required_fields, do: @required_fields
 
   @spec authority_decision_module() :: module()
-  def authority_decision_module, do: V1
+  def authority_decision_module, do: AuthorityDecisionV1
+
+  @spec authority_packet_module() :: module()
+  def authority_packet_module, do: AuthorityPacketV2
+
+  @spec rejection_envelope_module() :: module()
+  def rejection_envelope_module, do: RejectionEnvelopeV1
+
+  @spec operator_recovery_action_module() :: module()
+  def operator_recovery_action_module, do: OperatorRecoveryActionV1
 
   @spec contract_version() :: String.t()
-  def contract_version, do: V1.contract_version()
+  def contract_version, do: AuthorityPacketV2.contract_version()
 
   @spec packet_name() :: String.t()
-  def packet_name, do: V1.packet_name()
+  def packet_name, do: AuthorityPacketV2.packet_name()
 
   @spec versioning_rule() :: atom()
   def versioning_rule, do: :explicit_successor_required_for_field_or_semantic_change
