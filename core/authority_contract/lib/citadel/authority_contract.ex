@@ -5,6 +5,8 @@ defmodule Citadel.AuthorityContract do
 
   alias Citadel.AuthorityContract.AuthorityDecision.V1, as: AuthorityDecisionV1
   alias Citadel.AuthorityContract.AuthorityPacket.V2, as: AuthorityPacketV2
+  alias Citadel.AuthorityContract.InstallationRevisionEpoch.V1, as: InstallationRevisionEpochV1
+  alias Citadel.AuthorityContract.LeaseRevocation.V1, as: LeaseRevocationV1
   alias Citadel.AuthorityContract.OperatorRecoveryAction.V1, as: OperatorRecoveryActionV1
   alias Citadel.AuthorityContract.RejectionEnvelope.V1, as: RejectionEnvelopeV1
 
@@ -19,6 +21,8 @@ defmodule Citadel.AuthorityContract do
       :authority_packet_v2,
       :operator_recovery_action_v1,
       :packet_versioning,
+      :platform_installation_revision_epoch_v1,
+      :platform_lease_revocation_v1,
       :platform_rejection_envelope_v1,
       :contract_fixtures
     ],
@@ -39,6 +43,12 @@ defmodule Citadel.AuthorityContract do
 
   @spec rejection_envelope_module() :: module()
   def rejection_envelope_module, do: RejectionEnvelopeV1
+
+  @spec installation_revision_epoch_module() :: module()
+  def installation_revision_epoch_module, do: InstallationRevisionEpochV1
+
+  @spec lease_revocation_module() :: module()
+  def lease_revocation_module, do: LeaseRevocationV1
 
   @spec operator_recovery_action_module() :: module()
   def operator_recovery_action_module, do: OperatorRecoveryActionV1

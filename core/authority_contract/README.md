@@ -7,6 +7,9 @@ Status: Phase 4 authority packet hardened.
 - frozen Brain-authored `AuthorityDecision.v1` packet ownership
 - Phase 4 `Citadel.AuthorityPacketV2.v1` ownership
 - platform `Platform.RejectionEnvelope.v1` taxonomy ownership
+- platform `Platform.InstallationRevisionEpoch.v1` revision/epoch fence
+  evidence ownership
+- platform `Platform.LeaseRevocation.v1` lease revocation evidence ownership
 - authorized `Citadel.OperatorRecoveryAction.v1` envelope ownership
 - required field inventory and versioning rule for authority packet successors
 - the `extensions["citadel"]` posture for Citadel-only extras
@@ -40,3 +43,16 @@ authority, lower-scope denial, semantic failure, runtime failure, and product
 bypass cases. `Citadel.OperatorRecoveryAction.v1` is the bounded operator action
 shape for recovery flows; it carries only whitelisted safe action classes and
 must be backed by a Citadel decision.
+
+`Platform.InstallationRevisionEpoch.v1` is the Phase 4 revision fence evidence
+contract. Accepted fences carry the current installation revision, activation
+epoch, lease epoch, node id, fence decision ref, and `stale_reason: "none"`.
+Rejected fences must carry explicit stale attempted revision, activation, or
+lease epoch evidence before any downstream workflow activity, lower read/write,
+or stream attach can proceed.
+
+`Platform.LeaseRevocation.v1` is the Phase 4 lease revocation propagation
+contract. It records the revoked lease ref, revocation ref, non-empty lease
+scope, cache invalidation ref, post-revocation attempt ref, and lease status so
+operators can prove revoked leases are unusable across Mezzanine, Jido
+Integration, AppKit, and Execution Plane boundaries.
