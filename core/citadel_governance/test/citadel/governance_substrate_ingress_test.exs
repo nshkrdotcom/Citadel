@@ -44,7 +44,7 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
            }
   end
 
-  test "classifies unplannable substrate packets as terminal governance rejections" do
+  test "classifies unplannable substrate packets with non-terminal retry metadata" do
     packet =
       "req-rejected"
       |> valid_packet()
@@ -57,9 +57,46 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
     assert {:error, rejection} = SubstrateIngress.compile(packet, [policy_pack()])
 
     assert rejection.class == :policy_error
-    assert rejection.terminal? == true
-    assert rejection.operator_message =~ "boundary_reuse_requires_attached_session"
+    assert rejection.terminal? == false
+    assert rejection.operator_message == "boundary_reuse_requires_attached_session"
     assert rejection.audit_attrs.fact_kind == :substrate_governance_rejected
+    assert rejection.audit_attrs.retryability == :after_input_change
+    assert rejection.audit_attrs.publication_requirement == :host_only
+
+    assert rejection.rejection_classification == %{
+             rejection_id: "rejection/execution-1/boundary_reuse_requires_attached_session",
+             stage: :planning,
+             reason_code: "boundary_reuse_requires_attached_session",
+             summary: "boundary_reuse_requires_attached_session",
+             retryability: :after_input_change,
+             publication_requirement: :host_only,
+             extensions: %{
+               "execution_id" => "execution-1",
+               "trace_id" => "trace-substrate",
+               "ingress_kind" => "substrate_origin"
+             }
+           }
+  end
+
+  test "maps plannable-packet assembly failures to readable operator messages" do
+    packet =
+      valid_packet("req-missing-intent")
+      |> pop_in([
+        :intent_envelope,
+        :plan_hints,
+        :candidate_steps,
+        Access.at(0),
+        :extensions,
+        "citadel",
+        "execution_intent"
+      ])
+      |> elem(1)
+
+    assert {:error, rejection} = SubstrateIngress.compile(packet, [policy_pack()])
+
+    assert rejection.operator_message == "candidate step is missing execution intent details"
+    assert rejection.terminal? == false
+    assert rejection.rejection_classification.retryability == :after_input_change
   end
 
   defp valid_packet(request_id) do
