@@ -7,7 +7,12 @@ defmodule Citadel.ObservabilityContract do
     package: :citadel_observability_contract,
     layer: :core,
     status: :wave_5_contract_frozen,
-    owns: [:trace_vocabulary, :telemetry_names, :metadata_conventions],
+    owns: [
+      :trace_vocabulary,
+      :telemetry_names,
+      :metadata_conventions,
+      :platform_audit_hash_chain_v1
+    ],
     internal_dependencies: [:citadel_contract_core],
     external_dependencies: []
   }
@@ -46,6 +51,9 @@ defmodule Citadel.ObservabilityContract do
   @spec telemetry_metadata_keys(atom()) :: [atom(), ...]
   def telemetry_metadata_keys(name),
     do: Citadel.ObservabilityContract.Telemetry.metadata_keys(name)
+
+  @spec audit_hash_chain_module() :: module()
+  def audit_hash_chain_module, do: Citadel.ObservabilityContract.AuditHashChain.V1
 
   @spec manifest() :: map()
   def manifest, do: @manifest

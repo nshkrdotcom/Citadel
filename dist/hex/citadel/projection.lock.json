@@ -93,6 +93,7 @@
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_contracts/lib/jido/integration/v2/submission_rejection.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_contracts/lib/jido/integration/v2/support.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract/audit_hash_chain/v1.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract/telemetry.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract/trace.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/policy_packs/lib/citadel/policy_packs.ex",
@@ -144,8 +145,8 @@
       "mix.exs",
       "projection.lock.json"
     ],
-    "git_revision": "958d00eba73ac8954fa9e4eb68c7fb7f6f9bdf9c",
-    "tree_digest": "4cfd629bf8de2ea8360a5aeca1c28a8e2da8423944821e932e9365211b6490ad"
+    "git_revision": "689a111dcac8a5d1093dfedb1304092c972fe70f",
+    "tree_digest": "1fd0beed67b23400fae44bc068aebedff885bd7900cde3770c8e385fde9c32e8"
   },
   "manifest": {
     "path": "/home/home/p/g/n/citadel/packaging/weld/citadel.exs",
