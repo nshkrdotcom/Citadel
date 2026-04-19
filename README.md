@@ -204,3 +204,9 @@ docker compose -f dev/docker/toxiproxy/docker-compose.yml -p citadel-toxiproxy u
 dev/docker/toxiproxy/verify.sh
 mix hardening.infrastructure_faults
 ```
+
+## Temporal developer environment
+
+Temporal CLI is expected to be available as `temporal` on this developer workstation for local durable-workflow development. Current provisioning is machine-level dotfiles setup, not a repo-local dependency.
+
+TODO: make Temporal ergonomics explicit for developers by adding repo-local setup scripts, version expectations, and fallback instructions so the tool is not silently assumed from the workstation.
