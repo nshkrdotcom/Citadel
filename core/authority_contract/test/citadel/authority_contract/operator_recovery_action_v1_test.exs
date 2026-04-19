@@ -13,6 +13,8 @@ defmodule Citadel.AuthorityContract.OperatorRecoveryAction.V1Test do
     assert AuthorityContract.operator_recovery_action_module() == V1
     assert action.safe_action_class == :pause_workflow
     assert action.requested_at == "2026-04-18T10:00:00Z"
+    assert :retry_workflow in V1.safe_action_classes()
+    assert :replan_workflow in V1.safe_action_classes()
   end
 
   test "fails closed when the safe action class is not whitelisted" do

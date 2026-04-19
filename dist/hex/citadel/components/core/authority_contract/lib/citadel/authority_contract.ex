@@ -10,6 +10,7 @@ defmodule Citadel.AuthorityContract do
   alias Citadel.AuthorityContract.LeaseRevocation.V1, as: LeaseRevocationV1
   alias Citadel.AuthorityContract.OperatorRecoveryAction.V1, as: OperatorRecoveryActionV1
   alias Citadel.AuthorityContract.RejectionEnvelope.V1, as: RejectionEnvelopeV1
+  alias Citadel.OperatorWorkflowSignalAuthorityV1
 
   @required_fields AuthorityPacketV2.required_fields()
 
@@ -21,6 +22,7 @@ defmodule Citadel.AuthorityContract do
       :authority_decision_v1,
       :authority_packet_v2,
       :operator_recovery_action_v1,
+      :operator_workflow_signal_authority_v1,
       :packet_versioning,
       :platform_error_taxonomy_v1,
       :platform_installation_revision_epoch_v1,
@@ -57,6 +59,9 @@ defmodule Citadel.AuthorityContract do
 
   @spec operator_recovery_action_module() :: module()
   def operator_recovery_action_module, do: OperatorRecoveryActionV1
+
+  @spec operator_workflow_signal_authority_module() :: module()
+  def operator_workflow_signal_authority_module, do: OperatorWorkflowSignalAuthorityV1
 
   @spec contract_version() :: String.t()
   def contract_version, do: AuthorityPacketV2.contract_version()

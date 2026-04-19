@@ -195,3 +195,98 @@ defmodule Citadel.PolicyEvidenceRef do
     )
   end
 end
+
+defmodule Citadel.OperatorWorkflowSignalAuthorityV1 do
+  @moduledoc """
+  Enterprise pre-cut authority decision for operator workflow signals.
+
+  This contract authorizes or denies cancel, pause, resume, retry, and replan
+  signals before Mezzanine commits a local signal receipt and outbox row.
+  """
+
+  alias Citadel.EnterprisePrecutSupport
+
+  @contract_name "Citadel.OperatorWorkflowSignalAuthority.v1"
+  @results [
+    "allow",
+    "deny",
+    "stale_policy",
+    "insufficient_scope",
+    "unregistered_signal"
+  ]
+  @fields [
+    :contract_name,
+    :decision_id,
+    :tenant_ref,
+    :installation_ref,
+    :workspace_ref,
+    :project_ref,
+    :environment_ref,
+    :principal_ref,
+    :system_actor_ref,
+    :operator_ref,
+    :resource_ref,
+    :workflow_id,
+    :workflow_run_id,
+    :signal_id,
+    :signal_name,
+    :signal_version,
+    :signal_effect,
+    :requested_action,
+    :result,
+    :rejection_class,
+    :authority_packet_ref,
+    :permission_decision_ref,
+    :policy_bundle_ref,
+    :policy_revision,
+    :idempotency_key,
+    :trace_id,
+    :correlation_id,
+    :release_manifest_ref,
+    :decided_at,
+    :evidence_refs
+  ]
+  defstruct @fields
+
+  @type t :: %__MODULE__{}
+
+  @spec contract_name() :: String.t()
+  def contract_name, do: @contract_name
+
+  @spec new(map() | keyword()) :: {:ok, t()} | {:error, term()}
+  def new(attrs) do
+    EnterprisePrecutSupport.build(
+      __MODULE__,
+      @contract_name,
+      @fields,
+      [
+        :decision_id,
+        :tenant_ref,
+        :installation_ref,
+        :principal_ref,
+        :operator_ref,
+        :resource_ref,
+        :workflow_id,
+        :signal_id,
+        :signal_name,
+        :signal_version,
+        :signal_effect,
+        :requested_action,
+        :result,
+        :authority_packet_ref,
+        :permission_decision_ref,
+        :policy_bundle_ref,
+        :policy_revision,
+        :idempotency_key,
+        :trace_id,
+        :correlation_id,
+        :release_manifest_ref,
+        :decided_at,
+        :evidence_refs
+      ],
+      attrs,
+      enums: [result: @results],
+      list_fields: [:evidence_refs]
+    )
+  end
+end

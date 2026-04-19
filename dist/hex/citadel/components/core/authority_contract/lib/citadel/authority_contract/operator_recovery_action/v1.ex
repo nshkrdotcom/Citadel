@@ -14,6 +14,8 @@ defmodule Citadel.AuthorityContract.OperatorRecoveryAction.V1 do
     :cancel_workflow,
     :pause_workflow,
     :resume_workflow,
+    :retry_workflow,
+    :replan_workflow,
     :quarantine_subject,
     :reconcile_projection
   ]
