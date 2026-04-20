@@ -1,3 +1,28 @@
+# Monorepo Project Map
+
+- `./apps/coding_assist/mix.exs`: Thin coding-focused proof app shell for Citadel
+- `./apps/host_surface_harness/mix.exs`: Thin host/kernel seam proof harness for Citadel
+- `./apps/operator_assist/mix.exs`: Thin operator workflow proof app shell for Citadel
+- `./bridges/boundary_bridge/mix.exs`: Boundary lifecycle adapters for Citadel
+- `./bridges/host_ingress_bridge/mix.exs`: Citadel-owned public structured host-ingress bridge
+- `./bridges/invocation_bridge/mix.exs`: Invocation handoff adapters for Citadel
+- `./bridges/jido_integration_bridge/mix.exs`: Citadel-owned lower-gateway bridge adapters
+- `./bridges/projection_bridge/mix.exs`: Review and derived-state publication adapters for Citadel
+- `./bridges/query_bridge/mix.exs`: Durable-state rehydration adapters for Citadel
+- `./bridges/signal_bridge/mix.exs`: Signal ingress normalization adapters for Citadel
+- `./bridges/trace_bridge/mix.exs`: Trace publication adapters for Citadel
+- `./core/authority_contract/mix.exs`: Brain-authored authority packet ownership for Citadel
+- `./core/citadel_governance/mix.exs`: Stateless governance values and deterministic policy compilation for Citadel
+- `./core/citadel_kernel/mix.exs`: Host-stateful session continuity and runtime coordination for Citadel
+- `./core/conformance/mix.exs`: Black-box conformance and composition coverage for Citadel
+- `./core/contract_core/mix.exs`: Neutral value helpers and canonical JSON ownership for Citadel
+- `./core/execution_governance_contract/mix.exs`: Execution governance packet ownership for Citadel
+- `./core/jido_integration_contracts/mix.exs`: Citadel-local higher-order Jido Integration V2 contract slice
+- `./core/observability_contract/mix.exs`: Trace and telemetry contract ownership for Citadel
+- `./core/policy_packs/mix.exs`: Policy pack ownership and selection surfaces for Citadel
+- `./mix.exs`: Tooling root for the Citadel non-umbrella monorepo
+- `./surfaces/citadel_domain_surface/mix.exs`: Typed host-facing domain surface package above the Citadel kernel
+
 # AGENTS.md
 
 ## Temporal developer environment
