@@ -20,6 +20,14 @@ defmodule Citadel.Kernel.SessionDirectory do
   alias Citadel.Kernel.SystemClock
 
   @flush_message :flush_project_binding_epoch
+  @eviction_sweep_message :eviction_sweep
+  @default_eviction_policy %{
+    sweep_interval_ms: 60_000,
+    max_evictions_per_sweep: 128,
+    active_session_ttl_ms: 30 * 60_000,
+    max_active_sessions_total: 100_000,
+    max_active_sessions_per_tenant: 25_000
+  }
 
   @type continuity_fault ::
           :ok
@@ -136,6 +144,10 @@ defmodule Citadel.Kernel.SessionDirectory do
     GenServer.call(server, {:inspect_session, session_id})
   end
 
+  def sweep_expired(server \\ __MODULE__) do
+    GenServer.call(server, :sweep_expired)
+  end
+
   @impl true
   def init(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
@@ -143,10 +155,11 @@ defmodule Citadel.Kernel.SessionDirectory do
     store = :persistent_term.get(store_key, default_store())
 
     {:ok,
-     ensure_invariants!(%{
+     %{
        clock: Keyword.get(opts, :clock, SystemClock),
        kernel_snapshot: Keyword.get(opts, :kernel_snapshot, KernelSnapshot),
        flush_interval_ms: Keyword.get(opts, :flush_interval_ms, 10),
+       eviction_policy: normalize_eviction_policy(Keyword.get(opts, :eviction_policy, [])),
        activation_policy:
          Keyword.get(opts, :activation_policy, SessionActivationPolicy.new!(%{})),
        store_key: store_key,
@@ -155,8 +168,11 @@ defmodule Citadel.Kernel.SessionDirectory do
        pending_project_binding_epoch: nil,
        pending_updated_at: nil,
        flush_timer_ref: nil,
+       sweep_timer_ref: nil,
        activation_queue: %{}
-     })}
+     }
+     |> ensure_invariants!()
+     |> schedule_eviction_sweep()}
   end
 
   @impl true
@@ -300,21 +316,31 @@ defmodule Citadel.Kernel.SessionDirectory do
   end
 
   def handle_call({:register_active_session, session_id, opts}, _from, state) do
+    tenant_scope_key = tenant_scope_from_opts(opts)
+
     cursor_info = %{
       session_id: session_id,
       committed_signal_cursor: Keyword.get(opts, :committed_signal_cursor),
       priority_class: Keyword.get(opts, :priority_class, "background"),
       pending_replay_safe: Keyword.get(opts, :pending_replay_safe, false),
       live_request: Keyword.get(opts, :live_request, false),
+      tenant_scope_key: tenant_scope_key,
+      last_seen_at: state.clock.utc_now(),
       registered_at: state.clock.utc_now()
     }
 
-    state =
-      state
-      |> update_store([:active_sessions, session_id], cursor_info)
-      |> persist_store!()
+    case prepare_active_session_capacity(state, session_id, tenant_scope_key) do
+      {:ok, state} ->
+        state =
+          state
+          |> update_store([:active_sessions, session_id], cursor_info)
+          |> persist_store!()
 
-    {:reply, :ok, state}
+        {:reply, :ok, state}
+
+      {:error, rejection, state} ->
+        {:reply, {:error, rejection}, state}
+    end
   end
 
   def handle_call({:unregister_active_session, session_id}, _from, state) do
@@ -584,6 +610,12 @@ defmodule Citadel.Kernel.SessionDirectory do
     {:reply, reply, state}
   end
 
+  def handle_call(:sweep_expired, _from, state) do
+    {state, summary} = sweep_expired_state(state)
+    state = persist_if_evicted(state, summary.active_sessions)
+    {:reply, summary, state}
+  end
+
   @impl true
   def handle_info(@flush_message, %{pending_project_binding_epoch: nil} = state) do
     {:noreply, ensure_invariants!(%{state | flush_timer_ref: nil})}
@@ -608,6 +640,12 @@ defmodule Citadel.Kernel.SessionDirectory do
          pending_updated_at: nil,
          flush_timer_ref: nil
      })}
+  end
+
+  def handle_info(@eviction_sweep_message, state) do
+    {state, summary} = sweep_expired_state(state)
+    state = persist_if_evicted(state, summary.active_sessions)
+    {:noreply, schedule_eviction_sweep(%{state | sweep_timer_ref: nil})}
   end
 
   defp build_new_claimed_blob(state, session_id, now, opts) do
@@ -1068,6 +1106,22 @@ defmodule Citadel.Kernel.SessionDirectory do
     }
   end
 
+  defp schedule_eviction_sweep(state) do
+    if state.eviction_policy.sweep_interval_ms > 0 do
+      %{
+        state
+        | sweep_timer_ref:
+            Process.send_after(
+              self(),
+              @eviction_sweep_message,
+              state.eviction_policy.sweep_interval_ms
+            )
+      }
+    else
+      state
+    end
+  end
+
   defp emit_lifecycle_telemetry(lifecycle_event) do
     :telemetry.execute(
       Telemetry.event_name(:session_lifecycle_count),
@@ -1105,6 +1159,115 @@ defmodule Citadel.Kernel.SessionDirectory do
     end)
 
     activation_policy
+  end
+
+  defp prepare_active_session_capacity(state, session_id, tenant_scope_key) do
+    {state, evicted_count} = sweep_expired_active_sessions(state)
+    state = persist_if_evicted(state, evicted_count)
+
+    with {:ok, state} <- ensure_active_session_total_capacity(state, session_id),
+         {:ok, state} <-
+           ensure_active_session_tenant_capacity(state, session_id, tenant_scope_key) do
+      {:ok, state}
+    end
+  end
+
+  defp ensure_active_session_total_capacity(state, session_id) do
+    if Map.has_key?(state.store.active_sessions, session_id) or
+         map_size(state.store.active_sessions) < state.eviction_policy.max_active_sessions_total do
+      {:ok, state}
+    else
+      {:error,
+       capacity_rejection(
+         :active_session_capacity_exhausted,
+         :active_sessions,
+         map_size(state.store.active_sessions),
+         state.eviction_policy.max_active_sessions_total
+       ), state}
+    end
+  end
+
+  defp ensure_active_session_tenant_capacity(state, session_id, tenant_scope_key) do
+    if Map.has_key?(state.store.active_sessions, session_id) do
+      {:ok, state}
+    else
+      tenant_count =
+        state.store.active_sessions
+        |> Map.values()
+        |> Enum.count(&(Map.get(&1, :tenant_scope_key, :default) == tenant_scope_key))
+
+      if tenant_count < state.eviction_policy.max_active_sessions_per_tenant do
+        {:ok, state}
+      else
+        {:error,
+         capacity_rejection(
+           :active_session_tenant_capacity_exhausted,
+           :active_sessions,
+           tenant_count,
+           state.eviction_policy.max_active_sessions_per_tenant
+         ), state}
+      end
+    end
+  end
+
+  defp sweep_expired_state(state) do
+    {state, active_sessions} = sweep_expired_active_sessions(state)
+    {state, %{active_sessions: active_sessions}}
+  end
+
+  defp sweep_expired_active_sessions(state) do
+    session_ids =
+      state.store.active_sessions
+      |> Enum.filter(fn {_session_id, cursor_info} ->
+        active_session_expired?(state, cursor_info)
+      end)
+      |> Enum.sort_by(fn {_session_id, cursor_info} ->
+        Map.get(cursor_info, :last_seen_at) || cursor_info.registered_at
+      end)
+      |> Enum.take(state.eviction_policy.max_evictions_per_sweep)
+      |> Enum.map(fn {session_id, _cursor_info} -> session_id end)
+
+    state =
+      update_store(
+        state,
+        [:active_sessions],
+        Map.drop(state.store.active_sessions, session_ids)
+      )
+
+    {state, length(session_ids)}
+  end
+
+  defp active_session_expired?(state, cursor_info) do
+    last_seen_at = Map.get(cursor_info, :last_seen_at) || cursor_info.registered_at
+
+    DateTime.diff(state.clock.utc_now(), last_seen_at, :millisecond) >=
+      state.eviction_policy.active_session_ttl_ms
+  end
+
+  defp tenant_scope_from_opts(opts) do
+    Keyword.get(opts, :tenant_scope_key) ||
+      case {Keyword.get(opts, :tenant_id), Keyword.get(opts, :authority_scope)} do
+        {tenant_id, authority_scope} when is_binary(tenant_id) and is_binary(authority_scope) ->
+          {tenant_id, authority_scope}
+
+        _other ->
+          :default
+      end
+  end
+
+  defp persist_if_evicted(state, 0), do: state
+  defp persist_if_evicted(state, count) when count > 0, do: persist_store!(state)
+
+  defp capacity_rejection(reason, segment, count, ceiling) do
+    %{
+      reason: reason,
+      safe_action: :retry_after,
+      retry_after_ms: 100,
+      resource_exhaustion?: true,
+      segment: segment,
+      count: count,
+      ceiling: ceiling
+    }
   end
 
   defp default_store do
@@ -1425,6 +1588,45 @@ defmodule Citadel.Kernel.SessionDirectory do
       "reason_family" => entry.dead_letter_reason || "unknown",
       "last_error_code" => entry.last_error_code
     })
+  end
+
+  defp normalize_eviction_policy(opts) when is_list(opts) do
+    opts
+    |> Map.new()
+    |> normalize_eviction_policy()
+  end
+
+  defp normalize_eviction_policy(opts) when is_map(opts) do
+    policy = Map.merge(@default_eviction_policy, opts)
+
+    %{
+      sweep_interval_ms: non_negative_integer!(policy.sweep_interval_ms, :sweep_interval_ms),
+      max_evictions_per_sweep:
+        positive_integer!(policy.max_evictions_per_sweep, :max_evictions_per_sweep),
+      active_session_ttl_ms:
+        non_negative_integer!(policy.active_session_ttl_ms, :active_session_ttl_ms),
+      max_active_sessions_total:
+        positive_integer!(policy.max_active_sessions_total, :max_active_sessions_total),
+      max_active_sessions_per_tenant:
+        positive_integer!(
+          policy.max_active_sessions_per_tenant,
+          :max_active_sessions_per_tenant
+        )
+    }
+  end
+
+  defp positive_integer!(value, _field) when is_integer(value) and value > 0, do: value
+
+  defp positive_integer!(value, field) do
+    raise ArgumentError,
+          "SessionDirectory #{field} must be a positive integer, got: #{inspect(value)}"
+  end
+
+  defp non_negative_integer!(value, _field) when is_integer(value) and value >= 0, do: value
+
+  defp non_negative_integer!(value, field) do
+    raise ArgumentError,
+          "SessionDirectory #{field} must be a non-negative integer, got: #{inspect(value)}"
   end
 
   defp invariant_failure!(reason) do
