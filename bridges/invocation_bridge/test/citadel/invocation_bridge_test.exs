@@ -8,6 +8,7 @@ defmodule Citadel.InvocationBridgeTest do
   alias Citadel.BridgeCircuitPolicy
   alias Citadel.ExecutionGovernanceCompiler
   alias Citadel.InvocationBridge
+  alias Citadel.InvocationRequest, as: InvocationRequestV1
   alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
   alias Citadel.LocalAction
   alias Citadel.StalenessRequirements
@@ -108,6 +109,32 @@ defmodule Citadel.InvocationBridgeTest do
 
     assert {:error, :unsupported_schema_version, ^bridge} =
              InvocationBridge.submit(bridge, request, outbox_entry("entry-2"))
+
+    refute_receive {:submitted, _envelope}
+  end
+
+  test "defaults to v2-only invocation request schema versions" do
+    bridge = InvocationBridge.new!(downstream: Downstream)
+
+    assert InvocationBridge.supported_invocation_request_schema_versions() == [
+             InvocationRequestV2.schema_version()
+           ]
+
+    assert bridge.supported_invocation_request_schema_versions == [
+             InvocationRequestV2.schema_version()
+           ]
+  end
+
+  test "does not accept legacy invocation request structs at bridge entry" do
+    bridge = InvocationBridge.new!(downstream: Downstream)
+
+    assert_raise FunctionClauseError, fn ->
+      apply(InvocationBridge, :submit, [
+        bridge,
+        legacy_invocation_request(),
+        outbox_entry("entry-v1")
+      ])
+    end
 
     refute_receive {:submitted, _envelope}
   end
@@ -344,6 +371,28 @@ defmodule Citadel.InvocationBridgeTest do
           }
         }
       }
+    })
+  end
+
+  defp legacy_invocation_request do
+    request = invocation_request()
+
+    InvocationRequestV1.new!(%{
+      schema_version: InvocationRequestV1.schema_version(),
+      invocation_request_id: request.invocation_request_id,
+      request_id: request.request_id,
+      session_id: request.session_id,
+      tenant_id: request.tenant_id,
+      trace_id: request.trace_id,
+      actor_id: request.actor_id,
+      target_id: request.target_id,
+      target_kind: request.target_kind,
+      selected_step_id: request.selected_step_id,
+      allowed_operations: request.allowed_operations,
+      authority_packet: request.authority_packet,
+      boundary_intent: request.boundary_intent,
+      topology_intent: request.topology_intent,
+      extensions: request.extensions
     })
   end
 
