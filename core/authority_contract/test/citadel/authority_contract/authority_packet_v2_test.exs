@@ -44,6 +44,18 @@ defmodule Citadel.AuthorityContract.AuthorityPacket.V2Test do
     end
   end
 
+  test "rejects oversized authority packet hash input before canonical JSON encoding" do
+    attrs =
+      sample_attrs()
+      |> Map.put(:extensions, %{
+        "citadel" => %{"oversized_context" => String.duplicate("x", 1_100_000)}
+      })
+
+    assert_raise ArgumentError, ~r/exceeds inline canonicalization byte limit/, fn ->
+      V2.put_hashes!(attrs)
+    end
+  end
+
   defp sample_attrs do
     %{
       contract_name: "Citadel.AuthorityPacketV2.v1",

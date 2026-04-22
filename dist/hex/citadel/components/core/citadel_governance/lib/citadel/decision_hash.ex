@@ -4,7 +4,7 @@ defmodule Citadel.DecisionHash do
 
   The hash is computed from the projected shared packet with `decision_hash`
   removed, normalized through `Citadel.ContractCore.CanonicalJson`, encoded with
-  `Jcs.encode/1`, and digested with SHA-256.
+  the bounded canonical JSON encoder, and digested with SHA-256.
   """
 
   alias Citadel.AuthorityContract.AuthorityDecision.V1
@@ -36,10 +36,14 @@ defmodule Citadel.DecisionHash do
   end
 
   def canonical_payload!(payload) when is_map(payload) do
-    reject_oversize_inline!(payload)
-    CanonicalJson.encode!(payload)
+    CanonicalJson.encode_inline!(
+      payload,
+      max_bytes: @max_authority_hash_inline_bytes,
+      label: "AuthorityDecision hash input"
+    )
   end
 
+  @spec max_authority_hash_inline_bytes() :: pos_integer()
   def max_authority_hash_inline_bytes, do: @max_authority_hash_inline_bytes
 
   @spec put_authority_hash!(V1.t() | map() | keyword()) :: V1.t()
@@ -69,19 +73,6 @@ defmodule Citadel.DecisionHash do
     |> AttrMap.normalize!("AuthorityDecision hash input")
     |> Map.put("decision_hash", @pending_hash)
     |> V1.new!()
-  end
-
-  defp reject_oversize_inline!(payload) do
-    estimated_bytes = :erlang.external_size(payload)
-
-    if estimated_bytes > @max_authority_hash_inline_bytes do
-      raise ArgumentError,
-            "AuthorityDecision hash input exceeds inline canonicalization byte limit " <>
-              "#{@max_authority_hash_inline_bytes} bytes before canonical JSON encoding; " <>
-              "estimated #{estimated_bytes} bytes"
-    end
-
-    :ok
   end
 
   defp sha256_lower_hex(canonical_json) when is_binary(canonical_json) do
