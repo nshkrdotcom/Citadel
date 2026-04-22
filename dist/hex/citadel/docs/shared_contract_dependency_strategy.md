@@ -55,6 +55,19 @@ vendored `Jido.Integration.V2` source file under
 `../jido_integration/core/contracts/lib`. The local slice may carry only files
 present upstream, and the file contents must match byte-for-byte.
 
+## Legacy Generated Artifact Disposition
+
+The former `core/jido_integration_v2_contracts` and
+`:jido_integration_v2_contracts` names are retired. They must not appear in
+tracked source paths, the current `dist/hex/citadel` projection, or the current
+`dist/release_bundles/citadel` release bundle.
+
+Any remaining `jido_integration_v2_contracts` path under ignored
+`/dist/archive/` output is non-publishable generated history only. It is not a
+dependency source, not a current projection input, and not release evidence.
+`test/citadel/jido_contract_legacy_artifact_scan_test.exs` is the guard for
+this disposition.
+
 ## Runtime Rule
 
 The vendored package is still a runtime boundary, not a license to mix
