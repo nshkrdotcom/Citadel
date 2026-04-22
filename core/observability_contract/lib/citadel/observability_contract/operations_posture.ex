@@ -14,7 +14,9 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     :signal_ingress_lineage,
     :trace_publisher_output,
     :aitrace_file_export,
-    :audit_fact_append
+    :audit_fact_append,
+    :execution_lineage_store,
+    :integration_bridge_lower_read
   ]
 
   @profile_fields [
@@ -187,6 +189,18 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
       hardening_behavior: :workflow_reconciliation_freshness,
       source_evidence_ref: "mezzanine.audit_append.workflow_reconciliation_freshness",
       safe_action: "route-audit-reconciliation-gap"
+    },
+    execution_lineage_store: %{
+      hardening_behavior: :fail_closed_admission_latency,
+      source_evidence_ref:
+        "mezzanine.execution_lineage_store.fail_closed_lineage_resolution_visibility",
+      safe_action: "route-lineage-resolution-gap"
+    },
+    integration_bridge_lower_read: %{
+      hardening_behavior: :fail_closed_admission_latency,
+      source_evidence_ref:
+        "mezzanine.integration_bridge.lower_read.fail_closed_authorization_visibility",
+      safe_action: "route-lower-read-authorization-gap"
     }
   }
 
@@ -459,6 +473,57 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
       },
       paging_or_triage_route: "mezzanine-audit-triage",
       dropped_or_suppressed_count_ref: "mezzanine.audit_append.observability_counts.v1"
+    })
+  end
+
+  defp default_attrs(:execution_lineage_store) do
+    base_attrs(:execution_lineage_store, %{
+      observability_owner: "mezzanine-audit",
+      owner_repo: "mezzanine",
+      owner_package: "core/audit_engine",
+      surface: "execution_lineage_store",
+      event_or_log_name: "mezzanine.execution_lineage_store.fetch_or_store",
+      metric_ref: "mezzanine.execution_lineage_store.lineage_resolution.count",
+      trace_ref: "mezzanine.audit.execution_lineage.trace_id",
+      log_ref: "mezzanine.audit.execution_lineage_store.redacted",
+      alert_ref: "mezzanine.alert.execution_lineage_missing_or_invalid_spike",
+      incident_runbook_ref:
+        "runbooks/observability_operations_posture.md#execution-lineage-store",
+      slo_or_error_budget_ref: "mezzanine.error_budget.fail_closed_lineage_resolution_visibility",
+      severity_mapping: %{
+        fail_closed_security: :p1,
+        tenant_authority_bypass: :p0,
+        observability_overflow: :p1
+      },
+      paging_or_triage_route: "mezzanine-audit-triage",
+      dropped_or_suppressed_count_ref:
+        "mezzanine.execution_lineage_store.rejected_or_invalid.count"
+    })
+  end
+
+  defp default_attrs(:integration_bridge_lower_read) do
+    base_attrs(:integration_bridge_lower_read, %{
+      observability_owner: "mezzanine-integration",
+      owner_repo: "mezzanine",
+      owner_package: "bridges/integration_bridge",
+      surface: "lower_read_dispatch",
+      event_or_log_name: "mezzanine.integration_bridge.lower_read.dispatch",
+      metric_ref: "mezzanine.integration_bridge.lower_read.authorization.count",
+      trace_ref: "mezzanine.integration_bridge.lower_read.trace_id",
+      log_ref: "mezzanine.integration_bridge.lower_read.redacted",
+      alert_ref: "mezzanine.alert.lower_read_authorization_or_lineage_rejection_spike",
+      incident_runbook_ref:
+        "runbooks/observability_operations_posture.md#integration-bridge-lower-read",
+      slo_or_error_budget_ref:
+        "mezzanine.error_budget.lower_read_fail_closed_authorization_visibility",
+      severity_mapping: %{
+        fail_closed_security: :p1,
+        tenant_authority_bypass: :p0,
+        observability_overflow: :p1
+      },
+      paging_or_triage_route: "mezzanine-integration-triage",
+      dropped_or_suppressed_count_ref:
+        "mezzanine.integration_bridge.lower_read.rejected_or_suppressed.count"
     })
   end
 

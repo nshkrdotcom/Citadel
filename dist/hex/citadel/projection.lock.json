@@ -149,8 +149,8 @@
       "mix.exs",
       "projection.lock.json"
     ],
-    "git_revision": "4c112a1b39549e48bb4147c5b63dee07eca952eb",
-    "tree_digest": "1aea8f796530271a8061d15f42a066ae0442712f8bffbe5bfec3940e9416fc20"
+    "git_revision": "8ae87542f1fca9ce0fecb8e13eb193e276621ad4",
+    "tree_digest": "a978a09e09b5509646b1901f9c24d0fadeeadd1bc11d5d54a4657025a38b7cd8"
   },
   "manifest": {
     "path": "/home/home/p/g/n/citadel/packaging/weld/citadel.exs",

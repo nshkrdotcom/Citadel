@@ -8,7 +8,9 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
     :signal_ingress_lineage,
     :trace_publisher_output,
     :aitrace_file_export,
-    :audit_fact_append
+    :audit_fact_append,
+    :execution_lineage_store,
+    :integration_bridge_lower_read
   ]
 
   @required_profile_fields [
@@ -175,6 +177,30 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
           assert is_binary(coverage.safe_action)
         end
       end
+    end
+  end
+
+  test "Mezzanine lineage seams have complete operations posture ledger evidence" do
+    for seam <- [:execution_lineage_store, :integration_bridge_lower_read] do
+      profile = OperationsPosture.profile!(seam)
+
+      assert profile.owner_repo == "mezzanine"
+      assert profile.log_ref =~ "redacted"
+      assert profile.alert_ref =~ "mezzanine.alert"
+      assert profile.incident_runbook_ref =~ "runbooks/observability_operations_posture.md#"
+      assert profile.slo_or_error_budget_ref =~ "mezzanine.error_budget"
+      assert profile.paging_or_triage_route =~ "mezzanine-"
+      assert profile.redaction_policy_ref == "citadel.redaction.refs_only.v1"
+      assert profile.retention_ref == "phase5.observability_evidence.retention.v1"
+      assert profile.sampling_policy_ref == "success=100/min;debug=drop;protected=always"
+      assert profile.dropped_or_suppressed_count_ref =~ "count"
+      assert profile.severity_mapping.tenant_authority_bypass == :p0
+      assert profile.severity_mapping.fail_closed_security == :p1
+      assert profile.alert_condition_coverage.tenant_authority_bypass.posture == :alert_or_triage
+      assert profile.alert_condition_coverage.fail_closed_security.posture == :alert_or_triage
+      assert OperationsPosture.alert_route_complete?(profile)
+      assert OperationsPosture.alert_condition_coverage_complete?(profile)
+      assert OperationsPosture.slo_or_error_budget_scope_complete?(profile)
     end
   end
 
