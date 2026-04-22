@@ -40,6 +40,19 @@ defmodule Citadel.InvocationRequestTest do
     end
   end
 
+  test "rejects oversized authority hash input before canonical JSON encoding" do
+    attrs =
+      read_authority_fixture!("minimal.json")
+      |> Map.delete("decision_hash")
+      |> Map.put("extensions", %{
+        "citadel" => %{"oversized_context" => String.duplicate("x", 1_100_000)}
+      })
+
+    assert_raise ArgumentError, ~r/exceeds inline canonicalization byte limit/, fn ->
+      DecisionHash.put_authority_hash!(attrs)
+    end
+  end
+
   test "freezes the invocation request seam and structured-ingress fixture" do
     fixture = read_invocation_fixture!("structured_request.json")
     request = InvocationRequest.new!(fixture)

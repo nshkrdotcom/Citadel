@@ -54,7 +54,13 @@ defmodule Citadel.Kernel.StateContinuityHardeningTest do
     assert inspect(reason) =~ "Citadel.Kernel.KernelSnapshot invariant failure"
 
     wait_until(fn ->
-      KernelSnapshot.current_snapshot(kernel_snapshot_name).policy_epoch == 5
+      case KernelSnapshot.read_snapshot(kernel_snapshot_name,
+             staleness_class: :fresh_required,
+             required_min_sequence: 0
+           ) do
+        {:ok, %{snapshot: %{policy_epoch: 5}, drift: :none}} -> true
+        {:error, :read_surface_missing} -> false
+      end
     end)
   end
 

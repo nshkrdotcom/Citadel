@@ -34,6 +34,12 @@ defmodule Citadel.Kernel.RuntimeCoordinationTest do
 
     start_supervised!({KernelSnapshot, name: kernel_snapshot_name, policy_version: "v0"})
 
+    read_surface = KernelSnapshot.read_surface_info(kernel_snapshot_name)
+    assert read_surface.storage == :ets
+    assert read_surface.protection == :protected
+    assert read_surface.read_concurrency? == true
+    refute match?(%Citadel.DecisionSnapshot{}, :persistent_term.get(read_surface.discovery_key))
+
     start_supervised!(
       {PolicyCache,
        name: policy_cache_name, kernel_snapshot: kernel_snapshot_name, flush_interval_ms: 15}
@@ -52,6 +58,62 @@ defmodule Citadel.Kernel.RuntimeCoordinationTest do
     assert {:ok, 2} = PolicyCache.update_policy(policy_cache_name, "v2", %{"version" => 2})
     Process.sleep(20)
     assert KernelSnapshot.current_snapshot(kernel_snapshot_name).snapshot_seq == 1
+  end
+
+  test "kernel snapshot read API enforces explicit staleness classes and sequence fences" do
+    kernel_snapshot_name = unique_name(:kernel_snapshot)
+    start_supervised!({KernelSnapshot, name: kernel_snapshot_name, policy_version: "v0"})
+
+    assert {:ok, fresh} =
+             KernelSnapshot.read_snapshot(kernel_snapshot_name,
+               staleness_class: :fresh_required,
+               required_min_sequence: 0
+             )
+
+    assert fresh.staleness_class == :fresh_required
+    assert fresh.snapshot.snapshot_seq == 0
+
+    assert {:error, stale} =
+             KernelSnapshot.read_snapshot(kernel_snapshot_name,
+               staleness_class: :fresh_required,
+               required_min_sequence: 1
+             )
+
+    assert stale.staleness_class == :fresh_required
+    assert stale.safe_action == :reject_stale
+    assert stale.required_min_sequence == 1
+
+    assert {:ok, bounded} =
+             KernelSnapshot.read_snapshot(kernel_snapshot_name,
+               staleness_class: :bounded_stale_allowed,
+               max_age_ms: 60_000,
+               max_sequence_lag: 1,
+               owner_sequence: 0
+             )
+
+    assert bounded.staleness_class == :bounded_stale_allowed
+    assert bounded.max_age_ms == 60_000
+    assert bounded.max_sequence_lag == 1
+
+    assert {:error, rebuild} =
+             KernelSnapshot.read_snapshot(kernel_snapshot_name,
+               staleness_class: :rebuild_required
+             )
+
+    assert rebuild.safe_action == :rebuild_required
+
+    assert {:error, rejected} =
+             KernelSnapshot.read_snapshot(kernel_snapshot_name,
+               staleness_class: :reject_stale,
+               required_min_sequence: 1
+             )
+
+    assert rejected.safe_action == :reject_stale
+
+    assert {:error, invalid} =
+             KernelSnapshot.read_snapshot(kernel_snapshot_name, staleness_class: :eventually_fine)
+
+    assert invalid.reason == :invalid_staleness_class
   end
 
   test "session directory uses ambiguous acknowledgement recovery reads and fences stale writers" do
