@@ -8,6 +8,7 @@ defmodule Citadel.InvocationBridgeTest do
   alias Citadel.BridgeCircuitPolicy
   alias Citadel.ExecutionGovernanceCompiler
   alias Citadel.InvocationBridge
+  alias Citadel.InvocationBridge.ExecutionIntentAdapter
   alias Citadel.InvocationRequest, as: InvocationRequestV1
   alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
   alias Citadel.LocalAction
@@ -137,6 +138,21 @@ defmodule Citadel.InvocationBridgeTest do
     end
 
     refute_receive {:submitted, _envelope}
+  end
+
+  test "adapter carries invocation schema version and refuses legacy projections" do
+    request = invocation_request()
+    envelope = ExecutionIntentAdapter.project!(request, outbox_entry("entry-adapter"))
+
+    assert envelope.invocation_schema_version == InvocationRequestV2.schema_version()
+    assert envelope.invocation_request_id == request.invocation_request_id
+
+    assert_raise FunctionClauseError, fn ->
+      apply(ExecutionIntentAdapter, :project!, [
+        legacy_invocation_request(),
+        outbox_entry("entry-adapter-v1")
+      ])
+    end
   end
 
   test "does not deduplicate locally by entry_id when the same request is retried" do
