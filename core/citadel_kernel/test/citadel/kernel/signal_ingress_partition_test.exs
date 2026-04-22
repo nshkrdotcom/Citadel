@@ -263,6 +263,72 @@ defmodule Citadel.Kernel.SignalIngressPartitionTest do
     assert acceptance.lineage.source_anchor == %{kind: :revision, value: "revision-42"}
   end
 
+  test "regressed source-position or revision evidence fails before enqueue" do
+    signal_ingress = start_signal_ingress(admission_policy: generous_admission_policy())
+
+    assert :ok =
+             SignalIngress.register_subscription(signal_ingress, "sess-position-regress",
+               transport_cursor: "cursor/10"
+             )
+
+    assert {:error, rejection} =
+             SignalIngress.deliver_observation(
+               signal_ingress,
+               observation("sess-position-regress", "sig-position-regress",
+                 subject_id: "subject-position-regress",
+                 signal_cursor: "cursor/9"
+               )
+             )
+
+    assert rejection.reason == :regressed_source_position_or_revision
+    refute rejection.resource_exhaustion?
+    assert rejection.safe_action == :reject
+
+    assert rejection.previous_source_anchor == %{
+             kind: :source_position,
+             value: "cursor/10"
+           }
+
+    assert rejection.current_source_anchor == %{
+             kind: :source_position,
+             value: "cursor/9"
+           }
+
+    assert :ok =
+             SignalIngress.register_subscription(signal_ingress, "sess-revision-regress",
+               extensions: %{
+                 "lineage_source_anchor" => %{
+                   "kind" => "revision",
+                   "value" => "revision-42"
+                 }
+               }
+             )
+
+    assert {:error, rejection} =
+             SignalIngress.deliver_observation(
+               signal_ingress,
+               observation("sess-revision-regress", "sig-revision-regress",
+                 subject_id: "subject-revision-regress",
+                 signal_cursor: nil,
+                 source_revision: "revision-41"
+               )
+             )
+
+    assert rejection.reason == :regressed_source_position_or_revision
+
+    assert rejection.previous_source_anchor == %{
+             kind: :revision,
+             value: "revision-42"
+           }
+
+    assert rejection.current_source_anchor == %{
+             kind: :revision,
+             value: "revision-41"
+           }
+
+    assert SignalIngress.snapshot(signal_ingress).partition_queue_depths == %{}
+  end
+
   test "post-admission delivery timeout marks partition overloaded with replay evidence" do
     attach_telemetry(self(), [:signal_ingress_delivery_overload])
 

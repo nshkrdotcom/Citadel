@@ -345,7 +345,7 @@ defmodule Citadel.Kernel.SignalIngress do
   defp admit_observation(state, %RuntimeObservation{} = observation) do
     with {:ok, partition} <- partition_for_observation(observation, state.admission_policy),
          {:ok, partition} <-
-           require_ingress_lineage(observation, partition, state.admission_policy),
+           require_ingress_lineage(state, observation, partition, state.admission_policy),
          {:ok, state} <- reject_if_partition_overloaded(state, partition),
          {:ok, state} <- ensure_partition_capacity(state, partition),
          {:ok, state, bucket} <- reserve_partition_token(state, partition),
@@ -369,7 +369,7 @@ defmodule Citadel.Kernel.SignalIngress do
       state =
         state
         |> increment_tenant_scope_in_flight(partition.tenant_scope_key)
-        |> update_subscription_cursor(observation)
+        |> update_subscription_cursor(observation, partition.lineage.source_anchor)
         |> touch_consumer(observation.session_id)
         |> touch_partition(partition.ref)
         |> emit_signal_lag(observation)
@@ -382,6 +382,9 @@ defmodule Citadel.Kernel.SignalIngress do
         {:error, rejection, state}
 
       {:error, %{reason: :missing_lineage_fields} = rejection} ->
+        {:error, rejection, state}
+
+      {:error, %{reason: :regressed_source_position_or_revision} = rejection} ->
         {:error, rejection, state}
 
       {:error, rejection, state} ->
@@ -434,7 +437,7 @@ defmodule Citadel.Kernel.SignalIngress do
     state
   end
 
-  defp update_subscription_cursor(state, observation) do
+  defp update_subscription_cursor(state, observation, source_anchor) do
     update_in(state.subscriptions, fn subscriptions ->
       case Map.get(subscriptions, observation.session_id) do
         nil ->
@@ -444,6 +447,7 @@ defmodule Citadel.Kernel.SignalIngress do
           Map.put(subscriptions, observation.session_id, %{
             subscription
             | transport_cursor: observation.signal_cursor || subscription.transport_cursor,
+              extensions: remember_source_anchor(subscription.extensions, source_anchor),
               last_seen_at: state.clock.utc_now()
           })
       end
@@ -524,13 +528,21 @@ defmodule Citadel.Kernel.SignalIngress do
   end
 
   defp require_ingress_lineage(
+         state,
          %RuntimeObservation{} = observation,
          partition,
          admission_policy
        ) do
     case lineage_for_observation(observation) do
       {:ok, lineage} ->
-        {:ok, Map.put(partition, :lineage, lineage)}
+        case source_anchor_regression(state, observation, lineage.source_anchor) do
+          :ok ->
+            {:ok, Map.put(partition, :lineage, lineage)}
+
+          {:error, previous_anchor, current_anchor} ->
+            {:error,
+             source_anchor_regression_rejection(previous_anchor, current_anchor, admission_policy)}
+        end
 
       {:error, missing_fields} ->
         {:error, missing_lineage_fields_rejection(missing_fields, admission_policy)}
@@ -584,6 +596,92 @@ defmodule Citadel.Kernel.SignalIngress do
       true -> %{kind: nil, value: nil}
     end
   end
+
+  defp source_anchor_regression(state, %RuntimeObservation{} = observation, current_anchor) do
+    state.subscriptions
+    |> Map.get(observation.session_id)
+    |> previous_source_anchor()
+    |> case do
+      nil ->
+        :ok
+
+      previous_anchor ->
+        if source_anchor_regressed?(previous_anchor, current_anchor) do
+          {:error, previous_anchor, current_anchor}
+        else
+          :ok
+        end
+    end
+  end
+
+  defp previous_source_anchor(nil), do: nil
+
+  defp previous_source_anchor(subscription) do
+    extension_anchor =
+      subscription.extensions
+      |> Map.get("lineage_source_anchor")
+      |> normalize_stored_source_anchor()
+
+    extension_anchor ||
+      source_position_anchor(subscription.transport_cursor) ||
+      source_position_anchor(subscription.committed_signal_cursor) ||
+      revision_anchor(Map.get(subscription.extensions, "source_revision")) ||
+      revision_anchor(Map.get(subscription.extensions, "revision"))
+  end
+
+  defp source_position_anchor(value) do
+    if present_string?(value), do: %{kind: :source_position, value: value}
+  end
+
+  defp revision_anchor(value) do
+    if present_string?(value), do: %{kind: :revision, value: value}
+  end
+
+  defp normalize_stored_source_anchor(%{kind: kind, value: value}),
+    do: normalize_source_anchor(kind, value)
+
+  defp normalize_stored_source_anchor(%{"kind" => kind, "value" => value}),
+    do: normalize_source_anchor(kind, value)
+
+  defp normalize_stored_source_anchor(_anchor), do: nil
+
+  defp normalize_source_anchor(kind, value) when kind in [:source_position, "source_position"],
+    do: source_position_anchor(value)
+
+  defp normalize_source_anchor(kind, value) when kind in [:revision, "revision"],
+    do: revision_anchor(value)
+
+  defp normalize_source_anchor(_kind, _value), do: nil
+
+  defp source_anchor_regressed?(%{kind: kind, value: previous}, %{kind: kind, value: current}) do
+    case {source_anchor_ordinal(previous), source_anchor_ordinal(current)} do
+      {{:ok, previous_ordinal}, {:ok, current_ordinal}} -> current_ordinal < previous_ordinal
+      _other -> false
+    end
+  end
+
+  defp source_anchor_regressed?(_previous_anchor, _current_anchor), do: false
+
+  defp source_anchor_ordinal(value) when is_integer(value), do: {:ok, value}
+
+  defp source_anchor_ordinal(value) when is_binary(value) do
+    case Regex.run(~r/(?:^|[\/:-])(\d+)$/, value) do
+      [_, ordinal] -> {:ok, String.to_integer(ordinal)}
+      _other -> :unknown
+    end
+  end
+
+  defp source_anchor_ordinal(_value), do: :unknown
+
+  defp remember_source_anchor(extensions, %{kind: kind, value: value})
+       when kind in [:source_position, :revision] and is_binary(value) do
+    Map.put(extensions, "lineage_source_anchor", %{
+      "kind" => Atom.to_string(kind),
+      "value" => value
+    })
+  end
+
+  defp remember_source_anchor(extensions, _source_anchor), do: extensions
 
   defp reserve_partition_token(state, partition) do
     tenant_scope_in_flight = Map.get(state.tenant_scope_in_flight, partition.tenant_scope_key, 0)
@@ -831,6 +929,18 @@ defmodule Citadel.Kernel.SignalIngress do
     %{
       reason: :missing_lineage_fields,
       missing_fields: missing_fields,
+      safe_action: :reject,
+      retry_after_ms: nil,
+      resource_exhaustion?: false,
+      delivery_order_scope: admission_policy.delivery_order_scope
+    }
+  end
+
+  defp source_anchor_regression_rejection(previous_anchor, current_anchor, admission_policy) do
+    %{
+      reason: :regressed_source_position_or_revision,
+      previous_source_anchor: previous_anchor,
+      current_source_anchor: current_anchor,
       safe_action: :reject,
       retry_after_ms: nil,
       resource_exhaustion?: false,
