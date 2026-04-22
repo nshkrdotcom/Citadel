@@ -185,20 +185,28 @@ defmodule Citadel.InvocationBridgeTest do
     assert_receive {:submitted, _second_envelope}
   end
 
-  test "allows an explicit invocation schema transition window instead of hardcoding the current schema only" do
+  test "rejects explicit invocation schema transition windows without a migration policy" do
+    assert_raise ArgumentError,
+                 ~r/supported_invocation_request_schema_versions must match current accepted versions/,
+                 fn ->
+                   InvocationBridge.new!(
+                     downstream: Downstream,
+                     supported_invocation_request_schema_versions: [2, 3]
+                   )
+                 end
+
     bridge =
       InvocationBridge.new!(
         downstream: Downstream,
-        supported_invocation_request_schema_versions: [2, 3]
+        supported_invocation_request_schema_versions: [InvocationRequestV2.schema_version()]
       )
 
     request = %{invocation_request() | schema_version: 3}
 
-    assert {:accepted, %SubmissionAcceptance{}, _bridge} =
+    assert {:error, :unsupported_schema_version, ^bridge} =
              InvocationBridge.submit(bridge, request, outbox_entry("entry-transition"))
 
-    assert_receive {:submitted, envelope}
-    assert envelope.invocation_schema_version == 3
+    refute_receive {:submitted, _envelope}
   end
 
   test "surfaces typed lower-gateway rejections without collapsing them into transport errors" do
