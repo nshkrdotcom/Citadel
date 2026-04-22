@@ -47,6 +47,14 @@ external Hex, git, or path dependency.
 That keeps the projected package self-contained and Hex-buildable while
 preserving the shared public module names and package ownership boundaries.
 
+The Phase 5 version-skew disposition for this package is
+`welded_internal_slice_with_upstream_equivalence_proof`. The executable proof is
+`test/citadel/jido_contract_home_verification_test.exs`, which compares every
+vendored `Jido.Integration.V2` source file under
+`core/jido_integration_contracts/lib` to the canonical upstream sibling at
+`../jido_integration/core/contracts/lib`. The local slice may carry only files
+present upstream, and the file contents must match byte-for-byte.
+
 ## Runtime Rule
 
 The vendored package is still a runtime boundary, not a license to mix
