@@ -297,6 +297,34 @@ defmodule Citadel.Kernel.TracePublisherTest do
     })
   end
 
+  test "missing default trace backend emits failure telemetry without requiring aitrace" do
+    attach_telemetry(self())
+    failure_event = Telemetry.event_name(:trace_publication_failure)
+
+    publisher =
+      start_trace_publisher(
+        buffer_capacity: 2,
+        protected_error_capacity: 1,
+        flush_interval_ms: 0,
+        batch_size: 1
+      )
+
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               regular_envelope("env-no-backend", "session_attached")
+             )
+
+    assert_receive {:telemetry, ^failure_event, %{count: 1, batch_size: 1},
+                    %{
+                      reason_code: :trace_backend_unavailable,
+                      trace_envelope_id: "env-no-backend",
+                      family: "session_attached"
+                    }}
+
+    assert Process.alive?(publisher)
+  end
+
   defp start_trace_publisher(opts) do
     name = :"trace_publisher_#{System.unique_integer([:positive])}"
     start_supervised!({TracePublisher, Keyword.put(opts, :name, name)})

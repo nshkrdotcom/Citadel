@@ -4,12 +4,16 @@ defmodule Citadel.Kernel.TracePublisher do
 
   The runtime owns the process in the default application tree and session
   startup wires it by default through `Citadel.Kernel.start_session/1`.
+  AITrace and the trace bridge remain optional backends; unavailable trace ports
+  are reported as publication failures rather than runtime crashes.
   """
 
   use GenServer
 
   alias Citadel.ObservabilityContract.Telemetry
   alias Citadel.TraceEnvelope
+
+  @unavailable_trace_backend_reason :trace_backend_unavailable
 
   defmodule SamplingPolicy do
     @moduledoc """
@@ -506,7 +510,7 @@ defmodule Citadel.Kernel.TracePublisher do
   end
 
   defp publish_batch(trace_port, [envelope]) do
-    trace_port.publish_trace(envelope)
+    publish_single(trace_port, envelope)
   end
 
   defp publish_batch(trace_port, batch) do
@@ -514,11 +518,19 @@ defmodule Citadel.Kernel.TracePublisher do
       trace_port.publish_traces(batch)
     else
       Enum.reduce_while(batch, :ok, fn envelope, :ok ->
-        case trace_port.publish_trace(envelope) do
+        case publish_single(trace_port, envelope) do
           :ok -> {:cont, :ok}
           {:error, reason} -> {:halt, {:error, reason}}
         end
       end)
+    end
+  end
+
+  defp publish_single(trace_port, envelope) do
+    if function_exported?(trace_port, :publish_trace, 1) do
+      trace_port.publish_trace(envelope)
+    else
+      {:error, @unavailable_trace_backend_reason}
     end
   end
 
