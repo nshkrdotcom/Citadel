@@ -68,6 +68,25 @@ dependency source, not a current projection input, and not release evidence.
 `test/citadel/jido_contract_legacy_artifact_scan_test.exs` is the guard for
 this disposition.
 
+## Consumer Dependency Proof
+
+Workspace consumers that directly compile against the shared contracts use the
+welded local slice at `core/jido_integration_contracts` through package-local
+path dependencies. The allowed direct consumers are
+`core/citadel_governance`, `core/conformance`, `bridges/invocation_bridge`,
+`bridges/jido_integration_bridge`, and `bridges/projection_bridge`.
+
+Root workspace dependency resolution remains centralized in
+`Citadel.Build.DependencyResolver`, which can resolve the canonical upstream
+`jido_integration/core/contracts` sibling checkout or the published Hex
+projection. The direct `citadel_domain_surface` package is not part of the
+default welded Citadel artifact; when its lock references the shared contracts,
+it pins the upstream Git repository with sparse `core/contracts` checkout
+instead of the Citadel-local slice.
+
+`test/citadel/jido_contract_consumer_dependency_test.exs` enforces those
+consumer modes and rejects independent local forks.
+
 ## Runtime Rule
 
 The vendored package is still a runtime boundary, not a license to mix
