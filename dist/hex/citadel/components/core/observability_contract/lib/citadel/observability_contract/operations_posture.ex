@@ -32,6 +32,7 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     :incident_runbook_ref,
     :slo_or_error_budget_ref,
     :severity_mapping,
+    :alert_condition_coverage,
     :paging_or_triage_route,
     :redaction_policy_ref,
     :retention_ref,
@@ -121,6 +122,20 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     :artifact_schema_hash_rejection_spike,
     :observability_overflow
   ]
+  @alert_required_condition_families @critical_condition_families
+  @alert_condition_postures [:alert_or_triage, :not_applicable]
+  @alert_condition_coverage_fields [
+    :condition_family,
+    :posture,
+    :severity,
+    :alert_ref,
+    :triage_route,
+    :incident_runbook_ref,
+    :owner,
+    :source_evidence_ref,
+    :not_applicable_reason,
+    :safe_action
+  ]
 
   @enforce_keys @fields
   defstruct @fields
@@ -144,6 +159,15 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
 
   @spec critical_condition_families() :: [atom(), ...]
   def critical_condition_families, do: @critical_condition_families
+
+  @spec alert_required_condition_families() :: [atom(), ...]
+  def alert_required_condition_families, do: @alert_required_condition_families
+
+  @spec alert_condition_postures() :: [atom(), ...]
+  def alert_condition_postures, do: @alert_condition_postures
+
+  @spec alert_condition_coverage_fields() :: [atom(), ...]
+  def alert_condition_coverage_fields, do: @alert_condition_coverage_fields
 
   @spec not_applicable_dimensions() :: [atom(), ...]
   def not_applicable_dimensions, do: @not_applicable_dimensions
@@ -249,6 +273,20 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     end
   end
 
+  @spec alert_condition_coverage_complete?(t()) :: boolean()
+  def alert_condition_coverage_complete?(%__MODULE__{} = profile) do
+    Enum.all?(@alert_required_condition_families, fn family ->
+      entry = Map.get(profile.alert_condition_coverage, family)
+      required_by_profile? = Map.get(profile.severity_mapping, family) in [:p0, :p1]
+
+      if required_by_profile? do
+        alert_or_triage_entry?(entry)
+      else
+        alert_or_triage_entry?(entry) or not_applicable_alert_entry?(entry)
+      end
+    end)
+  end
+
   defp default_attrs(:signal_ingress_lineage) do
     base_attrs(:signal_ingress_lineage, %{
       observability_owner: "citadel-runtime",
@@ -346,21 +384,62 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
   end
 
   defp base_attrs(seam, attrs) do
-    Map.merge(
-      %{
-        contract_name: @contract_name,
-        contract_version: @contract_version,
-        touched_seam: seam,
-        redaction_policy_ref: "citadel.redaction.refs_only.v1",
-        log_field_allowlist: @safe_log_field_allowlist,
-        log_field_blocklist: @raw_log_field_blocklist,
-        retention_ref: "phase5.observability_evidence.retention.v1",
-        sampling_policy_ref: "success=100/min;debug=drop;protected=always",
-        not_applicable_reason: nil,
-        release_manifest_ref: "phase5-v7-milestone5"
-      },
-      attrs
-    )
+    attrs =
+      Map.merge(
+        %{
+          contract_name: @contract_name,
+          contract_version: @contract_version,
+          touched_seam: seam,
+          redaction_policy_ref: "citadel.redaction.refs_only.v1",
+          log_field_allowlist: @safe_log_field_allowlist,
+          log_field_blocklist: @raw_log_field_blocklist,
+          retention_ref: "phase5.observability_evidence.retention.v1",
+          sampling_policy_ref: "success=100/min;debug=drop;protected=always",
+          not_applicable_reason: nil,
+          release_manifest_ref: "phase5-v7-milestone5"
+        },
+        attrs
+      )
+
+    Map.put_new(attrs, :alert_condition_coverage, default_alert_condition_coverage(seam, attrs))
+  end
+
+  defp default_alert_condition_coverage(seam, attrs) do
+    severity_mapping = Map.fetch!(attrs, :severity_mapping)
+
+    Map.new(@alert_required_condition_families, fn family ->
+      case Map.get(severity_mapping, family) do
+        severity when severity in [:p0, :p1] ->
+          {family,
+           %{
+             condition_family: family,
+             posture: :alert_or_triage,
+             severity: severity,
+             alert_ref: Map.fetch!(attrs, :alert_ref),
+             triage_route: Map.fetch!(attrs, :paging_or_triage_route),
+             incident_runbook_ref: Map.fetch!(attrs, :incident_runbook_ref),
+             owner: Map.fetch!(attrs, :observability_owner),
+             source_evidence_ref: "#{seam}.#{family}.alert_or_triage",
+             not_applicable_reason: nil,
+             safe_action: "route-critical-condition"
+           }}
+
+        _other ->
+          {family,
+           %{
+             condition_family: family,
+             posture: :not_applicable,
+             severity: nil,
+             alert_ref: nil,
+             triage_route: nil,
+             incident_runbook_ref: nil,
+             owner: Map.fetch!(attrs, :observability_owner),
+             source_evidence_ref: "#{seam}.#{family}.not_applicable",
+             not_applicable_reason: "condition-not-owned-by-this-seam",
+             safe_action: "no-operator-action-for-this-seam"
+           }}
+      end
+    end)
   end
 
   defp build!(attrs) do
@@ -368,6 +447,7 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     log_field_allowlist = required_atom_list!(attrs, :log_field_allowlist)
     log_field_blocklist = required_atom_list!(attrs, :log_field_blocklist)
     severity_mapping = severity_mapping!(attrs)
+    alert_condition_coverage = alert_condition_coverage!(attrs)
     not_applicable_reason = not_applicable_reason!(attrs)
 
     ensure_required_log_blocklist!(log_field_blocklist)
@@ -400,6 +480,7 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
       incident_runbook_ref: operating_ref!(attrs, :incident_runbook_ref),
       slo_or_error_budget_ref: operating_ref!(attrs, :slo_or_error_budget_ref),
       severity_mapping: severity_mapping,
+      alert_condition_coverage: alert_condition_coverage,
       paging_or_triage_route: required_string!(attrs, :paging_or_triage_route),
       redaction_policy_ref: required_string!(attrs, :redaction_policy_ref),
       retention_ref: required_string!(attrs, :retention_ref),
@@ -410,6 +491,7 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     }
 
     ensure_alert_route_complete!(profile)
+    ensure_alert_condition_coverage_complete!(profile)
     profile
   end
 
@@ -425,6 +507,15 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     else
       raise ArgumentError,
             "#{@contract_name} critical observable seams require alert, runbook, SLO/error-budget, triage route, dropped/suppressed counts, P0/P1/P2 severity mapping, or source-backed not-applicable evidence"
+    end
+  end
+
+  defp ensure_alert_condition_coverage_complete!(%__MODULE__{} = profile) do
+    if alert_condition_coverage_complete?(profile) do
+      :ok
+    else
+      raise ArgumentError,
+            "#{@contract_name} P0/P1 critical condition families require alert or triage evidence unless source-backed evidence proves no operator action exists"
     end
   end
 
@@ -457,6 +548,102 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
               "#{@contract_name}.severity_mapping must be a non-empty map, got: #{inspect(value)}"
     end
   end
+
+  defp alert_condition_coverage!(attrs) do
+    attrs
+    |> AttrMap.fetch!(:alert_condition_coverage, @contract_name)
+    |> case do
+      values when is_map(values) and map_size(values) > 0 ->
+        coverage =
+          Map.new(values, fn {family, evidence} ->
+            family =
+              enum_atom!(family, :alert_condition_family, @alert_required_condition_families)
+
+            {family, alert_condition_entry!(family, evidence)}
+          end)
+
+        missing = @alert_required_condition_families -- Map.keys(coverage)
+
+        if missing != [] do
+          raise ArgumentError,
+                "#{@contract_name}.alert_condition_coverage missing condition families: " <>
+                  inspect(missing)
+        end
+
+        coverage
+
+      value ->
+        raise ArgumentError,
+              "#{@contract_name}.alert_condition_coverage must be a non-empty map, got: #{inspect(value)}"
+    end
+  end
+
+  defp alert_condition_entry!(family, evidence) when is_map(evidence) do
+    evidence = AttrMap.normalize!(evidence, @contract_name)
+
+    posture =
+      evidence
+      |> AttrMap.fetch!(:posture, @contract_name)
+      |> enum_atom!(:alert_condition_posture, @alert_condition_postures)
+
+    case posture do
+      :alert_or_triage ->
+        %{
+          condition_family: family,
+          posture: posture,
+          severity:
+            evidence
+            |> AttrMap.fetch!(:severity, @contract_name)
+            |> enum_atom!(:alert_condition_severity, [:p0, :p1]),
+          alert_ref: optional_evidence_string!(evidence, :alert_ref),
+          triage_route: optional_evidence_string!(evidence, :triage_route),
+          incident_runbook_ref: required_string!(evidence, :incident_runbook_ref),
+          owner: required_string!(evidence, :owner),
+          source_evidence_ref: required_string!(evidence, :source_evidence_ref),
+          not_applicable_reason: nil,
+          safe_action: required_string!(evidence, :safe_action)
+        }
+
+      :not_applicable ->
+        %{
+          condition_family: family,
+          posture: posture,
+          severity: nil,
+          alert_ref: nil,
+          triage_route: nil,
+          incident_runbook_ref: nil,
+          owner: required_string!(evidence, :owner),
+          source_evidence_ref: required_string!(evidence, :source_evidence_ref),
+          not_applicable_reason: required_string!(evidence, :not_applicable_reason),
+          safe_action: required_string!(evidence, :safe_action)
+        }
+    end
+  end
+
+  defp alert_condition_entry!(family, evidence) do
+    raise ArgumentError,
+          "#{@contract_name}.alert_condition_coverage.#{family} must be an evidence map, got: #{inspect(evidence)}"
+  end
+
+  defp alert_or_triage_entry?(%{posture: :alert_or_triage} = entry) do
+    entry.severity in [:p0, :p1] and
+      (non_empty_string?(entry.alert_ref) or non_empty_string?(entry.triage_route)) and
+      non_empty_string?(entry.incident_runbook_ref) and
+      non_empty_string?(entry.owner) and
+      non_empty_string?(entry.source_evidence_ref) and
+      non_empty_string?(entry.safe_action)
+  end
+
+  defp alert_or_triage_entry?(_entry), do: false
+
+  defp not_applicable_alert_entry?(%{posture: :not_applicable} = entry) do
+    non_empty_string?(entry.owner) and
+      non_empty_string?(entry.source_evidence_ref) and
+      non_empty_string?(entry.not_applicable_reason) and
+      non_empty_string?(entry.safe_action)
+  end
+
+  defp not_applicable_alert_entry?(_entry), do: false
 
   defp ensure_required_log_blocklist!(values) do
     missing = @raw_log_field_blocklist -- values
@@ -513,6 +700,13 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
   end
 
   defp operating_ref!(attrs, key) do
+    case AttrMap.get(attrs, key, nil) do
+      nil -> nil
+      value -> string!(value, key)
+    end
+  end
+
+  defp optional_evidence_string!(attrs, key) do
     case AttrMap.get(attrs, key, nil) do
       nil -> nil
       value -> string!(value, key)

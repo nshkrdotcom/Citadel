@@ -26,6 +26,7 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
     :incident_runbook_ref,
     :slo_or_error_budget_ref,
     :severity_mapping,
+    :alert_condition_coverage,
     :paging_or_triage_route,
     :redaction_policy_ref,
     :retention_ref,
@@ -75,6 +76,7 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
       assert profile.dropped_or_suppressed_count_ref =~ "."
       assert profile.not_applicable_reason == nil
       assert OperationsPosture.alert_route_complete?(profile)
+      assert OperationsPosture.alert_condition_coverage_complete?(profile)
       assert :ok = OperationsPosture.validate_profile(profile)
     end
   end
@@ -119,6 +121,34 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
       assert is_binary(profile.dropped_or_suppressed_count_ref)
       assert OperationsPosture.missing_operating_dimensions(profile) == []
       assert OperationsPosture.not_applicable_evidence_complete?(profile)
+      assert OperationsPosture.alert_condition_coverage_complete?(profile)
+    end
+  end
+
+  test "alert condition coverage routes p0 p1 families or records source not-applicable evidence" do
+    for profile <- Map.values(OperationsPosture.profiles()) do
+      assert profile.alert_condition_coverage |> Map.keys() |> Enum.sort() ==
+               OperationsPosture.alert_required_condition_families() |> Enum.sort()
+
+      for family <- OperationsPosture.alert_required_condition_families() do
+        coverage = Map.fetch!(profile.alert_condition_coverage, family)
+
+        if Map.has_key?(profile.severity_mapping, family) do
+          assert coverage.posture == :alert_or_triage
+          assert coverage.severity in [:p0, :p1]
+          assert is_binary(coverage.incident_runbook_ref)
+          assert is_binary(coverage.owner)
+          assert is_binary(coverage.source_evidence_ref)
+          assert is_binary(coverage.safe_action)
+          assert is_binary(coverage.alert_ref) or is_binary(coverage.triage_route)
+        else
+          assert coverage.posture == :not_applicable
+          assert is_binary(coverage.not_applicable_reason)
+          assert is_binary(coverage.source_evidence_ref)
+          assert is_binary(coverage.owner)
+          assert is_binary(coverage.safe_action)
+        end
+      end
     end
   end
 
@@ -163,6 +193,37 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
              |> OperationsPosture.new()
 
     assert message =~ "overlaps with its blocklist"
+  end
+
+  test "profiles fail closed when alert condition coverage is incomplete" do
+    base = OperationsPosture.profile!(:audit_fact_append) |> OperationsPosture.dump()
+
+    assert {:error, %ArgumentError{message: message}} =
+             base
+             |> update_in([:alert_condition_coverage], &Map.delete(&1, :observability_overflow))
+             |> OperationsPosture.new()
+
+    assert message =~ "missing condition families"
+
+    assert {:error, %ArgumentError{message: message}} =
+             base
+             |> update_in([:alert_condition_coverage, :fail_closed_security], fn coverage ->
+               coverage
+               |> Map.put(:alert_ref, nil)
+               |> Map.put(:triage_route, nil)
+             end)
+             |> OperationsPosture.new()
+
+    assert message =~ "P0/P1 critical condition families require"
+
+    assert {:error, %ArgumentError{message: message}} =
+             base
+             |> update_in([:alert_condition_coverage, :queue_mailbox_overflow], fn coverage ->
+               Map.delete(coverage, :source_evidence_ref)
+             end)
+             |> OperationsPosture.new()
+
+    assert message =~ "source_evidence_ref"
   end
 
   test "source-backed not-applicable evidence can close a missing operating dimension" do
