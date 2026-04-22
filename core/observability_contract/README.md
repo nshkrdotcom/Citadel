@@ -8,6 +8,8 @@ Status: Phase 4 audit and observability contract owner.
 - low-cardinality telemetry naming ownership
 - backend-neutral observability conventions
 - `Platform.AuditHashChain.v1` immutable audit-chain evidence ownership
+- `Platform.ObservabilityCardinalityBounds.v1` metric, trace, audit, and
+  incident export cardinality bounds ownership
 
 ## Dependencies
 

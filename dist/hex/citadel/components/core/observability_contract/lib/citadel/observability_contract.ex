@@ -11,7 +11,8 @@ defmodule Citadel.ObservabilityContract do
       :trace_vocabulary,
       :telemetry_names,
       :metadata_conventions,
-      :platform_audit_hash_chain_v1
+      :platform_audit_hash_chain_v1,
+      :observability_cardinality_bounds_v1
     ],
     internal_dependencies: [:citadel_contract_core],
     external_dependencies: []
@@ -37,6 +38,23 @@ defmodule Citadel.ObservabilityContract do
 
   @spec trace_failure_reason_codes() :: [atom(), ...]
   def trace_failure_reason_codes, do: Citadel.ObservabilityContract.Trace.failure_reason_codes()
+
+  @spec cardinality_bounds_module() :: module()
+  def cardinality_bounds_module, do: Citadel.ObservabilityContract.CardinalityBounds
+
+  @spec cardinality_bounds_surfaces() :: [atom(), ...]
+  def cardinality_bounds_surfaces, do: Citadel.ObservabilityContract.CardinalityBounds.surfaces()
+
+  @spec cardinality_bounds_profile_fields() :: [atom(), ...]
+  def cardinality_bounds_profile_fields,
+    do: Citadel.ObservabilityContract.CardinalityBounds.profile_fields()
+
+  @spec cardinality_bounds_profiles() :: %{required(atom()) => struct()}
+  def cardinality_bounds_profiles, do: Citadel.ObservabilityContract.CardinalityBounds.profiles()
+
+  @spec cardinality_bounds_profile!(atom() | String.t()) :: struct()
+  def cardinality_bounds_profile!(surface),
+    do: Citadel.ObservabilityContract.CardinalityBounds.profile!(surface)
 
   @spec telemetry_definitions() :: map()
   def telemetry_definitions, do: Citadel.ObservabilityContract.Telemetry.definitions()
