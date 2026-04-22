@@ -12,7 +12,8 @@ defmodule Citadel.ObservabilityContract do
       :telemetry_names,
       :metadata_conventions,
       :platform_audit_hash_chain_v1,
-      :observability_cardinality_bounds_v1
+      :observability_cardinality_bounds_v1,
+      :observability_operations_posture_v1
     ],
     internal_dependencies: [:citadel_contract_core],
     external_dependencies: []
@@ -55,6 +56,24 @@ defmodule Citadel.ObservabilityContract do
   @spec cardinality_bounds_profile!(atom() | String.t()) :: struct()
   def cardinality_bounds_profile!(surface),
     do: Citadel.ObservabilityContract.CardinalityBounds.profile!(surface)
+
+  @spec operations_posture_module() :: module()
+  def operations_posture_module, do: Citadel.ObservabilityContract.OperationsPosture
+
+  @spec operations_posture_touched_seams() :: [atom(), ...]
+  def operations_posture_touched_seams,
+    do: Citadel.ObservabilityContract.OperationsPosture.touched_seams()
+
+  @spec operations_posture_profile_fields() :: [atom(), ...]
+  def operations_posture_profile_fields,
+    do: Citadel.ObservabilityContract.OperationsPosture.profile_fields()
+
+  @spec operations_posture_profiles() :: %{required(atom()) => struct()}
+  def operations_posture_profiles, do: Citadel.ObservabilityContract.OperationsPosture.profiles()
+
+  @spec operations_posture_profile!(atom() | String.t()) :: struct()
+  def operations_posture_profile!(seam),
+    do: Citadel.ObservabilityContract.OperationsPosture.profile!(seam)
 
   @spec telemetry_definitions() :: map()
   def telemetry_definitions, do: Citadel.ObservabilityContract.Telemetry.definitions()
