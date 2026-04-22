@@ -103,6 +103,8 @@ defmodule Citadel.ObservabilityContract.CardinalityBounds do
   @high_cardinality_metric_label_blocklist [
     :trace_id,
     :span_id,
+    :parent_span_id,
+    :request_id,
     :causation_id,
     :idempotency_key,
     :canonical_idempotency_key,
@@ -112,6 +114,8 @@ defmodule Citadel.ObservabilityContract.CardinalityBounds do
     :actor_id,
     :tenant_id,
     :installation_id,
+    :boundary_ref,
+    :trace_envelope_id,
     :route_id,
     :raw_provider_id,
     :prompt_hash,

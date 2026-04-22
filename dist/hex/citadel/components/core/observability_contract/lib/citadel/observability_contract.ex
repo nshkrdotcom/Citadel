@@ -70,6 +70,10 @@ defmodule Citadel.ObservabilityContract do
   def telemetry_metadata_keys(name),
     do: Citadel.ObservabilityContract.Telemetry.metadata_keys(name)
 
+  @spec telemetry_metric_label_keys(atom()) :: [atom()]
+  def telemetry_metric_label_keys(name),
+    do: Citadel.ObservabilityContract.Telemetry.metric_label_keys(name)
+
   @spec audit_hash_chain_module() :: module()
   def audit_hash_chain_module, do: Citadel.ObservabilityContract.AuditHashChain.V1
 

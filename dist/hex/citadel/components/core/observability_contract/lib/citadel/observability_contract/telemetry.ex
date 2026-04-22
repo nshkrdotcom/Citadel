@@ -1,7 +1,9 @@
 defmodule Citadel.ObservabilityContract.Telemetry do
   @moduledoc """
-  Frozen low-cardinality telemetry event names, measurements, and metadata.
+  Frozen telemetry event names, measurements, metadata, and metric labels.
   """
+
+  alias Citadel.ObservabilityContract.CardinalityBounds
 
   @definitions %{
     decision_task_latency: %{
@@ -160,7 +162,11 @@ defmodule Citadel.ObservabilityContract.Telemetry do
   }
 
   @spec definitions() :: map()
-  def definitions, do: @definitions
+  def definitions do
+    Map.new(@definitions, fn {name, definition} ->
+      {name, Map.put(definition, :metric_labels, metric_labels(definition.metadata))}
+    end)
+  end
 
   @spec event_name(atom()) :: [atom(), ...]
   def event_name(name), do: definition!(name).event_name
@@ -171,11 +177,17 @@ defmodule Citadel.ObservabilityContract.Telemetry do
   @spec metadata_keys(atom()) :: [atom(), ...]
   def metadata_keys(name), do: definition!(name).metadata
 
+  @spec metric_label_keys(atom()) :: [atom()]
+  def metric_label_keys(name), do: definition!(name).metric_labels
+
   @spec definition!(atom()) :: map()
   def definition!(name) do
-    case Map.fetch(@definitions, name) do
+    case Map.fetch(definitions(), name) do
       {:ok, definition} -> definition
       :error -> raise ArgumentError, "unsupported Citadel telemetry definition: #{inspect(name)}"
     end
   end
+
+  defp metric_labels(metadata),
+    do: Enum.filter(metadata, &CardinalityBounds.metric_label_allowed?/1)
 end
