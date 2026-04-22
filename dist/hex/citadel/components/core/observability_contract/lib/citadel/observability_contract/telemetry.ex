@@ -59,6 +59,11 @@ defmodule Citadel.ObservabilityContract.Telemetry do
       measurements: [:queue_depth, :tenant_scope_in_flight, :retry_after_ms],
       metadata: [:reason_code, :delivery_order_scope]
     },
+    signal_ingress_delivery_overload: %{
+      event_name: [:citadel, :signal_ingress, :delivery, :overload],
+      measurements: [:duration_ms, :retry_after_ms],
+      metadata: [:reason_code, :delivery_order_scope, :replay_action]
+    },
     trace_buffer_depth: %{
       event_name: [:citadel, :trace, :buffer, :depth],
       measurements: [:depth, :protected_depth, :regular_depth],

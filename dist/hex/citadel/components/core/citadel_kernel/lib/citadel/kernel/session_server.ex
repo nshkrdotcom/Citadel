@@ -46,8 +46,9 @@ defmodule Citadel.Kernel.SessionServer do
     commit_transition(server, %{}, Keyword.put_new(opts, :meaningful_activity?, true))
   end
 
-  def record_runtime_observation(server, %RuntimeObservation{} = observation) do
-    GenServer.call(server, {:record_runtime_observation, observation}, :infinity)
+  def record_runtime_observation(server, %RuntimeObservation{} = observation, opts \\ []) do
+    timeout = Keyword.get(opts, :timeout, :infinity)
+    GenServer.call(server, {:record_runtime_observation, observation}, timeout)
   end
 
   def record_rejection(server, %DecisionRejection{} = rejection, opts \\ []) do

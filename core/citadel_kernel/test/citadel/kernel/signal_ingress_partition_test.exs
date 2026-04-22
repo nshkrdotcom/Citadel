@@ -202,6 +202,65 @@ defmodule Citadel.Kernel.SignalIngressPartitionTest do
     end)
   end
 
+  test "post-admission delivery timeout marks partition overloaded with replay evidence" do
+    attach_telemetry(self(), [:signal_ingress_delivery_overload])
+
+    signal_ingress =
+      start_signal_ingress(
+        admission_policy:
+          Keyword.merge(generous_admission_policy(),
+            delivery_timeout_ms: 20,
+            partition_overload_cooldown_ms: 250,
+            retry_after_ms: 250
+          )
+      )
+
+    blocking_consumer = start_supervised!({BlockingConsumer, test_pid: self()})
+    assert :ok = SignalIngress.register_subscription(signal_ingress, "sess-overload")
+
+    assert :ok =
+             SignalIngress.register_consumer(signal_ingress, "sess-overload", blocking_consumer)
+
+    assert {:ok, acceptance} =
+             SignalIngress.deliver_observation(
+               signal_ingress,
+               observation("sess-overload", "sig-overload-1", subject_id: "subject-overload")
+             )
+
+    assert acceptance.delivery_timeout_ms == 20
+    assert acceptance.overload_action == :mark_partition_overloaded
+    assert acceptance.replay_action == :replay_partition_after_retry
+    assert acceptance.async_handoff? == true
+
+    assert_receive {:consumer_blocked, "sig-overload-1", _consumer_pid}, 500
+
+    wait_until(fn ->
+      snapshot = SignalIngress.snapshot(signal_ingress)
+      Map.has_key?(snapshot.partition_overload_until_ms, acceptance.partition_ref)
+    end)
+
+    assert {:error, rejection} =
+             SignalIngress.deliver_observation(
+               signal_ingress,
+               observation("sess-overload", "sig-overload-2", subject_id: "subject-overload")
+             )
+
+    assert rejection.reason == :partition_overloaded
+    assert rejection.retry_after_ms > 0
+    assert rejection.queue_depth_before == rejection.queue_depth_after
+    assert rejection.overload_action == :mark_partition_overloaded
+    assert rejection.replay_action == :replay_partition_after_retry
+
+    assert_receive {:telemetry_event, event_name, measurements, metadata}, 500
+    assert event_name == Telemetry.event_name(:signal_ingress_delivery_overload)
+    assert metadata.reason_code == :consumer_timeout
+    assert metadata.replay_action == :replay_partition_after_retry
+    assert measurements.retry_after_ms == 250
+    assert_contract_shape(:signal_ingress_delivery_overload, measurements, metadata)
+
+    send(blocking_consumer, {:release_consumer, "sig-overload-1"})
+  end
+
   defp start_signal_ingress(opts) do
     name = unique_name(:signal_ingress)
 

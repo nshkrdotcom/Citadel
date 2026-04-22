@@ -7,7 +7,6 @@ defmodule Citadel.Kernel.SignalIngress do
 
   alias Citadel.ObservabilityContract.Telemetry
   alias Citadel.Kernel.SessionDirectory
-  alias Citadel.Kernel.SessionServer
   alias Citadel.Kernel.SystemClock
   alias Citadel.RuntimeObservation
   alias Citadel.SignalIngressRebuildPolicy
@@ -26,7 +25,11 @@ defmodule Citadel.Kernel.SignalIngress do
     max_queue_depth_per_partition: 128,
     max_in_flight_per_tenant_scope: 512,
     retry_after_ms: 100,
-    delivery_order_scope: :partition_fifo
+    delivery_order_scope: :partition_fifo,
+    delivery_timeout_ms: 5_000,
+    partition_overload_cooldown_ms: 1_000,
+    post_admission_overload_action: :mark_partition_overloaded,
+    replay_action: :replay_partition_after_retry
   }
 
   def start_link(opts) do
@@ -85,6 +88,7 @@ defmodule Citadel.Kernel.SignalIngress do
       partition_workers: %{},
       partition_worker_monitors: %{},
       partition_queue_depths: %{},
+      partition_overload_until_ms: %{},
       tenant_scope_in_flight: %{},
       token_buckets: %{},
       restarted_at: Keyword.get(opts, :restarted_at, SystemClock.utc_now())
@@ -174,6 +178,7 @@ defmodule Citadel.Kernel.SignalIngress do
        subscriptions: state.subscriptions,
        rebuild_queue: state.rebuild_queue,
        partition_queue_depths: state.partition_queue_depths,
+       partition_overload_until_ms: state.partition_overload_until_ms,
        tenant_scope_in_flight: state.tenant_scope_in_flight,
        token_buckets: state.token_buckets,
        admission_policy: state.admission_policy,
@@ -245,10 +250,16 @@ defmodule Citadel.Kernel.SignalIngress do
   end
 
   def handle_info(
-        {:signal_delivery_finished, partition_ref, _accepted_ref, tenant_scope_key},
+        {:signal_delivery_finished, partition_ref, _accepted_ref, tenant_scope_key,
+         delivery_result},
         state
       ) do
-    {:noreply, release_admission_reservation(state, partition_ref, tenant_scope_key)}
+    state =
+      state
+      |> release_admission_reservation(partition_ref, tenant_scope_key)
+      |> maybe_mark_partition_overloaded(partition_ref, delivery_result)
+
+    {:noreply, state}
   end
 
   def handle_info({:DOWN, monitor_ref, :process, _pid, _reason}, state) do
@@ -268,6 +279,7 @@ defmodule Citadel.Kernel.SignalIngress do
 
   defp admit_observation(state, %RuntimeObservation{} = observation) do
     with {:ok, partition} <- partition_for_observation(observation, state.admission_policy),
+         {:ok, state} <- reject_if_partition_overloaded(state, partition),
          {:ok, state, bucket} <- reserve_partition_token(state, partition),
          {:ok, state} <- reserve_queue_slot(state, partition),
          {:ok, state, partition_worker} <- ensure_partition_worker(state, partition) do
@@ -278,7 +290,12 @@ defmodule Citadel.Kernel.SignalIngress do
         partition_ref: partition.ref,
         tenant_scope_key: partition.tenant_scope_key,
         observation: observation,
-        consumer_pid: Map.get(state.consumers, observation.session_id)
+        consumer_pid: Map.get(state.consumers, observation.session_id),
+        delivery_order_scope: partition.delivery_order_scope,
+        delivery_timeout_ms: state.admission_policy.delivery_timeout_ms,
+        overload_cooldown_ms: state.admission_policy.partition_overload_cooldown_ms,
+        overload_action: state.admission_policy.post_admission_overload_action,
+        replay_action: state.admission_policy.replay_action
       }
 
       state =
@@ -296,6 +313,39 @@ defmodule Citadel.Kernel.SignalIngress do
 
       {:error, rejection, state} ->
         {:error, rejection, state}
+    end
+  end
+
+  defp reject_if_partition_overloaded(state, partition) do
+    now_ms = System.monotonic_time(:millisecond)
+
+    case Map.get(state.partition_overload_until_ms, partition.ref) do
+      nil ->
+        {:ok, state}
+
+      overload_until_ms when overload_until_ms <= now_ms ->
+        {:ok,
+         update_in(state.partition_overload_until_ms, fn overloads ->
+           Map.delete(overloads, partition.ref)
+         end)}
+
+      overload_until_ms ->
+        queue_depth = Map.get(state.partition_queue_depths, partition.ref, 0)
+
+        tenant_scope_in_flight =
+          Map.get(state.tenant_scope_in_flight, partition.tenant_scope_key, 0)
+
+        retry_after_ms = max(overload_until_ms - now_ms, 0)
+
+        {:error,
+         admission_rejection(
+           :partition_overloaded,
+           partition,
+           state,
+           queue_depth,
+           tenant_scope_in_flight,
+           retry_after_ms
+         ), state}
     end
   end
 
@@ -529,16 +579,38 @@ defmodule Citadel.Kernel.SignalIngress do
       tenant_scope_in_flight:
         Map.get(state.tenant_scope_in_flight, partition.tenant_scope_key, 0),
       queue_depth: Map.get(state.partition_queue_depths, partition.ref, 0),
+      delivery_timeout_ms: state.admission_policy.delivery_timeout_ms,
+      partition_overload_cooldown_ms: state.admission_policy.partition_overload_cooldown_ms,
+      overload_action: state.admission_policy.post_admission_overload_action,
+      replay_action: state.admission_policy.replay_action,
       async_handoff?: true,
       partition_worker: partition_worker
     }
   end
 
   defp admission_rejection(reason, partition, state, queue_depth, tenant_scope_in_flight) do
+    admission_rejection(
+      reason,
+      partition,
+      state,
+      queue_depth,
+      tenant_scope_in_flight,
+      state.admission_policy.retry_after_ms
+    )
+  end
+
+  defp admission_rejection(
+         reason,
+         partition,
+         state,
+         queue_depth,
+         tenant_scope_in_flight,
+         retry_after_ms
+       ) do
     rejection = %{
       reason: reason,
       safe_action: :retry_after,
-      retry_after_ms: state.admission_policy.retry_after_ms,
+      retry_after_ms: retry_after_ms,
       resource_exhaustion?: true,
       partition_ref: partition.ref,
       partition_key: partition.key,
@@ -546,7 +618,9 @@ defmodule Citadel.Kernel.SignalIngress do
       delivery_order_scope: partition.delivery_order_scope,
       queue_depth_before: queue_depth,
       queue_depth_after: queue_depth,
-      tenant_scope_in_flight: tenant_scope_in_flight
+      tenant_scope_in_flight: tenant_scope_in_flight,
+      overload_action: state.admission_policy.post_admission_overload_action,
+      replay_action: state.admission_policy.replay_action
     }
 
     :telemetry.execute(
@@ -554,7 +628,7 @@ defmodule Citadel.Kernel.SignalIngress do
       %{
         queue_depth: queue_depth,
         tenant_scope_in_flight: tenant_scope_in_flight,
-        retry_after_ms: state.admission_policy.retry_after_ms
+        retry_after_ms: retry_after_ms
       },
       %{reason_code: reason, delivery_order_scope: partition.delivery_order_scope}
     )
@@ -584,6 +658,20 @@ defmodule Citadel.Kernel.SignalIngress do
     |> update_in([:partition_queue_depths], &decrement_counter(&1, partition_ref))
     |> update_in([:tenant_scope_in_flight], &decrement_counter(&1, tenant_scope_key))
   end
+
+  defp maybe_mark_partition_overloaded(state, partition_ref, %{
+         delivery_status: delivery_status,
+         retry_after_ms: retry_after_ms
+       })
+       when delivery_status in [:timed_out, :deferred_for_replay] do
+    overload_until_ms = System.monotonic_time(:millisecond) + retry_after_ms
+
+    update_in(state.partition_overload_until_ms, fn overloads ->
+      Map.put(overloads, partition_ref, overload_until_ms)
+    end)
+  end
+
+  defp maybe_mark_partition_overloaded(state, _partition_ref, _delivery_result), do: state
 
   defp decrement_counter(counters, key) do
     case Map.get(counters, key, 0) do
@@ -622,7 +710,15 @@ defmodule Citadel.Kernel.SignalIngress do
           :max_in_flight_per_tenant_scope
         ),
       retry_after_ms: non_negative_integer!(policy.retry_after_ms, :retry_after_ms),
-      delivery_order_scope: delivery_order_scope
+      delivery_order_scope: delivery_order_scope,
+      delivery_timeout_ms: positive_integer!(policy.delivery_timeout_ms, :delivery_timeout_ms),
+      partition_overload_cooldown_ms:
+        non_negative_integer!(
+          policy.partition_overload_cooldown_ms,
+          :partition_overload_cooldown_ms
+        ),
+      post_admission_overload_action: policy.post_admission_overload_action,
+      replay_action: policy.replay_action
     }
   end
 
@@ -745,6 +841,7 @@ defmodule Citadel.Kernel.SignalIngress.PartitionWorker do
 
   use GenServer
 
+  alias Citadel.ObservabilityContract.Telemetry
   alias Citadel.Kernel.SessionServer
 
   def start(opts) do
@@ -763,30 +860,20 @@ defmodule Citadel.Kernel.SignalIngress.PartitionWorker do
      %{
        owner: owner,
        owner_monitor_ref: Process.monitor(owner),
-       partition_ref: Keyword.fetch!(opts, :partition_ref)
+       partition_ref: Keyword.fetch!(opts, :partition_ref),
+       overloaded_until_ms: nil
      }}
   end
 
   @impl true
   def handle_cast({:deliver, delivery}, state) do
-    try do
-      case delivery.consumer_pid do
-        nil ->
-          :ok
+    {delivery_result, state} = deliver_with_overload_boundary(delivery, state)
 
-        pid ->
-          SessionServer.record_runtime_observation(pid, delivery.observation)
-      end
-    catch
-      :exit, {:noproc, _details} -> :ok
-      :exit, :noproc -> :ok
-    after
-      send(
-        state.owner,
-        {:signal_delivery_finished, delivery.partition_ref, delivery.accepted_ref,
-         delivery.tenant_scope_key}
-      )
-    end
+    send(
+      state.owner,
+      {:signal_delivery_finished, delivery.partition_ref, delivery.accepted_ref,
+       delivery.tenant_scope_key, delivery_result}
+    )
 
     {:noreply, state}
   end
@@ -795,5 +882,110 @@ defmodule Citadel.Kernel.SignalIngress.PartitionWorker do
   def handle_info({:DOWN, monitor_ref, :process, owner, _reason}, state)
       when monitor_ref == state.owner_monitor_ref and owner == state.owner do
     {:stop, :normal, state}
+  end
+
+  defp deliver_with_overload_boundary(delivery, state) do
+    now_ms = System.monotonic_time(:millisecond)
+
+    if is_integer(state.overloaded_until_ms) and state.overloaded_until_ms > now_ms do
+      retry_after_ms = state.overloaded_until_ms - now_ms
+
+      result =
+        delivery_result(
+          delivery,
+          :deferred_for_replay,
+          :partition_overloaded,
+          0,
+          retry_after_ms
+        )
+
+      emit_delivery_overload(result)
+      {result, state}
+    else
+      deliver_to_consumer(delivery, state)
+    end
+  end
+
+  defp deliver_to_consumer(delivery, state) do
+    started_at = System.monotonic_time(:millisecond)
+
+    try do
+      case delivery.consumer_pid do
+        nil ->
+          :ok
+
+        pid ->
+          SessionServer.record_runtime_observation(
+            pid,
+            delivery.observation,
+            timeout: delivery.delivery_timeout_ms
+          )
+      end
+
+      {delivery_result(delivery, :delivered, :none, elapsed_ms(started_at), 0), state}
+    catch
+      :exit, {:timeout, _details} ->
+        timeout_result(delivery, state, started_at, :consumer_timeout)
+
+      :exit, :timeout ->
+        timeout_result(delivery, state, started_at, :consumer_timeout)
+
+      :exit, {:noproc, _details} ->
+        {delivery_result(delivery, :consumer_unavailable, :noproc, elapsed_ms(started_at), 0),
+         state}
+
+      :exit, :noproc ->
+        {delivery_result(delivery, :consumer_unavailable, :noproc, elapsed_ms(started_at), 0),
+         state}
+    end
+  end
+
+  defp timeout_result(delivery, state, started_at, reason) do
+    retry_after_ms = delivery.overload_cooldown_ms
+
+    result =
+      delivery_result(
+        delivery,
+        :timed_out,
+        reason,
+        elapsed_ms(started_at),
+        retry_after_ms
+      )
+
+    emit_delivery_overload(result)
+
+    {result,
+     %{
+       state
+       | overloaded_until_ms: System.monotonic_time(:millisecond) + retry_after_ms
+     }}
+  end
+
+  defp delivery_result(delivery, status, reason, duration_ms, retry_after_ms) do
+    %{
+      delivery_status: status,
+      reason: reason,
+      duration_ms: max(duration_ms, 0),
+      retry_after_ms: retry_after_ms,
+      delivery_order_scope: delivery.delivery_order_scope,
+      overload_action: delivery.overload_action,
+      replay_action: delivery.replay_action
+    }
+  end
+
+  defp emit_delivery_overload(result) do
+    :telemetry.execute(
+      Telemetry.event_name(:signal_ingress_delivery_overload),
+      %{duration_ms: result.duration_ms, retry_after_ms: result.retry_after_ms},
+      %{
+        reason_code: result.reason,
+        delivery_order_scope: result.delivery_order_scope,
+        replay_action: result.replay_action
+      }
+    )
+  end
+
+  defp elapsed_ms(started_at) do
+    System.monotonic_time(:millisecond) - started_at
   end
 end
