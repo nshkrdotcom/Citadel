@@ -25,6 +25,7 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
     :alert_ref,
     :incident_runbook_ref,
     :slo_or_error_budget_ref,
+    :slo_or_error_budget_scope,
     :severity_mapping,
     :alert_condition_coverage,
     :paging_or_triage_route,
@@ -69,6 +70,7 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
       assert profile.alert_ref =~ "."
       assert profile.incident_runbook_ref =~ "runbooks/observability_operations_posture.md"
       assert profile.slo_or_error_budget_ref =~ "."
+      assert profile.slo_or_error_budget_scope.ref == profile.slo_or_error_budget_ref
       assert profile.paging_or_triage_route =~ "-"
       assert profile.redaction_policy_ref == "citadel.redaction.refs_only.v1"
       assert profile.retention_ref == "phase5.observability_evidence.retention.v1"
@@ -77,6 +79,7 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
       assert profile.not_applicable_reason == nil
       assert OperationsPosture.alert_route_complete?(profile)
       assert OperationsPosture.alert_condition_coverage_complete?(profile)
+      assert OperationsPosture.slo_or_error_budget_scope_complete?(profile)
       assert :ok = OperationsPosture.validate_profile(profile)
     end
   end
@@ -117,11 +120,34 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
       assert is_binary(profile.alert_ref)
       assert is_binary(profile.incident_runbook_ref)
       assert is_binary(profile.slo_or_error_budget_ref)
+      assert OperationsPosture.slo_or_error_budget_scope_complete?(profile)
       assert is_binary(profile.paging_or_triage_route)
       assert is_binary(profile.dropped_or_suppressed_count_ref)
       assert OperationsPosture.missing_operating_dimensions(profile) == []
       assert OperationsPosture.not_applicable_evidence_complete?(profile)
       assert OperationsPosture.alert_condition_coverage_complete?(profile)
+    end
+  end
+
+  test "slo and error-budget refs are scoped to preserved hardening behavior" do
+    for profile <- Map.values(OperationsPosture.profiles()) do
+      scope = profile.slo_or_error_budget_scope
+
+      assert scope |> Map.keys() |> Enum.sort() ==
+               OperationsPosture.slo_or_error_budget_scope_fields() |> Enum.sort()
+
+      assert scope.ref == profile.slo_or_error_budget_ref
+
+      assert scope.hardening_behavior in OperationsPosture.slo_or_error_budget_hardening_behaviors()
+
+      assert is_binary(scope.source_evidence_ref)
+      assert is_binary(scope.owner)
+      assert is_binary(scope.safe_action)
+      ref = String.downcase(scope.ref)
+      refute String.contains?(ref, "product.slo")
+      refute String.contains?(ref, "site_availability")
+      refute String.contains?(ref, "uptime")
+      assert OperationsPosture.slo_or_error_budget_scope_complete?(profile)
     end
   end
 
@@ -226,6 +252,41 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
     assert message =~ "source_evidence_ref"
   end
 
+  test "profiles fail closed when slo or error-budget scope is broad or incomplete" do
+    base = OperationsPosture.profile!(:signal_ingress_lineage) |> OperationsPosture.dump()
+
+    assert {:error, %ArgumentError{message: message}} =
+             base
+             |> Map.delete(:slo_or_error_budget_scope)
+             |> OperationsPosture.new()
+
+    assert message =~ "missing required field"
+
+    assert {:error, %ArgumentError{message: message}} =
+             base
+             |> update_in([:slo_or_error_budget_scope], fn scope ->
+               Map.put(scope, :hardening_behavior, :product_availability)
+             end)
+             |> OperationsPosture.new()
+
+    assert message =~ "slo_or_error_budget_hardening_behavior"
+
+    assert {:error, %ArgumentError{message: message}} =
+             base
+             |> put_in([:slo_or_error_budget_scope, :ref], "product.slo.site_availability")
+             |> OperationsPosture.new()
+
+    assert message =~ "must match slo_or_error_budget_ref"
+
+    assert {:error, %ArgumentError{message: message}} =
+             base
+             |> Map.put(:slo_or_error_budget_ref, "product.slo.site_availability")
+             |> put_in([:slo_or_error_budget_scope, :ref], "product.slo.site_availability")
+             |> OperationsPosture.new()
+
+    assert message =~ "must not be a broad product SLO claim"
+  end
+
   test "source-backed not-applicable evidence can close a missing operating dimension" do
     attrs =
       :aitrace_file_export
@@ -244,6 +305,8 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
     assert {:ok, profile} = OperationsPosture.new(attrs)
     assert OperationsPosture.missing_operating_dimensions(profile) == [:slo_or_error_budget_ref]
     assert OperationsPosture.not_applicable_evidence_complete?(profile)
+    assert profile.slo_or_error_budget_scope == nil
+    assert OperationsPosture.slo_or_error_budget_scope_complete?(profile)
     assert OperationsPosture.alert_route_complete?(profile)
   end
 

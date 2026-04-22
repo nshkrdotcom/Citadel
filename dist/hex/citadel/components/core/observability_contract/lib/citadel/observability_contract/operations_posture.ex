@@ -31,6 +31,7 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     :alert_ref,
     :incident_runbook_ref,
     :slo_or_error_budget_ref,
+    :slo_or_error_budget_scope,
     :severity_mapping,
     :alert_condition_coverage,
     :paging_or_triage_route,
@@ -57,6 +58,34 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     :source_evidence_ref,
     :owner,
     :safe_action
+  ]
+
+  @slo_or_error_budget_hardening_behaviors [
+    :revocation_visibility,
+    :fail_closed_admission_latency,
+    :workflow_reconciliation_freshness,
+    :bounded_export_failure_visibility
+  ]
+
+  @slo_or_error_budget_scope_fields [
+    :ref,
+    :hardening_behavior,
+    :source_evidence_ref,
+    :owner,
+    :safe_action
+  ]
+
+  @broad_product_slo_ref_fragments [
+    "product.slo",
+    "product_slo",
+    "product-slo",
+    "business.slo",
+    "business_slo",
+    "feature_slo",
+    "site_availability",
+    "uptime",
+    "page_load",
+    "request_latency"
   ]
 
   @safe_log_field_allowlist [
@@ -137,6 +166,30 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     :safe_action
   ]
 
+  @slo_scope_defaults %{
+    signal_ingress_lineage: %{
+      hardening_behavior: :fail_closed_admission_latency,
+      source_evidence_ref:
+        "citadel.signal_ingress.lineage_admission.fail_closed_admission_latency",
+      safe_action: "fail-closed-admission-on-slo-gap"
+    },
+    trace_publisher_output: %{
+      hardening_behavior: :bounded_export_failure_visibility,
+      source_evidence_ref: "citadel.trace_publisher.output.bounded_export_failure_visibility",
+      safe_action: "route-protected-trace-export-gap"
+    },
+    aitrace_file_export: %{
+      hardening_behavior: :bounded_export_failure_visibility,
+      source_evidence_ref: "aitrace.file_export.bounded_export_failure_visibility",
+      safe_action: "route-unanchored-or-rejected-export"
+    },
+    audit_fact_append: %{
+      hardening_behavior: :workflow_reconciliation_freshness,
+      source_evidence_ref: "mezzanine.audit_append.workflow_reconciliation_freshness",
+      safe_action: "route-audit-reconciliation-gap"
+    }
+  }
+
   @enforce_keys @fields
   defstruct @fields
 
@@ -174,6 +227,12 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
 
   @spec not_applicable_fields() :: [atom(), ...]
   def not_applicable_fields, do: @not_applicable_fields
+
+  @spec slo_or_error_budget_hardening_behaviors() :: [atom(), ...]
+  def slo_or_error_budget_hardening_behaviors, do: @slo_or_error_budget_hardening_behaviors
+
+  @spec slo_or_error_budget_scope_fields() :: [atom(), ...]
+  def slo_or_error_budget_scope_fields, do: @slo_or_error_budget_scope_fields
 
   @spec safe_log_field_allowlist() :: [atom(), ...]
   def safe_log_field_allowlist, do: @safe_log_field_allowlist
@@ -287,6 +346,31 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     end)
   end
 
+  @spec slo_or_error_budget_scope_complete?(t()) :: boolean()
+  def slo_or_error_budget_scope_complete?(%__MODULE__{slo_or_error_budget_ref: nil}), do: true
+
+  def slo_or_error_budget_scope_complete?(%__MODULE__{} = profile) do
+    ref = profile.slo_or_error_budget_ref
+
+    case profile.slo_or_error_budget_scope do
+      %{
+        ref: ^ref,
+        hardening_behavior: behavior,
+        source_evidence_ref: source_evidence_ref,
+        owner: owner,
+        safe_action: safe_action
+      } ->
+        behavior in @slo_or_error_budget_hardening_behaviors and
+          non_empty_string?(source_evidence_ref) and
+          non_empty_string?(owner) and
+          non_empty_string?(safe_action) and
+          not broad_product_slo_ref?(ref)
+
+      _other ->
+        false
+    end
+  end
+
   defp default_attrs(:signal_ingress_lineage) do
     base_attrs(:signal_ingress_lineage, %{
       observability_owner: "citadel-runtime",
@@ -322,7 +406,7 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
       log_ref: "citadel.kernel.trace_publisher.output",
       alert_ref: "citadel.alert.trace_publisher.protected_overflow",
       incident_runbook_ref: "runbooks/observability_operations_posture.md#trace-publisher-output",
-      slo_or_error_budget_ref: "citadel.error_budget.protected_trace_visibility",
+      slo_or_error_budget_ref: "citadel.error_budget.bounded_trace_export_failure_visibility",
       severity_mapping: %{
         data_loss_restore_failure: :p1,
         observability_overflow: :p1
@@ -366,7 +450,7 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
       log_ref: "mezzanine.audit.append.redacted",
       alert_ref: "mezzanine.alert.audit_append_rejection_or_overflow",
       incident_runbook_ref: "runbooks/observability_operations_posture.md#audit-fact-append",
-      slo_or_error_budget_ref: "mezzanine.error_budget.audit_failure_visibility",
+      slo_or_error_budget_ref: "mezzanine.error_budget.workflow_reconciliation_freshness",
       severity_mapping: %{
         fail_closed_security: :p1,
         tenant_authority_bypass: :p0,
@@ -401,7 +485,18 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
         attrs
       )
 
-    Map.put_new(attrs, :alert_condition_coverage, default_alert_condition_coverage(seam, attrs))
+    attrs
+    |> Map.put_new(:slo_or_error_budget_scope, default_slo_or_error_budget_scope(seam, attrs))
+    |> Map.put_new(:alert_condition_coverage, default_alert_condition_coverage(seam, attrs))
+  end
+
+  defp default_slo_or_error_budget_scope(seam, attrs) do
+    defaults = Map.fetch!(@slo_scope_defaults, seam)
+
+    Map.merge(defaults, %{
+      ref: Map.fetch!(attrs, :slo_or_error_budget_ref),
+      owner: Map.fetch!(attrs, :observability_owner)
+    })
   end
 
   defp default_alert_condition_coverage(seam, attrs) do
@@ -449,6 +544,8 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     severity_mapping = severity_mapping!(attrs)
     alert_condition_coverage = alert_condition_coverage!(attrs)
     not_applicable_reason = not_applicable_reason!(attrs)
+    slo_or_error_budget_ref = operating_ref!(attrs, :slo_or_error_budget_ref)
+    slo_or_error_budget_scope = slo_or_error_budget_scope!(attrs, slo_or_error_budget_ref)
 
     ensure_required_log_blocklist!(log_field_blocklist)
     ensure_disjoint!(:log_field_allowlist, log_field_allowlist, log_field_blocklist)
@@ -478,7 +575,8 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
       log_field_blocklist: log_field_blocklist,
       alert_ref: operating_ref!(attrs, :alert_ref),
       incident_runbook_ref: operating_ref!(attrs, :incident_runbook_ref),
-      slo_or_error_budget_ref: operating_ref!(attrs, :slo_or_error_budget_ref),
+      slo_or_error_budget_ref: slo_or_error_budget_ref,
+      slo_or_error_budget_scope: slo_or_error_budget_scope,
       severity_mapping: severity_mapping,
       alert_condition_coverage: alert_condition_coverage,
       paging_or_triage_route: required_string!(attrs, :paging_or_triage_route),
@@ -492,6 +590,7 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
 
     ensure_alert_route_complete!(profile)
     ensure_alert_condition_coverage_complete!(profile)
+    ensure_slo_or_error_budget_scope_complete!(profile)
     profile
   end
 
@@ -516,6 +615,21 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     else
       raise ArgumentError,
             "#{@contract_name} P0/P1 critical condition families require alert or triage evidence unless source-backed evidence proves no operator action exists"
+    end
+  end
+
+  defp ensure_slo_or_error_budget_scope_complete!(%__MODULE__{} = profile) do
+    cond do
+      slo_or_error_budget_scope_complete?(profile) ->
+        :ok
+
+      broad_product_slo_ref?(profile.slo_or_error_budget_ref) ->
+        raise ArgumentError,
+              "#{@contract_name}.slo_or_error_budget_ref must not be a broad product SLO claim"
+
+      true ->
+        raise ArgumentError,
+              "#{@contract_name}.slo_or_error_budget_scope must match slo_or_error_budget_ref and name preserved hardening behavior"
     end
   end
 
@@ -645,6 +759,35 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
 
   defp not_applicable_alert_entry?(_entry), do: false
 
+  defp slo_or_error_budget_scope!(_attrs, nil), do: nil
+
+  defp slo_or_error_budget_scope!(attrs, _slo_or_error_budget_ref) do
+    attrs
+    |> AttrMap.fetch!(:slo_or_error_budget_scope, @contract_name)
+    |> case do
+      evidence when is_map(evidence) ->
+        evidence = AttrMap.normalize!(evidence, @contract_name)
+
+        %{
+          ref: required_string!(evidence, :ref),
+          hardening_behavior:
+            evidence
+            |> AttrMap.fetch!(:hardening_behavior, @contract_name)
+            |> enum_atom!(
+              :slo_or_error_budget_hardening_behavior,
+              @slo_or_error_budget_hardening_behaviors
+            ),
+          source_evidence_ref: required_string!(evidence, :source_evidence_ref),
+          owner: required_string!(evidence, :owner),
+          safe_action: required_string!(evidence, :safe_action)
+        }
+
+      value ->
+        raise ArgumentError,
+              "#{@contract_name}.slo_or_error_budget_scope must be a hardening-behavior evidence map, got: #{inspect(value)}"
+    end
+  end
+
   defp ensure_required_log_blocklist!(values) do
     missing = @raw_log_field_blocklist -- values
 
@@ -757,6 +900,13 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
   end
 
   defp complete_not_applicable_evidence?(_evidence), do: false
+
+  defp broad_product_slo_ref?(nil), do: false
+
+  defp broad_product_slo_ref?(ref) when is_binary(ref) do
+    ref = String.downcase(ref)
+    Enum.any?(@broad_product_slo_ref_fragments, &String.contains?(ref, &1))
+  end
 
   defp required_string!(attrs, key) do
     attrs
