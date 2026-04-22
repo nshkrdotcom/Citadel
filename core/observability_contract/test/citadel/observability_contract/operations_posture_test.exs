@@ -20,6 +20,8 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
     :metric_ref,
     :trace_ref,
     :log_ref,
+    :log_field_allowlist,
+    :log_field_blocklist,
     :alert_ref,
     :incident_runbook_ref,
     :slo_or_error_budget_ref,
@@ -61,6 +63,8 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
       assert profile.metric_ref =~ "."
       assert profile.trace_ref =~ "."
       assert profile.log_ref =~ "."
+      assert profile.log_field_allowlist == OperationsPosture.safe_log_field_allowlist()
+      assert profile.log_field_blocklist == OperationsPosture.raw_log_field_blocklist()
       assert profile.alert_ref =~ "."
       assert profile.incident_runbook_ref =~ "runbooks/observability_operations_posture.md"
       assert profile.slo_or_error_budget_ref =~ "."
@@ -73,6 +77,28 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
       assert OperationsPosture.alert_route_complete?(profile)
       assert :ok = OperationsPosture.validate_profile(profile)
     end
+  end
+
+  test "log fields allow redacted refs and reject raw payload data" do
+    assert :ok =
+             OperationsPosture.validate_log_fields([
+               :event_name,
+               :owner_package,
+               :safe_action,
+               :trace_id,
+               :causation_id,
+               :canonical_idempotency_key,
+               :tenant_ref,
+               :release_manifest_ref,
+               :payload_hash,
+               :suppressed_count
+             ])
+
+    assert {:error, {:blocked_log_fields, [:raw_prompt, :tenant_secret, :stdout]}} =
+             OperationsPosture.validate_log_fields([:raw_prompt, :tenant_secret, :stdout])
+
+    assert {:error, {:unknown_log_fields, [:custom_payload_map]}} =
+             OperationsPosture.validate_log_fields([:custom_payload_map])
   end
 
   test "critical profiles declare severity mapping and operator route evidence" do
@@ -119,6 +145,24 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
              |> OperationsPosture.new()
 
     assert message =~ "missing required field"
+  end
+
+  test "profiles fail closed when log blocklists omit prohibited raw fields" do
+    base = OperationsPosture.profile!(:signal_ingress_lineage) |> OperationsPosture.dump()
+
+    assert {:error, %ArgumentError{message: message}} =
+             base
+             |> Map.update!(:log_field_blocklist, &List.delete(&1, :raw_prompt))
+             |> OperationsPosture.new()
+
+    assert message =~ "must include raw log fields"
+
+    assert {:error, %ArgumentError{message: message}} =
+             base
+             |> Map.update!(:log_field_allowlist, &[:raw_prompt | &1])
+             |> OperationsPosture.new()
+
+    assert message =~ "overlaps with its blocklist"
   end
 
   test "source-backed not-applicable evidence can close a missing operating dimension" do

@@ -26,6 +26,8 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     :metric_ref,
     :trace_ref,
     :log_ref,
+    :log_field_allowlist,
+    :log_field_blocklist,
     :alert_ref,
     :incident_runbook_ref,
     :slo_or_error_budget_ref,
@@ -54,6 +56,57 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     :source_evidence_ref,
     :owner,
     :safe_action
+  ]
+
+  @safe_log_field_allowlist [
+    :event_name,
+    :owner_repo,
+    :owner_package,
+    :surface,
+    :operation_family,
+    :outcome,
+    :error_class,
+    :reason_code,
+    :safe_action,
+    :trace_id,
+    :causation_id,
+    :canonical_idempotency_key,
+    :idempotency_key,
+    :tenant_ref,
+    :actor_ref,
+    :authority_ref,
+    :release_manifest_ref,
+    :payload_hash,
+    :artifact_ref,
+    :schema_hash,
+    :overflow_counter_ref,
+    :dropped_count,
+    :suppressed_count,
+    :sampled_count,
+    :truncated_count,
+    :redaction_policy_ref
+  ]
+
+  @raw_log_field_blocklist [
+    :raw_prompt,
+    :prompt_body,
+    :provider_request_body,
+    :provider_response_body,
+    :tenant_secret,
+    :raw_webhook_body,
+    :stdout,
+    :stderr,
+    :full_stdout,
+    :full_stderr,
+    :payload,
+    :payload_map,
+    :arbitrary_payload_map,
+    :raw_payload,
+    :connector_payload,
+    :credential,
+    :secret,
+    :password,
+    :token
   ]
 
   @severity_levels [:p0, :p1, :p2, :p3]
@@ -97,6 +150,12 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
 
   @spec not_applicable_fields() :: [atom(), ...]
   def not_applicable_fields, do: @not_applicable_fields
+
+  @spec safe_log_field_allowlist() :: [atom(), ...]
+  def safe_log_field_allowlist, do: @safe_log_field_allowlist
+
+  @spec raw_log_field_blocklist() :: [atom(), ...]
+  def raw_log_field_blocklist, do: @raw_log_field_blocklist
 
   @spec profiles() :: %{required(atom()) => t()}
   def profiles, do: Map.new(@touched_seams, &{&1, profile!(&1)})
@@ -168,6 +227,26 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
       |> not_applicable_evidence_for(dimension)
       |> complete_not_applicable_evidence?()
     end)
+  end
+
+  @spec safe_log_field_allowed?(atom()) :: boolean()
+  def safe_log_field_allowed?(field),
+    do: field in @safe_log_field_allowlist and not raw_log_field_blocked?(field)
+
+  @spec raw_log_field_blocked?(atom()) :: boolean()
+  def raw_log_field_blocked?(field), do: field in @raw_log_field_blocklist
+
+  @spec validate_log_fields([atom()]) ::
+          :ok | {:error, {:blocked_log_fields | :unknown_log_fields, [atom()]}}
+  def validate_log_fields(fields) when is_list(fields) do
+    blocked = Enum.filter(fields, &raw_log_field_blocked?/1)
+    unknown = Enum.reject(fields, &safe_log_field_allowed?/1)
+
+    cond do
+      blocked != [] -> {:error, {:blocked_log_fields, blocked}}
+      unknown != [] -> {:error, {:unknown_log_fields, unknown}}
+      true -> :ok
+    end
   end
 
   defp default_attrs(:signal_ingress_lineage) do
@@ -273,6 +352,8 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
         contract_version: @contract_version,
         touched_seam: seam,
         redaction_policy_ref: "citadel.redaction.refs_only.v1",
+        log_field_allowlist: @safe_log_field_allowlist,
+        log_field_blocklist: @raw_log_field_blocklist,
         retention_ref: "phase5.observability_evidence.retention.v1",
         sampling_policy_ref: "success=100/min;debug=drop;protected=always",
         not_applicable_reason: nil,
@@ -284,8 +365,13 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
 
   defp build!(attrs) do
     attrs = AttrMap.normalize!(attrs, @contract_name)
+    log_field_allowlist = required_atom_list!(attrs, :log_field_allowlist)
+    log_field_blocklist = required_atom_list!(attrs, :log_field_blocklist)
     severity_mapping = severity_mapping!(attrs)
     not_applicable_reason = not_applicable_reason!(attrs)
+
+    ensure_required_log_blocklist!(log_field_blocklist)
+    ensure_disjoint!(:log_field_allowlist, log_field_allowlist, log_field_blocklist)
 
     profile = %__MODULE__{
       contract_name:
@@ -308,6 +394,8 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
       metric_ref: required_string!(attrs, :metric_ref),
       trace_ref: required_string!(attrs, :trace_ref),
       log_ref: operating_ref!(attrs, :log_ref),
+      log_field_allowlist: log_field_allowlist,
+      log_field_blocklist: log_field_blocklist,
       alert_ref: operating_ref!(attrs, :alert_ref),
       incident_runbook_ref: operating_ref!(attrs, :incident_runbook_ref),
       slo_or_error_budget_ref: operating_ref!(attrs, :slo_or_error_budget_ref),
@@ -367,6 +455,60 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
       value ->
         raise ArgumentError,
               "#{@contract_name}.severity_mapping must be a non-empty map, got: #{inspect(value)}"
+    end
+  end
+
+  defp ensure_required_log_blocklist!(values) do
+    missing = @raw_log_field_blocklist -- values
+
+    if missing != [] do
+      raise ArgumentError,
+            "#{@contract_name}.log_field_blocklist must include raw log fields: " <>
+              inspect(missing)
+    end
+  end
+
+  defp ensure_disjoint!(field, left, right) do
+    overlap =
+      left
+      |> MapSet.new()
+      |> MapSet.intersection(MapSet.new(right))
+      |> MapSet.to_list()
+
+    if overlap != [] do
+      raise ArgumentError,
+            "#{@contract_name}.#{field} overlaps with its blocklist: #{inspect(overlap)}"
+    end
+  end
+
+  defp required_atom_list!(attrs, key) do
+    attrs
+    |> AttrMap.fetch!(key, @contract_name)
+    |> atom_list!(key)
+  end
+
+  defp atom_list!(values, key) when is_list(values) and values != [] do
+    values
+    |> Enum.map(fn
+      value when is_atom(value) ->
+        value
+
+      value ->
+        raise ArgumentError, "#{@contract_name}.#{key} must contain atoms, got #{inspect(value)}"
+    end)
+    |> uniq!(key)
+  end
+
+  defp atom_list!(value, key) do
+    raise ArgumentError,
+          "#{@contract_name}.#{key} must be a non-empty atom list, got #{inspect(value)}"
+  end
+
+  defp uniq!(values, key) do
+    if Enum.uniq(values) == values do
+      values
+    else
+      raise ArgumentError, "#{@contract_name}.#{key} must not contain duplicate values"
     end
   end
 
