@@ -54,6 +54,11 @@ defmodule Citadel.ObservabilityContract.Telemetry do
       measurements: [:duration_ms],
       metadata: []
     },
+    signal_ingress_admission_rejection: %{
+      event_name: [:citadel, :signal_ingress, :admission, :rejection],
+      measurements: [:queue_depth, :tenant_scope_in_flight, :retry_after_ms],
+      metadata: [:reason_code, :delivery_order_scope]
+    },
     trace_buffer_depth: %{
       event_name: [:citadel, :trace, :buffer, :depth],
       measurements: [:depth, :protected_depth, :regular_depth],
