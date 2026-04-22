@@ -83,6 +83,19 @@ defmodule Citadel.Kernel.SignalIngressPartitionTest do
     assert blocked_acceptance.partition_key.tenant_id == "tenant-1"
     assert blocked_acceptance.partition_key.authority_scope == "authority-1"
     assert blocked_acceptance.partition_key.subject_ref.id == "subject-blocked"
+
+    assert blocked_acceptance.dedupe_key ==
+             {blocked_acceptance.partition_ref, "idem:v1:sig-blocked"}
+
+    assert blocked_acceptance.lineage.trace_id == "trace/sig-blocked"
+    assert blocked_acceptance.lineage.causation_id == "cause/sig-blocked"
+    assert blocked_acceptance.lineage.canonical_idempotency_key == "idem:v1:sig-blocked"
+
+    assert blocked_acceptance.lineage.source_anchor == %{
+             kind: :source_position,
+             value: "cursor/sig-blocked"
+           }
+
     assert is_pid(blocked_acceptance.partition_worker)
 
     assert_receive {:consumer_blocked, "sig-blocked", _consumer_pid}, 500
@@ -202,6 +215,54 @@ defmodule Citadel.Kernel.SignalIngressPartitionTest do
     end)
   end
 
+  test "missing minimum lineage evidence fails before enqueue" do
+    signal_ingress = start_signal_ingress(admission_policy: generous_admission_policy())
+
+    assert {:error, rejection} =
+             SignalIngress.deliver_observation(
+               signal_ingress,
+               observation("sess-missing-lineage", "sig-missing-lineage",
+                 subject_id: "subject-lineage",
+                 trace_id: nil,
+                 request_id: nil,
+                 causation_id: nil,
+                 canonical_idempotency_key: nil,
+                 signal_cursor: nil
+               )
+             )
+
+    assert rejection.reason == :missing_lineage_fields
+    assert rejection.safe_action == :reject
+    assert rejection.retry_after_ms == nil
+    refute rejection.resource_exhaustion?
+
+    assert Enum.sort(rejection.missing_fields) ==
+             Enum.sort([
+               :trace_id,
+               :causation_id,
+               :canonical_idempotency_key,
+               :source_position_or_revision
+             ])
+
+    assert SignalIngress.snapshot(signal_ingress).partition_queue_depths == %{}
+  end
+
+  test "source revision can satisfy the replay-sensitive lineage anchor" do
+    signal_ingress = start_signal_ingress(admission_policy: generous_admission_policy())
+
+    assert {:ok, acceptance} =
+             SignalIngress.deliver_observation(
+               signal_ingress,
+               observation("sess-revision", "sig-revision",
+                 subject_id: "subject-revision",
+                 signal_cursor: nil,
+                 source_revision: "revision-42"
+               )
+             )
+
+    assert acceptance.lineage.source_anchor == %{kind: :revision, value: "revision-42"}
+  end
+
   test "post-admission delivery timeout marks partition overloaded with replay evidence" do
     attach_telemetry(self(), [:signal_ingress_delivery_overload])
 
@@ -286,13 +347,23 @@ defmodule Citadel.Kernel.SignalIngressPartitionTest do
     tenant_id = Keyword.get(opts, :tenant_id, "tenant-1")
     authority_scope = Keyword.get(opts, :authority_scope, "authority-1")
     subject_id = Keyword.get(opts, :subject_id, session_id)
+    trace_id = Keyword.get(opts, :trace_id, "trace/#{signal_id}")
+    request_id = Keyword.get(opts, :request_id, "req/#{signal_id}")
+    causation_id = Keyword.get(opts, :causation_id, "cause/#{signal_id}")
+
+    canonical_idempotency_key =
+      Keyword.get(opts, :canonical_idempotency_key, "idem:v1:#{signal_id}")
+
+    signal_cursor = Keyword.get(opts, :signal_cursor, "cursor/#{signal_id}")
+    source_position = Keyword.get(opts, :source_position)
+    source_revision = Keyword.get(opts, :source_revision)
 
     RuntimeObservation.new!(%{
       observation_id: "obs/#{signal_id}",
-      request_id: "req/#{signal_id}",
+      request_id: request_id,
       session_id: session_id,
       signal_id: signal_id,
-      signal_cursor: "cursor/#{signal_id}",
+      signal_cursor: signal_cursor,
       runtime_ref_id: "runtime/#{session_id}",
       event_kind: "host_signal",
       event_at: DateTime.utc_now(),
@@ -307,6 +378,11 @@ defmodule Citadel.Kernel.SignalIngressPartitionTest do
         %{}
         |> maybe_put("tenant_id", tenant_id)
         |> maybe_put("authority_scope", authority_scope)
+        |> maybe_put("trace_id", trace_id)
+        |> maybe_put("causation_id", causation_id)
+        |> maybe_put("canonical_idempotency_key", canonical_idempotency_key)
+        |> maybe_put("source_position", source_position)
+        |> maybe_put("source_revision", source_revision)
     })
   end
 

@@ -344,6 +344,8 @@ defmodule Citadel.Kernel.SignalIngress do
 
   defp admit_observation(state, %RuntimeObservation{} = observation) do
     with {:ok, partition} <- partition_for_observation(observation, state.admission_policy),
+         {:ok, partition} <-
+           require_ingress_lineage(observation, partition, state.admission_policy),
          {:ok, state} <- reject_if_partition_overloaded(state, partition),
          {:ok, state} <- ensure_partition_capacity(state, partition),
          {:ok, state, bucket} <- reserve_partition_token(state, partition),
@@ -377,6 +379,9 @@ defmodule Citadel.Kernel.SignalIngress do
       {:ok, acceptance_evidence(accepted_ref, partition, partition_worker, bucket, state), state}
     else
       {:error, %{reason: :missing_partition_key_fields} = rejection} ->
+        {:error, rejection, state}
+
+      {:error, %{reason: :missing_lineage_fields} = rejection} ->
         {:error, rejection, state}
 
       {:error, rejection, state} ->
@@ -515,6 +520,68 @@ defmodule Citadel.Kernel.SignalIngress do
            [:subject_ref_or_boundary_session_id],
            admission_policy
          )}
+    end
+  end
+
+  defp require_ingress_lineage(
+         %RuntimeObservation{} = observation,
+         partition,
+         admission_policy
+       ) do
+    case lineage_for_observation(observation) do
+      {:ok, lineage} ->
+        {:ok, Map.put(partition, :lineage, lineage)}
+
+      {:error, missing_fields} ->
+        {:error, missing_lineage_fields_rejection(missing_fields, admission_policy)}
+    end
+  end
+
+  defp lineage_for_observation(%RuntimeObservation{} = observation) do
+    trace_id = field_value(observation, "trace_id")
+
+    causation_id =
+      field_value(observation, "causation_id") || present_string(observation.request_id)
+
+    canonical_idempotency_key =
+      field_value(observation, "canonical_idempotency_key") ||
+        field_value(observation, "idempotency_key")
+
+    source_anchor = source_anchor(observation)
+
+    missing_fields =
+      []
+      |> maybe_missing(:trace_id, trace_id)
+      |> maybe_missing(:causation_id, causation_id)
+      |> maybe_missing(:canonical_idempotency_key, canonical_idempotency_key)
+      |> maybe_missing(:source_position_or_revision, Map.get(source_anchor, :value))
+
+    if missing_fields == [] do
+      {:ok,
+       %{
+         trace_id: trace_id,
+         causation_id: causation_id,
+         canonical_idempotency_key: canonical_idempotency_key,
+         source_anchor: source_anchor
+       }}
+    else
+      {:error, Enum.reverse(missing_fields)}
+    end
+  end
+
+  defp source_anchor(%RuntimeObservation{} = observation) do
+    source_position =
+      field_value(observation, "source_position") ||
+        present_string(observation.signal_cursor)
+
+    source_revision =
+      field_value(observation, "source_revision") ||
+        field_value(observation, "revision")
+
+    cond do
+      present_string?(source_position) -> %{kind: :source_position, value: source_position}
+      present_string?(source_revision) -> %{kind: :revision, value: source_revision}
+      true -> %{kind: nil, value: nil}
     end
   end
 
@@ -683,6 +750,7 @@ defmodule Citadel.Kernel.SignalIngress do
       tenant_scope_key: partition.tenant_scope_key,
       delivery_order_scope: partition.delivery_order_scope,
       dedupe_key: partition.dedupe_key,
+      lineage: partition.lineage,
       token_bucket: %{
         capacity: state.admission_policy.bucket_capacity,
         refill_rate_per_second: state.admission_policy.refill_rate_per_second,
@@ -752,6 +820,17 @@ defmodule Citadel.Kernel.SignalIngress do
     %{
       reason: :missing_partition_key_fields,
       missing_fields: Enum.reverse(missing_fields),
+      safe_action: :reject,
+      retry_after_ms: nil,
+      resource_exhaustion?: false,
+      delivery_order_scope: admission_policy.delivery_order_scope
+    }
+  end
+
+  defp missing_lineage_fields_rejection(missing_fields, admission_policy) do
+    %{
+      reason: :missing_lineage_fields,
+      missing_fields: missing_fields,
       safe_action: :reject,
       retry_after_ms: nil,
       resource_exhaustion?: false,
@@ -1298,7 +1377,8 @@ defmodule Citadel.Kernel.SignalIngress do
   end
 
   defp dedupe_component(%RuntimeObservation{} = observation) do
-    field_value(observation, "idempotency_key") ||
+    field_value(observation, "canonical_idempotency_key") ||
+      field_value(observation, "idempotency_key") ||
       field_value(observation, "causation_id") ||
       observation.signal_id
   end

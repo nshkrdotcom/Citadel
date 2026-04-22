@@ -51,7 +51,13 @@ defmodule Citadel.Kernel.ObservationSignalSourceTest do
       subject_ref: %{kind: :run, id: session_id, metadata: %{}},
       evidence_refs: [],
       governance_refs: [],
-      extensions: %{"tenant_id" => "tenant-1", "authority_scope" => "authority-1"}
+      extensions: %{
+        "tenant_id" => "tenant-1",
+        "authority_scope" => "authority-1",
+        "trace_id" => "trace/#{signal_id}",
+        "causation_id" => "cause/#{signal_id}",
+        "canonical_idempotency_key" => "idem:v1:#{signal_id}"
+      }
     })
   end
 
