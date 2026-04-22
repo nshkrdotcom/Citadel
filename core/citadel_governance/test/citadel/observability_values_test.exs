@@ -4,6 +4,7 @@ defmodule Citadel.ObservabilityValuesTest do
   alias Citadel.BridgeCircuit
   alias Citadel.BridgeCircuitPolicy
   alias Citadel.MemoryRecord
+  alias Citadel.ObservabilityContract.CardinalityBounds
   alias Citadel.RuntimeObservation
   alias Citadel.ScopeRef
   alias Citadel.TraceEnvelope
@@ -123,32 +124,101 @@ defmodule Citadel.ObservabilityValuesTest do
       })
     end
 
-    assert_raise ArgumentError, ~r/prohibited payload key/, fn ->
-      TraceEnvelope.new!(%{
-        trace_envelope_id: "trace-env-2",
-        record_kind: :event,
-        family: "session_attached",
-        name: "citadel.session.attached",
-        phase: "post_commit",
-        trace_id: "trace-1",
-        tenant_id: "tenant-1",
-        session_id: "sess-1",
-        request_id: "req-1",
-        decision_id: nil,
-        snapshot_seq: 1,
-        signal_id: nil,
-        outbox_entry_id: nil,
-        boundary_ref: nil,
-        span_id: nil,
-        parent_span_id: nil,
-        occurred_at: ~U[2026-04-10 10:00:00Z],
-        started_at: nil,
-        finished_at: nil,
-        status: "ok",
-        attributes: %{"raw_text" => "open the repo"},
-        extensions: %{}
-      })
-    end
+    envelope =
+      TraceEnvelope.new!(
+        trace_envelope_attrs("trace-env-2",
+          attributes: %{"raw_text" => "open the repo"},
+          extensions: %{}
+        )
+      )
+
+    refute Map.has_key?(envelope.attributes, "raw_text")
+    refute inspect(envelope.attributes) =~ "open the repo"
+
+    assert %{
+             "artifact_kind" => "trace_attribute_overflow_summary",
+             "overflow_reasons" => ["raw_payload_field"],
+             "spillover_count" => 1
+           } = Map.fetch!(envelope.attributes, TraceEnvelope.trace_attribute_overflow_key())
+  end
+
+  test "trace envelope spills oversized values and bounds collection shape" do
+    profile = CardinalityBounds.profile!(:trace_event)
+
+    envelope =
+      TraceEnvelope.new!(
+        trace_envelope_attrs("trace-env-spill",
+          attributes: %{
+            "safe_detail" => String.duplicate("x", profile.max_attribute_value_bytes + 1),
+            "raw_webhook_body" => %{"secret" => "do not inline"},
+            "wide_list" => Enum.to_list(1..(profile.max_collection_items + 1)),
+            "deep_map" => deep_trace_map(profile.max_map_depth + 1)
+          },
+          extensions: %{
+            "canonical_idempotency_key" => "idem:v1:session-attached",
+            "provider_response" => %{"body" => "do not inline"}
+          }
+        )
+      )
+
+    assert %{"artifact_kind" => "trace_attribute_spillover", "overflow_reason" => "value_bytes"} =
+             envelope.attributes["safe_detail"]
+
+    assert %{
+             "artifact_kind" => "trace_attribute_spillover",
+             "overflow_reason" => "collection_size"
+           } = envelope.attributes["wide_list"]
+
+    assert %{"artifact_kind" => "trace_attribute_spillover", "overflow_reason" => "map_depth"} =
+             get_in(envelope.attributes, ["deep_map", "child", "child", "child", "child"])
+
+    refute Map.has_key?(envelope.attributes, "raw_webhook_body")
+    refute inspect(envelope.attributes) =~ "do not inline"
+
+    assert %{"overflow_reasons" => ["raw_payload_field"], "spillover_count" => 1} =
+             Map.fetch!(envelope.attributes, TraceEnvelope.trace_attribute_overflow_key())
+
+    assert envelope.extensions["canonical_idempotency_key"] == "idem:v1:session-attached"
+    refute Map.has_key?(envelope.extensions, "provider_response")
+
+    assert %{"overflow_reasons" => ["raw_payload_field"], "spillover_count" => 1} =
+             Map.fetch!(envelope.extensions, TraceEnvelope.trace_extension_overflow_key())
+  end
+
+  test "trace envelope caps top-level attribute count and oversized keys" do
+    profile = CardinalityBounds.profile!(:trace_event)
+
+    oversized_key = String.duplicate("k", profile.max_attribute_key_bytes + 1)
+
+    attributes =
+      Enum.into(
+        1..(profile.max_attributes_per_span + 8),
+        %{oversized_key => "hidden"},
+        fn index ->
+          {"z_attr_#{index}", index}
+        end
+      )
+
+    envelope =
+      TraceEnvelope.new!(
+        trace_envelope_attrs("trace-env-count",
+          attributes: attributes,
+          extensions: %{}
+        )
+      )
+
+    assert map_size(envelope.attributes) == profile.max_attributes_per_span
+    refute Map.has_key?(envelope.attributes, oversized_key)
+
+    assert %{
+             "artifact_kind" => "trace_attribute_overflow_summary",
+             "overflow_reasons" => reasons,
+             "spillover_count" => spillover_count
+           } = Map.fetch!(envelope.attributes, TraceEnvelope.trace_attribute_overflow_key())
+
+    assert "attribute_count" in reasons
+    assert "key_bytes" in reasons
+    assert spillover_count > 0
   end
 
   test "required minimum families remain event-shaped while spans stay additive" do
@@ -264,4 +334,36 @@ defmodule Citadel.ObservabilityValuesTest do
     assert record.memory_id == "memory-1"
     assert record.metadata["advisory"] == true
   end
+
+  defp trace_envelope_attrs(trace_envelope_id, overrides) do
+    %{
+      trace_envelope_id: trace_envelope_id,
+      record_kind: :event,
+      family: "session_attached",
+      name: "citadel.session.attached",
+      phase: "post_commit",
+      trace_id: "trace-1",
+      tenant_id: "tenant-1",
+      session_id: "sess-1",
+      request_id: "req-1",
+      decision_id: nil,
+      snapshot_seq: 1,
+      signal_id: nil,
+      outbox_entry_id: nil,
+      boundary_ref: nil,
+      span_id: nil,
+      parent_span_id: nil,
+      occurred_at: ~U[2026-04-10 10:00:00Z],
+      started_at: nil,
+      finished_at: nil,
+      status: "ok",
+      attributes: %{},
+      extensions: %{}
+    }
+    |> Map.merge(Map.new(overrides))
+  end
+
+  defp deep_trace_map(depth), do: deep_trace_map(depth, %{"leaf" => "value"})
+  defp deep_trace_map(0, value), do: value
+  defp deep_trace_map(depth, value), do: %{"child" => deep_trace_map(depth - 1, value)}
 end

@@ -44,12 +44,17 @@ defmodule Citadel.TraceBridge.AITraceAdapter do
         name: "citadel.event",
         start_wall_time: envelope.occurred_at,
         end_wall_time: envelope.occurred_at,
-        attributes: %{
-          family: envelope.family,
-          phase: envelope.phase,
-          record_kind: "event"
-        },
-        events: [event]
+        attributes:
+          TraceEnvelope.bound_trace_attributes!(
+            %{
+              "family" => envelope.family,
+              "phase" => envelope.phase,
+              "record_kind" => "event"
+            },
+            :trace_span,
+            label: "Citadel.TraceBridge.synthetic_event_span.attributes"
+          ),
+        events: bounded_span_events([event])
       )
 
     imported_trace(envelope, envelope.occurred_at, [synthetic_span])
@@ -140,40 +145,57 @@ defmodule Citadel.TraceBridge.AITraceAdapter do
   end
 
   defp event_attributes(%TraceEnvelope{} = envelope) do
-    %{
-      family: envelope.family,
-      phase: envelope.phase,
-      status: envelope.status,
-      tenant_id: envelope.tenant_id,
-      session_id: envelope.session_id,
-      request_id: envelope.request_id,
-      decision_id: envelope.decision_id,
-      snapshot_seq: envelope.snapshot_seq,
-      signal_id: envelope.signal_id,
-      outbox_entry_id: envelope.outbox_entry_id,
-      boundary_ref: envelope.boundary_ref
-    }
-    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
-    |> Map.new()
-    |> Map.merge(envelope.attributes)
+    base =
+      %{
+        "family" => envelope.family,
+        "phase" => envelope.phase,
+        "status" => envelope.status,
+        "tenant_id" => envelope.tenant_id,
+        "session_id" => envelope.session_id,
+        "request_id" => envelope.request_id,
+        "decision_id" => envelope.decision_id,
+        "snapshot_seq" => envelope.snapshot_seq,
+        "signal_id" => envelope.signal_id,
+        "outbox_entry_id" => envelope.outbox_entry_id,
+        "boundary_ref" => envelope.boundary_ref
+      }
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+      |> Map.new()
+
+    envelope.attributes
+    |> Map.merge(base)
+    |> TraceEnvelope.bound_trace_attributes!(:trace_event,
+      label: "Citadel.TraceBridge.event.attributes"
+    )
   end
 
   defp span_attributes(%TraceEnvelope{} = envelope) do
-    %{
-      family: envelope.family,
-      phase: envelope.phase,
-      tenant_id: envelope.tenant_id,
-      session_id: envelope.session_id,
-      request_id: envelope.request_id,
-      decision_id: envelope.decision_id,
-      snapshot_seq: envelope.snapshot_seq,
-      signal_id: envelope.signal_id,
-      outbox_entry_id: envelope.outbox_entry_id,
-      boundary_ref: envelope.boundary_ref
-    }
-    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
-    |> Map.new()
-    |> Map.merge(envelope.attributes)
+    base =
+      %{
+        "family" => envelope.family,
+        "phase" => envelope.phase,
+        "tenant_id" => envelope.tenant_id,
+        "session_id" => envelope.session_id,
+        "request_id" => envelope.request_id,
+        "decision_id" => envelope.decision_id,
+        "snapshot_seq" => envelope.snapshot_seq,
+        "signal_id" => envelope.signal_id,
+        "outbox_entry_id" => envelope.outbox_entry_id,
+        "boundary_ref" => envelope.boundary_ref
+      }
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+      |> Map.new()
+
+    envelope.attributes
+    |> Map.merge(base)
+    |> TraceEnvelope.bound_trace_attributes!(:trace_span,
+      label: "Citadel.TraceBridge.span.attributes"
+    )
+  end
+
+  defp bounded_span_events(events) when is_list(events) do
+    profile = Citadel.ObservabilityContract.CardinalityBounds.profile!(:trace_event)
+    Enum.take(events, profile.max_events_per_span)
   end
 
   defp parent_span_id_source(nil), do: nil

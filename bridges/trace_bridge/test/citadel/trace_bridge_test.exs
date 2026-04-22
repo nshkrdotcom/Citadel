@@ -2,6 +2,7 @@ defmodule Citadel.TraceBridgeTest do
   use ExUnit.Case, async: true
 
   alias AITrace.Span
+  alias Citadel.ObservabilityContract.CardinalityBounds
   alias Citadel.TraceBridge
   alias Citadel.TraceEnvelope
 
@@ -133,6 +134,59 @@ defmodule Citadel.TraceBridgeTest do
     assert trace.metadata.aitrace_context.trace_id == "trace-2"
     assert trace.metadata.aitrace_context.span_id == "span-1"
     assert trace.metadata.platform_envelope_field_map.span_id == "AITrace.Context.span_id"
+  end
+
+  test "bounds AITrace event attributes after adding correlation fields" do
+    profile = CardinalityBounds.profile!(:trace_event)
+
+    user_attributes =
+      Enum.into(1..profile.max_attributes_per_span, %{}, fn index ->
+        {"z_user_attr_#{index}", index}
+      end)
+
+    envelope =
+      TraceEnvelope.new!(%{
+        trace_envelope_id: "env-cardinality",
+        record_kind: :event,
+        family: "session_attached",
+        name: "citadel.session.attached",
+        phase: "post_commit",
+        trace_id: "trace-cardinality",
+        tenant_id: "tenant-1",
+        session_id: "sess-1",
+        request_id: "req-1",
+        decision_id: "dec-1",
+        snapshot_seq: 1,
+        signal_id: "sig-1",
+        outbox_entry_id: "outbox-1",
+        boundary_ref: "boundary-ref-1",
+        span_id: nil,
+        parent_span_id: nil,
+        occurred_at: ~U[2026-04-10 10:00:00Z],
+        started_at: nil,
+        finished_at: nil,
+        status: "ok",
+        attributes: user_attributes,
+        extensions: %{}
+      })
+
+    assert :ok = TraceBridge.publish_trace(envelope)
+    assert_receive {:exported_trace, trace}
+
+    assert [%Span{events: [event]}] = trace.spans
+    assert map_size(event.attributes) == profile.max_attributes_per_span
+    assert event.attributes["family"] == "session_attached"
+    assert event.attributes["request_id"] == "req-1"
+    assert event.attributes["tenant_id"] == "tenant-1"
+
+    assert %{
+             "artifact_kind" => "trace_attribute_overflow_summary",
+             "overflow_reasons" => overflow_reasons,
+             "spillover_count" => spillover_count
+           } = Map.fetch!(event.attributes, TraceEnvelope.trace_attribute_overflow_key())
+
+    assert "attribute_count" in overflow_reasons
+    assert spillover_count > 0
   end
 
   test "returns stable invalid_envelope errors for malformed payloads" do
