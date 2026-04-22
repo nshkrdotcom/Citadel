@@ -123,7 +123,7 @@ defmodule Citadel.ObservabilityContract.CardinalityBoundsTest do
     end
   end
 
-  test "profiles fail closed on missing bounds or unsafe label policy" do
+  test "profiles fail closed on missing bounds or unsafe label and sampling policy" do
     base = CardinalityBounds.profile!(:metric) |> CardinalityBounds.dump()
 
     assert {:error, %ArgumentError{message: message}} =
@@ -139,6 +139,27 @@ defmodule Citadel.ObservabilityContract.CardinalityBoundsTest do
              |> CardinalityBounds.new()
 
     assert message =~ "metric_label_allowlist overlaps with its blocklist"
+
+    assert {:error, %ArgumentError{message: message}} =
+             base
+             |> Map.delete(:sample_policy)
+             |> CardinalityBounds.new()
+
+    assert message =~ "missing required field"
+
+    assert {:error, %ArgumentError{message: message}} =
+             base
+             |> Map.put(:sample_policy, :unbounded_success)
+             |> CardinalityBounds.new()
+
+    assert message =~ "sample_policy"
+
+    assert {:error, %ArgumentError{message: message}} =
+             base
+             |> Map.delete(:overflow_safe_action)
+             |> CardinalityBounds.new()
+
+    assert message =~ "missing required field"
 
     assert {:error, %ArgumentError{message: message}} =
              base
