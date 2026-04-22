@@ -41,6 +41,21 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
 
   @fields [:contract_name, :contract_version, :touched_seam] ++ @profile_fields
 
+  @not_applicable_dimensions [
+    :log_ref,
+    :alert_ref,
+    :incident_runbook_ref,
+    :slo_or_error_budget_ref
+  ]
+
+  @not_applicable_fields [
+    :dimension,
+    :reason_ref,
+    :source_evidence_ref,
+    :owner,
+    :safe_action
+  ]
+
   @severity_levels [:p0, :p1, :p2, :p3]
 
   @critical_condition_families [
@@ -76,6 +91,12 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
 
   @spec critical_condition_families() :: [atom(), ...]
   def critical_condition_families, do: @critical_condition_families
+
+  @spec not_applicable_dimensions() :: [atom(), ...]
+  def not_applicable_dimensions, do: @not_applicable_dimensions
+
+  @spec not_applicable_fields() :: [atom(), ...]
+  def not_applicable_fields, do: @not_applicable_fields
 
   @spec profiles() :: %{required(atom()) => t()}
   def profiles, do: Map.new(@touched_seams, &{&1, profile!(&1)})
@@ -123,7 +144,30 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
 
   @spec alert_route_complete?(t()) :: boolean()
   def alert_route_complete?(%__MODULE__{} = profile) do
-    required_route_refs_present?(profile) and critical_severity_mapping?(profile.severity_mapping)
+    dropped_or_suppressed_count_present?(profile) and
+      not metrics_or_traces_only?(profile) and
+      critical_severity_mapping?(profile.severity_mapping) and
+      not_applicable_evidence_complete?(profile)
+  end
+
+  @spec missing_operating_dimensions(t()) :: [atom()]
+  def missing_operating_dimensions(%__MODULE__{} = profile) do
+    Enum.reject(@not_applicable_dimensions, fn dimension ->
+      profile
+      |> Map.fetch!(dimension)
+      |> non_empty_string?()
+    end)
+  end
+
+  @spec not_applicable_evidence_complete?(t()) :: boolean()
+  def not_applicable_evidence_complete?(%__MODULE__{} = profile) do
+    missing = missing_operating_dimensions(profile)
+
+    Enum.all?(missing, fn dimension ->
+      profile.not_applicable_reason
+      |> not_applicable_evidence_for(dimension)
+      |> complete_not_applicable_evidence?()
+    end)
   end
 
   defp default_attrs(:signal_ingress_lineage) do
@@ -241,6 +285,7 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
   defp build!(attrs) do
     attrs = AttrMap.normalize!(attrs, @contract_name)
     severity_mapping = severity_mapping!(attrs)
+    not_applicable_reason = not_applicable_reason!(attrs)
 
     profile = %__MODULE__{
       contract_name:
@@ -262,17 +307,17 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
       event_or_log_name: required_string!(attrs, :event_or_log_name),
       metric_ref: required_string!(attrs, :metric_ref),
       trace_ref: required_string!(attrs, :trace_ref),
-      log_ref: required_string!(attrs, :log_ref),
-      alert_ref: required_string!(attrs, :alert_ref),
-      incident_runbook_ref: required_string!(attrs, :incident_runbook_ref),
-      slo_or_error_budget_ref: required_string!(attrs, :slo_or_error_budget_ref),
+      log_ref: operating_ref!(attrs, :log_ref),
+      alert_ref: operating_ref!(attrs, :alert_ref),
+      incident_runbook_ref: operating_ref!(attrs, :incident_runbook_ref),
+      slo_or_error_budget_ref: operating_ref!(attrs, :slo_or_error_budget_ref),
       severity_mapping: severity_mapping,
       paging_or_triage_route: required_string!(attrs, :paging_or_triage_route),
       redaction_policy_ref: required_string!(attrs, :redaction_policy_ref),
       retention_ref: required_string!(attrs, :retention_ref),
       sampling_policy_ref: required_string!(attrs, :sampling_policy_ref),
       dropped_or_suppressed_count_ref: required_string!(attrs, :dropped_or_suppressed_count_ref),
-      not_applicable_reason: optional_string!(attrs, :not_applicable_reason),
+      not_applicable_reason: not_applicable_reason,
       release_manifest_ref: required_string!(attrs, :release_manifest_ref)
     }
 
@@ -291,22 +336,15 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
       :ok
     else
       raise ArgumentError,
-            "#{@contract_name} critical observable seams require alert, runbook, SLO/error-budget, triage route, and P0/P1/P2 severity mapping"
+            "#{@contract_name} critical observable seams require alert, runbook, SLO/error-budget, triage route, dropped/suppressed counts, P0/P1/P2 severity mapping, or source-backed not-applicable evidence"
     end
   end
 
-  defp required_route_refs_present?(%__MODULE__{} = profile) do
-    Enum.all?(
-      [
-        profile.alert_ref,
-        profile.incident_runbook_ref,
-        profile.slo_or_error_budget_ref,
-        profile.paging_or_triage_route,
-        profile.dropped_or_suppressed_count_ref
-      ],
-      &non_empty_string?/1
-    )
-  end
+  defp dropped_or_suppressed_count_present?(%__MODULE__{} = profile),
+    do: non_empty_string?(profile.dropped_or_suppressed_count_ref)
+
+  defp metrics_or_traces_only?(%__MODULE__{} = profile),
+    do: Enum.sort(missing_operating_dimensions(profile)) == Enum.sort(@not_applicable_dimensions)
 
   defp critical_severity_mapping?(severity_mapping) do
     Enum.any?(severity_mapping, fn {family, severity} ->
@@ -332,12 +370,57 @@ defmodule Citadel.ObservabilityContract.OperationsPosture do
     end
   end
 
-  defp optional_string!(attrs, key) do
+  defp operating_ref!(attrs, key) do
     case AttrMap.get(attrs, key, nil) do
       nil -> nil
       value -> string!(value, key)
     end
   end
+
+  defp not_applicable_reason!(attrs) do
+    case AttrMap.get(attrs, :not_applicable_reason, nil) do
+      nil ->
+        nil
+
+      values when is_map(values) and map_size(values) > 0 ->
+        Map.new(values, fn {dimension, evidence} ->
+          dimension = enum_atom!(dimension, :not_applicable_dimension, @not_applicable_dimensions)
+          {dimension, not_applicable_evidence!(dimension, evidence)}
+        end)
+
+      value ->
+        raise ArgumentError,
+              "#{@contract_name}.not_applicable_reason must be a non-empty source-evidence map, got: #{inspect(value)}"
+    end
+  end
+
+  defp not_applicable_evidence!(dimension, evidence) when is_map(evidence) do
+    evidence = AttrMap.normalize!(evidence, @contract_name)
+
+    %{
+      dimension: dimension,
+      reason_ref: required_string!(evidence, :reason_ref),
+      source_evidence_ref: required_string!(evidence, :source_evidence_ref),
+      owner: required_string!(evidence, :owner),
+      safe_action: required_string!(evidence, :safe_action)
+    }
+  end
+
+  defp not_applicable_evidence!(dimension, evidence) do
+    raise ArgumentError,
+          "#{@contract_name}.not_applicable_reason.#{dimension} must be a source-evidence map, got: #{inspect(evidence)}"
+  end
+
+  defp not_applicable_evidence_for(nil, _dimension), do: nil
+  defp not_applicable_evidence_for(evidence, dimension), do: Map.get(evidence, dimension)
+
+  defp complete_not_applicable_evidence?(%{} = evidence) do
+    Enum.all?(@not_applicable_fields, fn field ->
+      field == :dimension or non_empty_string?(Map.get(evidence, field))
+    end)
+  end
+
+  defp complete_not_applicable_evidence?(_evidence), do: false
 
   defp required_string!(attrs, key) do
     attrs

@@ -91,6 +91,8 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
       assert is_binary(profile.slo_or_error_budget_ref)
       assert is_binary(profile.paging_or_triage_route)
       assert is_binary(profile.dropped_or_suppressed_count_ref)
+      assert OperationsPosture.missing_operating_dimensions(profile) == []
+      assert OperationsPosture.not_applicable_evidence_complete?(profile)
     end
   end
 
@@ -102,7 +104,7 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
              |> Map.delete(:log_ref)
              |> OperationsPosture.new()
 
-    assert message =~ "missing required field"
+    assert message =~ "source-backed not-applicable evidence"
 
     assert {:error, %ArgumentError{message: message}} =
              base
@@ -117,6 +119,71 @@ defmodule Citadel.ObservabilityContract.OperationsPostureTest do
              |> OperationsPosture.new()
 
     assert message =~ "missing required field"
+  end
+
+  test "source-backed not-applicable evidence can close a missing operating dimension" do
+    attrs =
+      :aitrace_file_export
+      |> OperationsPosture.profile!()
+      |> OperationsPosture.dump()
+      |> Map.put(:slo_or_error_budget_ref, nil)
+      |> Map.put(:not_applicable_reason, %{
+        slo_or_error_budget_ref: %{
+          reason_ref: "source:no-dedicated-product-slo-for-local-file-export",
+          source_evidence_ref: "AITrace/lib/aitrace/exporter/file.ex:receipt_authoritative?",
+          owner: "aitrace-runtime",
+          safe_action: "use-bounded-export-failure-visibility-runbook"
+        }
+      })
+
+    assert {:ok, profile} = OperationsPosture.new(attrs)
+    assert OperationsPosture.missing_operating_dimensions(profile) == [:slo_or_error_budget_ref]
+    assert OperationsPosture.not_applicable_evidence_complete?(profile)
+    assert OperationsPosture.alert_route_complete?(profile)
+  end
+
+  test "metrics-only or traces-only posture cannot close with not-applicable evidence" do
+    not_applicable_reason =
+      Map.new(OperationsPosture.not_applicable_dimensions(), fn dimension ->
+        {dimension,
+         %{
+           reason_ref: "source:not-applicable",
+           source_evidence_ref: "source/#{dimension}",
+           owner: "citadel-runtime",
+           safe_action: "block-closeout"
+         }}
+      end)
+
+    attrs =
+      :signal_ingress_lineage
+      |> OperationsPosture.profile!()
+      |> OperationsPosture.dump()
+      |> Map.put(:log_ref, nil)
+      |> Map.put(:alert_ref, nil)
+      |> Map.put(:incident_runbook_ref, nil)
+      |> Map.put(:slo_or_error_budget_ref, nil)
+      |> Map.put(:not_applicable_reason, not_applicable_reason)
+
+    assert {:error, %ArgumentError{message: message}} = OperationsPosture.new(attrs)
+    assert message =~ "critical observable seams require"
+  end
+
+  test "missing not-applicable source evidence fails closed" do
+    attrs =
+      :trace_publisher_output
+      |> OperationsPosture.profile!()
+      |> OperationsPosture.dump()
+      |> Map.put(:alert_ref, nil)
+      |> Map.put(:not_applicable_reason, %{
+        alert_ref: %{
+          reason_ref: "source:no-alert-needed",
+          owner: "citadel-runtime",
+          safe_action: "block-closeout"
+        }
+      })
+
+    assert {:error, %ArgumentError{message: message}} = OperationsPosture.new(attrs)
+    assert message =~ "source_evidence_ref"
   end
 
   test "profiles fail closed on unsupported severity posture" do
