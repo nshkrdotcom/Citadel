@@ -5,6 +5,10 @@ defmodule Citadel.AuthorityContract do
 
   alias Citadel.AuthorityContract.AuthorityDecision.V1, as: AuthorityDecisionV1
   alias Citadel.AuthorityContract.AuthorityPacket.V2, as: AuthorityPacketV2
+
+  alias Citadel.AuthorityContract.AuthorityTenantPropagation.V1,
+    as: AuthorityTenantPropagationV1
+
   alias Citadel.AuthorityContract.ErrorTaxonomy.V1, as: ErrorTaxonomyV1
   alias Citadel.AuthorityContract.InstallationRevisionEpoch.V1, as: InstallationRevisionEpochV1
   alias Citadel.AuthorityContract.LeaseRevocation.V1, as: LeaseRevocationV1
@@ -21,6 +25,7 @@ defmodule Citadel.AuthorityContract do
     owns: [
       :authority_decision_v1,
       :authority_packet_v2,
+      :authority_tenant_propagation_v1,
       :operator_recovery_action_v1,
       :operator_workflow_signal_authority_v1,
       :packet_versioning,
@@ -44,6 +49,9 @@ defmodule Citadel.AuthorityContract do
 
   @spec authority_packet_module() :: module()
   def authority_packet_module, do: AuthorityPacketV2
+
+  @spec authority_tenant_propagation_module() :: module()
+  def authority_tenant_propagation_module, do: AuthorityTenantPropagationV1
 
   @spec rejection_envelope_module() :: module()
   def rejection_envelope_module, do: RejectionEnvelopeV1
