@@ -13,6 +13,9 @@ Status: Phase 4 authority packet hardened.
   evidence ownership
 - platform `Platform.LeaseRevocation.v1` lease revocation evidence ownership
 - authorized `Citadel.OperatorRecoveryAction.v1` envelope ownership
+- Phase 6 `AuthorityTenantPropagation.v1` aggregate evidence ownership for
+  authority decision, tenant, budget, authorization-scope, lineage,
+  idempotency, and lower-facts propagation refs
 - required field inventory and versioning rule for authority packet successors
 - the `extensions["citadel"]` posture for Citadel-only extras
 - contract-facing fixtures and validation boundary placement
@@ -64,3 +67,13 @@ contract. It records the revoked lease ref, revocation ref, non-empty lease
 scope, cache invalidation ref, post-revocation attempt ref, and lease status so
 operators can prove revoked leases are unusable across Mezzanine, Jido
 Integration, AppKit, and Execution Plane boundaries.
+
+## Phase 6 M8 Posture
+
+`AuthorityTenantPropagation.v1` keeps the frozen `AuthorityDecision.v1` packet as
+the authority primitive and adds an aggregate evidence shape for the production
+simulation path. Evidence must carry tenant, authority decision, Mezzanine
+authorization scope, no-spend budget, lineage, causation, idempotency, and Jido
+Integration lower-facts propagation refs. Missing authority, missing budget,
+cross-tenant authorization scope, lower-facts tenant mismatch, direct lower
+shortcuts, and harness-only authority assertions fail closed.

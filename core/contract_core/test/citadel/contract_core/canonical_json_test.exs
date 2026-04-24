@@ -41,6 +41,18 @@ defmodule Citadel.ContractCore.CanonicalJsonTest do
     end
   end
 
+  test "rejects oversized inline input before JCS encoding" do
+    assert_raise ArgumentError,
+                 ~r/Packet hash input exceeds inline canonicalization byte limit/,
+                 fn ->
+                   CanonicalJson.encode_inline!(
+                     %{"payload" => String.duplicate("x", 256)},
+                     max_bytes: 128,
+                     label: "Packet hash input"
+                   )
+                 end
+  end
+
   test "rejects unsupported non-json values and generic structs" do
     assert_raise ArgumentError, ~r/unsupported non-JSON value/, fn ->
       CanonicalJson.normalize!({:tuple, 1})

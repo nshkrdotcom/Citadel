@@ -8,6 +8,8 @@ defmodule Citadel.InvocationBridgeTest do
   alias Citadel.BridgeCircuitPolicy
   alias Citadel.ExecutionGovernanceCompiler
   alias Citadel.InvocationBridge
+  alias Citadel.InvocationBridge.ExecutionIntentAdapter
+  alias Citadel.InvocationRequest, as: InvocationRequestV1
   alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
   alias Citadel.LocalAction
   alias Citadel.StalenessRequirements
@@ -112,6 +114,47 @@ defmodule Citadel.InvocationBridgeTest do
     refute_receive {:submitted, _envelope}
   end
 
+  test "defaults to v2-only invocation request schema versions" do
+    bridge = InvocationBridge.new!(downstream: Downstream)
+
+    assert InvocationBridge.supported_invocation_request_schema_versions() == [
+             InvocationRequestV2.schema_version()
+           ]
+
+    assert bridge.supported_invocation_request_schema_versions == [
+             InvocationRequestV2.schema_version()
+           ]
+  end
+
+  test "does not accept legacy invocation request structs at bridge entry" do
+    bridge = InvocationBridge.new!(downstream: Downstream)
+
+    assert_raise FunctionClauseError, fn ->
+      apply(InvocationBridge, :submit, [
+        bridge,
+        legacy_invocation_request(),
+        outbox_entry("entry-v1")
+      ])
+    end
+
+    refute_receive {:submitted, _envelope}
+  end
+
+  test "adapter carries invocation schema version and refuses legacy projections" do
+    request = invocation_request()
+    envelope = ExecutionIntentAdapter.project!(request, outbox_entry("entry-adapter"))
+
+    assert envelope.invocation_schema_version == InvocationRequestV2.schema_version()
+    assert envelope.invocation_request_id == request.invocation_request_id
+
+    assert_raise FunctionClauseError, fn ->
+      apply(ExecutionIntentAdapter, :project!, [
+        legacy_invocation_request(),
+        outbox_entry("entry-adapter-v1")
+      ])
+    end
+  end
+
   test "does not deduplicate locally by entry_id when the same request is retried" do
     state_name = unique_name(:invocation_bridge_state)
     request = invocation_request()
@@ -142,20 +185,28 @@ defmodule Citadel.InvocationBridgeTest do
     assert_receive {:submitted, _second_envelope}
   end
 
-  test "allows an explicit invocation schema transition window instead of hardcoding the current schema only" do
+  test "rejects explicit invocation schema transition windows without a migration policy" do
+    assert_raise ArgumentError,
+                 ~r/supported_invocation_request_schema_versions must match current accepted versions/,
+                 fn ->
+                   InvocationBridge.new!(
+                     downstream: Downstream,
+                     supported_invocation_request_schema_versions: [2, 3]
+                   )
+                 end
+
     bridge =
       InvocationBridge.new!(
         downstream: Downstream,
-        supported_invocation_request_schema_versions: [2, 3]
+        supported_invocation_request_schema_versions: [InvocationRequestV2.schema_version()]
       )
 
     request = %{invocation_request() | schema_version: 3}
 
-    assert {:accepted, %SubmissionAcceptance{}, _bridge} =
+    assert {:error, :unsupported_schema_version, ^bridge} =
              InvocationBridge.submit(bridge, request, outbox_entry("entry-transition"))
 
-    assert_receive {:submitted, envelope}
-    assert envelope.invocation_schema_version == 3
+    refute_receive {:submitted, _envelope}
   end
 
   test "surfaces typed lower-gateway rejections without collapsing them into transport errors" do
@@ -344,6 +395,28 @@ defmodule Citadel.InvocationBridgeTest do
           }
         }
       }
+    })
+  end
+
+  defp legacy_invocation_request do
+    request = invocation_request()
+
+    InvocationRequestV1.new!(%{
+      schema_version: InvocationRequestV1.schema_version(),
+      invocation_request_id: request.invocation_request_id,
+      request_id: request.request_id,
+      session_id: request.session_id,
+      tenant_id: request.tenant_id,
+      trace_id: request.trace_id,
+      actor_id: request.actor_id,
+      target_id: request.target_id,
+      target_kind: request.target_kind,
+      selected_step_id: request.selected_step_id,
+      allowed_operations: request.allowed_operations,
+      authority_packet: request.authority_packet,
+      boundary_intent: request.boundary_intent,
+      topology_intent: request.topology_intent,
+      extensions: request.extensions
     })
   end
 

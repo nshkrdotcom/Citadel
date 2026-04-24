@@ -15,6 +15,7 @@ defmodule Citadel.AuthorityContract.AuthorityPacket.V2 do
   @contract_version "1.0.0"
   @hash_regex ~r/\A[0-9a-f]{64}\z/
   @extensions_namespaces ["citadel"]
+  @max_authority_hash_inline_bytes 1_000_000
 
   @fields [
     :contract_name,
@@ -99,6 +100,9 @@ defmodule Citadel.AuthorityContract.AuthorityPacket.V2 do
   @spec extensions_namespaces() :: [String.t()]
   def extensions_namespaces, do: @extensions_namespaces
 
+  @spec max_authority_hash_inline_bytes() :: pos_integer()
+  def max_authority_hash_inline_bytes, do: @max_authority_hash_inline_bytes
+
   @spec new(t() | map() | keyword()) :: {:ok, t()} | {:error, Exception.t()}
   def new(%__MODULE__{} = packet), do: normalize(packet)
 
@@ -139,7 +143,10 @@ defmodule Citadel.AuthorityContract.AuthorityPacket.V2 do
   def canonical_payload!(packet_or_payload) do
     packet_or_payload
     |> hash_payload()
-    |> CanonicalJson.encode!()
+    |> CanonicalJson.encode_inline!(
+      max_bytes: @max_authority_hash_inline_bytes,
+      label: "AuthorityPacketV2 hash input"
+    )
   end
 
   @spec authority_hash!(t() | map() | keyword()) :: String.t()

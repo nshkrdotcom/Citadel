@@ -29,6 +29,7 @@
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/authority_decision/v1.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/authority_packet/v2.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/authority_tenant_propagation/v1.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/error_taxonomy/v1.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/installation_revision_epoch/v1.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/authority_contract/lib/citadel/authority_contract/lease_revocation/v1.ex",
@@ -93,9 +94,10 @@
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_contracts/lib/jido/integration/v2/submission_acceptance.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_contracts/lib/jido/integration/v2/submission_identity.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_contracts/lib/jido/integration/v2/submission_rejection.ex",
-      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/jido_integration_contracts/lib/jido/integration/v2/support.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract/audit_hash_chain/v1.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract/cardinality_bounds.ex",
+      "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract/operations_posture.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract/telemetry.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/observability_contract/lib/citadel/observability_contract/trace.ex",
       "/home/home/p/g/n/citadel/dist/hex/citadel/components/core/policy_packs/lib/citadel/policy_packs.ex",
@@ -147,57 +149,25 @@
       "mix.exs",
       "projection.lock.json"
     ],
-    "git_revision": "d9ee1a7f5db4b3e9ce25c72625fe2e938e3a9663",
-    "tree_digest": "571d2a7a0ad5cfb59814b846377ac95426ccb936230581485217b1a621ac36b6"
+    "git_revision": "a2d69b75468d33f80c2415cb389fca058a7688b5",
+    "tree_digest": "e8813121dd68b5d8c0c5b85fdc9b6088065d893938b626efb07803af9699abe4"
   },
   "manifest": {
     "path": "/home/home/p/g/n/citadel/packaging/weld/citadel.exs",
     "digest": "50257e2b932ffa7d4300ec0ddc0e034d8cf81a10fcaf5b6736b2e6e90c499cd4"
   },
-  "verification": [
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "deps.get"
-    },
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "deps.compile"
-    },
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "compile --warnings-as-errors --no-compile-deps"
-    },
-    {
-      "env": "test",
-      "status": "ok",
-      "task": "test",
-      "failure_count": 0,
-      "test_count": 2
-    },
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "docs --warnings-as-errors"
-    },
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "hex.build"
-    },
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "hex.publish --dry-run --yes"
+  "artifact": {
+    "id": "citadel",
+    "package": {
+      "name": "citadel",
+      "version": "0.1.0",
+      "otp_app": "citadel"
     }
-  ],
+  },
   "workspace": {
     "root": "/home/home/p/g/n/citadel",
     "discovery": {
       "source": "manifest",
-      "adapter": null,
       "project_ids": [
         ".",
         "apps/coding_assist",
@@ -222,6 +192,7 @@
         "core/policy_packs",
         "surfaces/citadel_domain_surface"
       ],
+      "adapter": null,
       "globs": [
         ".",
         "apps/*",
@@ -232,14 +203,6 @@
       "root_project?": true
     },
     "project_count": 22
-  },
-  "artifact": {
-    "id": "citadel",
-    "package": {
-      "name": "citadel",
-      "version": "0.1.0",
-      "otp_app": "citadel"
-    }
   },
   "graph": {
     "edges": [
@@ -902,5 +865,44 @@
       "core/policy_packs"
     ],
     "violations": []
-  }
+  },
+  "verification": [
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.get"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.compile"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "compile --warnings-as-errors --no-compile-deps"
+    },
+    {
+      "env": "test",
+      "status": "ok",
+      "task": "test",
+      "failure_count": 0,
+      "test_count": 2
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "docs --warnings-as-errors"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "hex.build"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "hex.publish --dry-run --yes"
+    }
+  ]
 }

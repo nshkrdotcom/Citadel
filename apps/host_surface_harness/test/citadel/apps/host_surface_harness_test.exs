@@ -64,7 +64,14 @@ defmodule Citadel.Apps.HostSurfaceHarnessTest do
          subject_ref: %{kind: :run, id: session_id, metadata: %{}},
          evidence_refs: [],
          governance_refs: [],
-         extensions: %{}
+         extensions: %{
+           "tenant_id" => Map.get(payload, "tenant_id", "tenant-1"),
+           "authority_scope" => Map.get(payload, "authority_scope", "authority-1"),
+           "trace_id" => Map.get(payload, "trace_id", "trace/#{signal_id}"),
+           "causation_id" => Map.get(payload, "causation_id", "cause/#{signal_id}"),
+           "canonical_idempotency_key" =>
+             Map.get(payload, "canonical_idempotency_key", "idem:v1:#{signal_id}")
+         }
        })}
     end
 

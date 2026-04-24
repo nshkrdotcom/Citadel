@@ -310,7 +310,8 @@ defmodule Citadel.TraceEnvelope do
   Canonical Citadel-owned trace publication value.
   """
 
-  alias Citadel.ContractCore.Value
+  alias Citadel.ContractCore.{CanonicalJson, Value}
+  alias Citadel.ObservabilityContract.CardinalityBounds
   alias Citadel.ObservabilityContract.Trace, as: TraceContract
 
   @schema [
@@ -340,10 +341,21 @@ defmodule Citadel.TraceEnvelope do
   @fields Keyword.keys(@schema)
   @max_attribute_entries 32
   @max_extension_entries 16
-  @max_string_length 512
-  @max_list_length 20
-  @max_nesting_depth 4
+  @attribute_overflow_key "citadel.trace_attribute_overflow"
+  @extension_overflow_key "citadel.trace_extension_overflow"
+  @priority_payload_keys [
+    "canonical_idempotency_key",
+    "idempotency_key",
+    "release_manifest_ref",
+    "evidence_owner_ref",
+    "platform_envelope_id"
+  ]
   @banned_payload_fragments [
+    "raw_payload",
+    "payload_body",
+    "provider_request",
+    "provider_response",
+    "raw_webhook",
     "raw_nl",
     "raw_text",
     "raw_input",
@@ -614,21 +626,9 @@ defmodule Citadel.TraceEnvelope do
         end)
     }
 
-    validate_trace_shape!(envelope)
-
-    validate_payload_map!(
-      envelope.attributes,
-      "Citadel.TraceEnvelope.attributes",
-      @max_attribute_entries
-    )
-
-    validate_payload_map!(
-      envelope.extensions,
-      "Citadel.TraceEnvelope.extensions",
-      @max_extension_entries
-    )
-
     envelope
+    |> validate_trace_shape!()
+    |> bound_trace_payloads!()
   end
 
   def dump(%__MODULE__{} = envelope) do
@@ -663,6 +663,24 @@ defmodule Citadel.TraceEnvelope do
 
   def protected_error_family?(%__MODULE__{} = envelope),
     do: family_classification(envelope) == :protected_error
+
+  @spec trace_attribute_overflow_key() :: String.t()
+  def trace_attribute_overflow_key, do: @attribute_overflow_key
+
+  @spec trace_extension_overflow_key() :: String.t()
+  def trace_extension_overflow_key, do: @extension_overflow_key
+
+  @spec bound_trace_attributes!(map(), atom(), keyword()) :: map()
+  def bound_trace_attributes!(attributes, surface, opts \\ []) do
+    profile = CardinalityBounds.profile!(surface)
+    label = Keyword.get(opts, :label, "Citadel.TraceEnvelope.attributes")
+    max_entries = Keyword.get(opts, :max_entries, profile.max_attributes_per_span)
+    overflow_key = Keyword.get(opts, :overflow_key, @attribute_overflow_key)
+
+    attributes
+    |> Value.json_object!(label)
+    |> bound_payload_map!(label, profile, max_entries, overflow_key)
+  end
 
   defp validate_trace_shape!(%__MODULE__{record_kind: :event} = envelope) do
     if TraceContract.required_event_family?(envelope.family) and
@@ -700,70 +718,251 @@ defmodule Citadel.TraceEnvelope do
     envelope
   end
 
-  defp validate_payload_map!(map, label, max_entries) do
-    if map_size(map) > max_entries do
-      raise ArgumentError, "#{label} exceeds the maximum entry count of #{max_entries}"
-    end
-
-    Enum.each(map, fn {key, value} ->
-      lower_key = String.downcase(key)
-
-      if Enum.any?(@banned_payload_fragments, &String.contains?(lower_key, &1)) do
-        raise ArgumentError, "#{label} contains prohibited payload key #{inspect(key)}"
-      end
-
-      validate_payload_value!(value, "#{label}.#{key}", 1)
-    end)
+  defp bound_trace_payloads!(%__MODULE__{} = envelope) do
+    %{
+      envelope
+      | attributes:
+          bound_trace_attributes!(envelope.attributes, trace_surface(envelope),
+            label: "Citadel.TraceEnvelope.attributes",
+            max_entries: @max_attribute_entries,
+            overflow_key: @attribute_overflow_key
+          ),
+        extensions:
+          bound_trace_attributes!(envelope.extensions, :trace_export,
+            label: "Citadel.TraceEnvelope.extensions",
+            max_entries: @max_extension_entries,
+            overflow_key: @extension_overflow_key
+          )
+    }
   end
 
-  defp validate_payload_value!(value, _label, _depth)
+  defp trace_surface(%__MODULE__{record_kind: :event}), do: :trace_event
+  defp trace_surface(%__MODULE__{record_kind: :span}), do: :trace_span
+
+  defp bound_payload_map!(map, label, profile, max_entries, overflow_key) do
+    max_entries = positive_entry_limit!(max_entries, label)
+
+    {kept_entries, overflow_refs} =
+      map
+      |> ordered_payload_entries()
+      |> Enum.reduce({[], []}, fn {key, value}, {kept, overflow} ->
+        case bound_payload_entry(key, value, label, profile, overflow_key) do
+          {:keep, bounded_value} -> {[{key, bounded_value} | kept], overflow}
+          {:spill, ref} -> {kept, [ref | overflow]}
+        end
+      end)
+
+    kept_entries
+    |> Enum.reverse()
+    |> finalize_bound_payload(
+      Enum.reverse(overflow_refs),
+      label,
+      profile,
+      max_entries,
+      overflow_key
+    )
+  end
+
+  defp bound_payload_entry(key, value, label, profile, overflow_key) do
+    cond do
+      key == overflow_key ->
+        {:spill, spillover_ref(label, key, value, :reserved_overflow_key, profile)}
+
+      byte_size(key) > profile.max_attribute_key_bytes ->
+        {:spill, spillover_ref(label, key, value, :key_bytes, profile)}
+
+      prohibited_trace_payload_key?(key, profile) ->
+        {:spill, spillover_ref(label, key, value, :raw_payload_field, profile)}
+
+      true ->
+        case bound_payload_value(value, "#{label}.#{key}", key, profile, 1) do
+          {:keep, bounded_value} -> {:keep, bounded_value}
+          {:spill, ref} -> {:keep, ref}
+        end
+    end
+  end
+
+  defp bound_payload_value(value, _label, _key, _profile, _depth)
        when is_nil(value) or is_boolean(value) or is_integer(value) or is_float(value),
-       do: :ok
+       do: {:keep, value}
 
-  defp validate_payload_value!(value, label, _depth) when is_binary(value) do
-    if String.length(value) > @max_string_length do
-      raise ArgumentError, "#{label} exceeds the maximum string length of #{@max_string_length}"
+  defp bound_payload_value(value, label, key, profile, _depth) when is_binary(value) do
+    if encoded_byte_size(value) > profile.max_attribute_value_bytes do
+      {:spill, spillover_ref(label, key, value, :value_bytes, profile)}
+    else
+      {:keep, value}
     end
   end
 
-  defp validate_payload_value!(value, label, depth) when is_list(value) do
-    if depth > @max_nesting_depth do
-      raise ArgumentError, "#{label} exceeds the maximum nesting depth of #{@max_nesting_depth}"
-    end
+  defp bound_payload_value(value, label, key, profile, depth) when is_list(value) do
+    cond do
+      encoded_byte_size(value) > profile.max_attribute_value_bytes ->
+        {:spill, spillover_ref(label, key, value, :value_bytes, profile)}
 
-    if length(value) > @max_list_length do
-      raise ArgumentError, "#{label} exceeds the maximum list length of #{@max_list_length}"
-    end
+      depth > profile.max_map_depth ->
+        {:spill, spillover_ref(label, key, value, :map_depth, profile)}
 
-    Enum.with_index(value)
-    |> Enum.each(fn {item, index} ->
-      validate_payload_value!(item, "#{label}[#{index}]", depth + 1)
+      length(value) > profile.max_collection_items ->
+        {:spill, spillover_ref(label, key, value, :collection_size, profile)}
+
+      true ->
+        bounded =
+          value
+          |> Enum.with_index()
+          |> Enum.map(fn {item, index} ->
+            case bound_payload_value(item, "#{label}[#{index}]", key, profile, depth + 1) do
+              {:keep, bounded_item} -> bounded_item
+              {:spill, ref} -> ref
+            end
+          end)
+
+        {:keep, bounded}
+    end
+  end
+
+  defp bound_payload_value(value, label, key, profile, depth) when is_map(value) do
+    cond do
+      encoded_byte_size(value) > profile.max_attribute_value_bytes ->
+        {:spill, spillover_ref(label, key, value, :value_bytes, profile)}
+
+      depth > profile.max_map_depth ->
+        {:spill, spillover_ref(label, key, value, :map_depth, profile)}
+
+      map_size(value) > profile.max_collection_items ->
+        {:spill, spillover_ref(label, key, value, :collection_size, profile)}
+
+      nested_payload_key_violation?(value, profile) ->
+        {:spill, spillover_ref(label, key, value, :nested_key_bounds, profile)}
+
+      true ->
+        bounded =
+          value
+          |> ordered_payload_entries()
+          |> Enum.map(fn {nested_key, nested_value} ->
+            case bound_payload_value(
+                   nested_value,
+                   "#{label}.#{nested_key}",
+                   nested_key,
+                   profile,
+                   depth + 1
+                 ) do
+              {:keep, bounded_value} -> {nested_key, bounded_value}
+              {:spill, ref} -> {nested_key, ref}
+            end
+          end)
+          |> Map.new()
+
+        {:keep, bounded}
+    end
+  end
+
+  defp finalize_bound_payload(
+         kept_entries,
+         overflow_refs,
+         label,
+         profile,
+         max_entries,
+         overflow_key
+       ) do
+    cond do
+      overflow_refs == [] and length(kept_entries) <= max_entries ->
+        Map.new(kept_entries)
+
+      true ->
+        inline_limit = max(max_entries - 1, 0)
+        {inline_entries, excess_entries} = Enum.split(kept_entries, inline_limit)
+
+        excess_refs =
+          Enum.map(excess_entries, fn {key, value} ->
+            spillover_ref(label, key, value, :attribute_count, profile)
+          end)
+
+        inline_entries
+        |> Map.new()
+        |> Map.put(
+          overflow_key,
+          overflow_summary_ref(label, overflow_refs ++ excess_refs, profile)
+        )
+    end
+  end
+
+  defp ordered_payload_entries(map) do
+    Enum.sort_by(map, fn {key, _value} ->
+      {if(key in @priority_payload_keys, do: 0, else: 1), key}
     end)
   end
 
-  defp validate_payload_value!(value, label, depth) when is_map(value) do
-    if depth > @max_nesting_depth do
-      raise ArgumentError, "#{label} exceeds the maximum nesting depth of #{@max_nesting_depth}"
-    end
-
-    if map_size(value) > @max_attribute_entries do
-      raise ArgumentError,
-            "#{label} exceeds the maximum nested map size of #{@max_attribute_entries}"
-    end
-
-    Enum.each(value, fn {key, nested_value} ->
-      lower_key = String.downcase(key)
-
-      if Enum.any?(@banned_payload_fragments, &String.contains?(lower_key, &1)) do
-        raise ArgumentError, "#{label} contains prohibited payload key #{inspect(key)}"
-      end
-
-      validate_payload_value!(nested_value, "#{label}.#{key}", depth + 1)
+  defp nested_payload_key_violation?(map, profile) do
+    Enum.any?(map, fn {key, _value} ->
+      byte_size(key) > profile.max_attribute_key_bytes or
+        prohibited_trace_payload_key?(key, profile)
     end)
   end
 
-  defp validate_payload_value!(value, label, _depth) do
-    raise ArgumentError, "#{label} contains unsupported trace payload value #{inspect(value)}"
+  defp prohibited_trace_payload_key?(key, profile) do
+    lower_key = String.downcase(key)
+    blocked_keys = Enum.map(profile.trace_attribute_blocklist, &Atom.to_string/1)
+
+    key in blocked_keys or Enum.any?(@banned_payload_fragments, &String.contains?(lower_key, &1))
+  end
+
+  defp spillover_ref(label, key, value, reason, profile) do
+    encoded =
+      CanonicalJson.encode!(%{
+        "key" => key,
+        "label" => label,
+        "reason" => reason,
+        "value" => value
+      })
+
+    digest = sha256_lower_hex(encoded)
+
+    %{
+      "artifact_ref" => "citadel://trace-spillover/#{digest}",
+      "artifact_hash" => "sha256:#{digest}",
+      "artifact_kind" => "trace_attribute_spillover",
+      "byte_size" => encoded_byte_size(value),
+      "overflow_reason" => Atom.to_string(reason),
+      "spillover_policy" => profile.spillover_artifact_policy
+    }
+  end
+
+  defp overflow_summary_ref(label, overflow_refs, profile) do
+    reasons =
+      overflow_refs
+      |> Enum.map(&Map.fetch!(&1, "overflow_reason"))
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    summary = %{
+      "label" => label,
+      "overflow_reasons" => reasons,
+      "spillover_count" => length(overflow_refs)
+    }
+
+    digest = summary |> CanonicalJson.encode!() |> sha256_lower_hex()
+
+    Map.merge(summary, %{
+      "artifact_ref" => "citadel://trace-spillover/#{digest}",
+      "artifact_hash" => "sha256:#{digest}",
+      "artifact_kind" => "trace_attribute_overflow_summary",
+      "spillover_policy" => profile.spillover_artifact_policy
+    })
+  end
+
+  defp encoded_byte_size(value), do: value |> CanonicalJson.encode!() |> byte_size()
+
+  defp sha256_lower_hex(value) when is_binary(value) do
+    :sha256
+    |> :crypto.hash(value)
+    |> Base.encode16(case: :lower)
+  end
+
+  defp positive_entry_limit!(value, _label) when is_integer(value) and value > 0, do: value
+
+  defp positive_entry_limit!(value, label) do
+    raise ArgumentError,
+          "#{label} maximum entry count must be a positive integer, got: #{inspect(value)}"
   end
 
   defp normalize_stringish!(value, _label) when is_binary(value),

@@ -29,6 +29,22 @@ defmodule Citadel.InvocationRequestV2Test do
     end
   end
 
+  test "rejects missing malformed stale and future schema versions" do
+    assert_raise ArgumentError, ~r/missing required field "schema_version"/, fn ->
+      request_attrs()
+      |> Map.delete(:schema_version)
+      |> V2.new!()
+    end
+
+    for schema_version <- [1, "2", 3] do
+      assert_raise ArgumentError, ~r/schema_version must be 2/, fn ->
+        request_attrs()
+        |> Map.put(:schema_version, schema_version)
+        |> V2.new!()
+      end
+    end
+  end
+
   defp request_attrs do
     %{
       schema_version: 2,

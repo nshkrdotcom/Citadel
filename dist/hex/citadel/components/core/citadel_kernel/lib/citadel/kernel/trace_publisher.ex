@@ -4,6 +4,8 @@ defmodule Citadel.Kernel.TracePublisher do
 
   The runtime owns the process in the default application tree and session
   startup wires it by default through `Citadel.Kernel.start_session/1`.
+  AITrace and the trace bridge remain optional backends; unavailable trace ports
+  are reported as publication failures rather than runtime crashes.
   """
 
   use GenServer
@@ -11,12 +13,165 @@ defmodule Citadel.Kernel.TracePublisher do
   alias Citadel.ObservabilityContract.Telemetry
   alias Citadel.TraceEnvelope
 
+  @unavailable_trace_backend_reason :trace_backend_unavailable
+
+  defmodule SamplingPolicy do
+    @moduledoc """
+    Admission policy for success/debug trace output.
+
+    Protected error or non-success evidence is never admitted through the
+    success/debug budget; the segmented buffer owns the bounded incident
+    evidence window for those records.
+    """
+
+    alias Citadel.ObservabilityContract.CardinalityBounds
+    alias Citadel.TraceEnvelope
+
+    @protected_statuses ~w(blocked denied error fail_closed failed failure quarantined rejected)
+    @debug_markers ~w(debug diagnostic diagnostics trace verbose)
+
+    @type admission :: :protected | :regular | :drop_debug
+    @type t :: %__MODULE__{
+            sample_policy: atom(),
+            sample_rate_or_budget: String.t(),
+            success_budget_per_minute: pos_integer(),
+            debug_action: :drop,
+            protected_action: :always
+          }
+
+    @enforce_keys [
+      :sample_policy,
+      :sample_rate_or_budget,
+      :success_budget_per_minute,
+      :debug_action,
+      :protected_action
+    ]
+    defstruct @enforce_keys
+
+    @spec new!(keyword()) :: t()
+    def new!(opts \\ []) do
+      profile = Keyword.get(opts, :profile, CardinalityBounds.profile!(:trace_event))
+      sample_policy = Keyword.get(opts, :sample_policy, profile.sample_policy)
+
+      sample_rate_or_budget =
+        Keyword.get(opts, :sample_rate_or_budget, profile.sample_rate_or_budget)
+
+      budget = parse_rate_budget!(sample_rate_or_budget)
+
+      ensure_sample_policy!(sample_policy)
+
+      %__MODULE__{
+        sample_policy: sample_policy,
+        sample_rate_or_budget: sample_rate_or_budget,
+        success_budget_per_minute: Map.fetch!(budget, :success_budget_per_minute),
+        debug_action: Map.fetch!(budget, :debug_action),
+        protected_action: Map.fetch!(budget, :protected_action)
+      }
+    end
+
+    @spec classify(t(), TraceEnvelope.t()) :: admission()
+    def classify(%__MODULE__{} = policy, %TraceEnvelope{} = envelope) do
+      cond do
+        protected_incident?(envelope) -> :protected
+        debug_output?(envelope) and policy.debug_action == :drop -> :drop_debug
+        true -> :regular
+      end
+    end
+
+    defp ensure_sample_policy!(sample_policy) do
+      if sample_policy in CardinalityBounds.sample_policies() do
+        :ok
+      else
+        raise ArgumentError,
+              "Citadel.Kernel.TracePublisher sample_policy is unsupported: " <>
+                inspect(sample_policy)
+      end
+    end
+
+    defp parse_rate_budget!(budget) when is_binary(budget) do
+      entries =
+        budget
+        |> String.split(";", trim: true)
+        |> Map.new(fn entry ->
+          case String.split(entry, "=", parts: 2) do
+            [key, value] -> {String.trim(key), String.trim(value)}
+            _other -> raise invalid_budget_error(budget)
+          end
+        end)
+
+      %{
+        success_budget_per_minute: parse_success_budget!(Map.get(entries, "success"), budget),
+        debug_action: parse_debug_action!(Map.get(entries, "debug"), budget),
+        protected_action: parse_protected_action!(Map.get(entries, "protected"), budget)
+      }
+    end
+
+    defp parse_rate_budget!(budget), do: raise(invalid_budget_error(budget))
+
+    defp parse_success_budget!(nil, budget),
+      do: raise(missing_budget_error(budget, "success=<positive>/min"))
+
+    defp parse_success_budget!(value, budget) do
+      case Regex.run(~r/\A([1-9][0-9]*)\/(?:min|minute)\z/, value) do
+        [_match, count] -> String.to_integer(count)
+        _other -> raise invalid_budget_error(budget)
+      end
+    end
+
+    defp parse_debug_action!(nil, budget), do: raise(missing_budget_error(budget, "debug=drop"))
+    defp parse_debug_action!("drop", _budget), do: :drop
+    defp parse_debug_action!(_value, budget), do: raise(invalid_budget_error(budget))
+
+    defp parse_protected_action!(nil, budget),
+      do: raise(missing_budget_error(budget, "protected=always"))
+
+    defp parse_protected_action!("always", _budget), do: :always
+    defp parse_protected_action!(_value, budget), do: raise(invalid_budget_error(budget))
+
+    defp missing_budget_error(budget, required) do
+      ArgumentError.exception(
+        "Citadel.Kernel.TracePublisher sample_rate_or_budget must include #{required}, got: " <>
+          inspect(budget)
+      )
+    end
+
+    defp invalid_budget_error(budget) do
+      ArgumentError.exception(
+        "Citadel.Kernel.TracePublisher sample_rate_or_budget must match " <>
+          "success=<positive>/min;debug=drop;protected=always, got: #{inspect(budget)}"
+      )
+    end
+
+    defp protected_incident?(%TraceEnvelope{} = envelope) do
+      TraceEnvelope.protected_error_family?(envelope) or protected_status?(envelope.status)
+    end
+
+    defp protected_status?(status) when is_binary(status) do
+      String.downcase(status) in @protected_statuses
+    end
+
+    defp protected_status?(_status), do: false
+
+    defp debug_output?(%TraceEnvelope{} = envelope) do
+      debug_marker?(envelope.status) or debug_marker?(envelope.phase)
+    end
+
+    defp debug_marker?(value) when is_binary(value) do
+      String.downcase(value) in @debug_markers
+    end
+
+    defp debug_marker?(_value), do: false
+  end
+
   defmodule Buffer do
     @moduledoc """
     Segmented bounded buffer preserving a protected error-family evidence window.
     """
 
+    alias Citadel.Kernel.TracePublisher.SamplingPolicy
     alias Citadel.TraceEnvelope
+
+    @success_window_ms 60_000
 
     @type queued_envelope :: {non_neg_integer(), TraceEnvelope.t()}
 
@@ -28,7 +183,10 @@ defmodule Citadel.Kernel.TracePublisher do
             regular_queue: :queue.queue(queued_envelope()),
             protected_len: non_neg_integer(),
             regular_len: non_neg_integer(),
-            next_seq: non_neg_integer()
+            next_seq: non_neg_integer(),
+            sampling_policy: SamplingPolicy.t(),
+            success_window_started_ms: integer() | nil,
+            success_window_count: non_neg_integer()
           }
 
     defstruct total_capacity: 0,
@@ -38,17 +196,26 @@ defmodule Citadel.Kernel.TracePublisher do
               regular_queue: :queue.new(),
               protected_len: 0,
               regular_len: 0,
-              next_seq: 0
+              next_seq: 0,
+              sampling_policy: nil,
+              success_window_started_ms: nil,
+              success_window_count: 0
 
     @spec new!(keyword()) :: t()
     def new!(opts) do
       total_capacity = Keyword.get(opts, :total_capacity, 256)
-      protected_capacity = min(Keyword.get(opts, :protected_capacity, 64), total_capacity)
-      regular_capacity = total_capacity - protected_capacity
 
       if total_capacity <= 0 do
         raise ArgumentError,
               "Citadel.Kernel.TracePublisher buffer total_capacity must be positive"
+      end
+
+      protected_capacity = min(Keyword.get(opts, :protected_capacity, 64), total_capacity)
+      regular_capacity = total_capacity - protected_capacity
+
+      if protected_capacity <= 0 do
+        raise ArgumentError,
+              "Citadel.Kernel.TracePublisher buffer protected_capacity must be positive"
       end
 
       %__MODULE__{
@@ -59,7 +226,11 @@ defmodule Citadel.Kernel.TracePublisher do
         regular_queue: :queue.new(),
         protected_len: 0,
         regular_len: 0,
-        next_seq: 0
+        next_seq: 0,
+        sampling_policy:
+          SamplingPolicy.new!(Keyword.take(opts, [:sample_policy, :sample_rate_or_budget])),
+        success_window_started_ms: nil,
+        success_window_count: 0
       }
     end
 
@@ -67,10 +238,10 @@ defmodule Citadel.Kernel.TracePublisher do
     def enqueue(%__MODULE__{} = buffer, %TraceEnvelope{} = envelope) do
       queued_envelope = {buffer.next_seq, envelope}
 
-      if TraceEnvelope.protected_error_family?(envelope) do
-        do_enqueue(buffer, queued_envelope, :protected)
-      else
-        do_enqueue(buffer, queued_envelope, :regular)
+      case SamplingPolicy.classify(buffer.sampling_policy, envelope) do
+        :protected -> do_enqueue(buffer, queued_envelope, :protected)
+        :drop_debug -> {buffer, envelope}
+        :regular -> maybe_enqueue_regular(buffer, queued_envelope)
       end
     end
 
@@ -95,6 +266,39 @@ defmodule Citadel.Kernel.TracePublisher do
       }
     end
 
+    defp maybe_enqueue_regular(%__MODULE__{} = buffer, queued_envelope) do
+      case admit_regular_success(buffer) do
+        {:admit, buffer} ->
+          do_enqueue(buffer, queued_envelope, :regular)
+
+        {:drop, buffer} ->
+          {_seq, envelope} = queued_envelope
+          {buffer, envelope}
+      end
+    end
+
+    defp admit_regular_success(%__MODULE__{} = buffer) do
+      buffer = refresh_success_window(buffer, System.monotonic_time(:millisecond))
+
+      if buffer.success_window_count >= buffer.sampling_policy.success_budget_per_minute do
+        {:drop, buffer}
+      else
+        {:admit, %{buffer | success_window_count: buffer.success_window_count + 1}}
+      end
+    end
+
+    defp refresh_success_window(%__MODULE__{success_window_started_ms: nil} = buffer, now_ms) do
+      %{buffer | success_window_started_ms: now_ms, success_window_count: 0}
+    end
+
+    defp refresh_success_window(%__MODULE__{} = buffer, now_ms) do
+      if now_ms - buffer.success_window_started_ms >= @success_window_ms do
+        %{buffer | success_window_started_ms: now_ms, success_window_count: 0}
+      else
+        buffer
+      end
+    end
+
     defp do_enqueue(%__MODULE__{} = buffer, queued_envelope, :protected) do
       {buffer, dropped} =
         if buffer.protected_len >= buffer.protected_capacity and buffer.protected_capacity > 0 do
@@ -117,26 +321,30 @@ defmodule Citadel.Kernel.TracePublisher do
     defp do_enqueue(%__MODULE__{} = buffer, queued_envelope, :regular) do
       {buffer, dropped} =
         cond do
-          buffer.regular_len >= buffer.regular_capacity and buffer.regular_capacity > 0 ->
+          buffer.regular_capacity == 0 ->
+            {_seq, dropped} = queued_envelope
+            {buffer, dropped}
+
+          buffer.regular_len >= buffer.regular_capacity ->
             {{:value, {_seq, dropped}}, queue} = :queue.out(buffer.regular_queue)
             {%{buffer | regular_queue: queue, regular_len: buffer.regular_len - 1}, dropped}
-
-          buffer.regular_capacity == 0 and buffer.protected_len > 0 ->
-            {{:value, {_seq, dropped}}, queue} = :queue.out(buffer.protected_queue)
-            {%{buffer | protected_queue: queue, protected_len: buffer.protected_len - 1}, dropped}
 
           true ->
             {buffer, nil}
         end
 
-      queue = :queue.in(queued_envelope, buffer.regular_queue)
+      if buffer.regular_capacity == 0 do
+        {buffer, dropped}
+      else
+        queue = :queue.in(queued_envelope, buffer.regular_queue)
 
-      {%{
-         buffer
-         | regular_queue: queue,
-           regular_len: buffer.regular_len + 1,
-           next_seq: buffer.next_seq + 1
-       }, dropped}
+        {%{
+           buffer
+           | regular_queue: queue,
+             regular_len: buffer.regular_len + 1,
+             next_seq: buffer.next_seq + 1
+         }, dropped}
+      end
     end
 
     defp do_take_batch(%__MODULE__{} = buffer, 0, acc), do: {Enum.reverse(acc), buffer}
@@ -217,13 +425,15 @@ defmodule Citadel.Kernel.TracePublisher do
 
   @impl true
   def init(opts) do
+    buffer_opts =
+      [
+        total_capacity: Keyword.get(opts, :buffer_capacity, 256),
+        protected_capacity: Keyword.get(opts, :protected_error_capacity, 64)
+      ] ++ Keyword.take(opts, [:sample_policy, :sample_rate_or_budget])
+
     state = %{
       trace_port: Keyword.get(opts, :trace_port, Citadel.TraceBridge),
-      buffer:
-        Buffer.new!(
-          total_capacity: Keyword.get(opts, :buffer_capacity, 256),
-          protected_capacity: Keyword.get(opts, :protected_error_capacity, 64)
-        ),
+      buffer: Buffer.new!(buffer_opts),
       batch_size: Keyword.get(opts, :batch_size, 20),
       flush_interval_ms: Keyword.get(opts, :flush_interval_ms, 10),
       drain_scheduled?: false
@@ -300,7 +510,7 @@ defmodule Citadel.Kernel.TracePublisher do
   end
 
   defp publish_batch(trace_port, [envelope]) do
-    trace_port.publish_trace(envelope)
+    publish_single(trace_port, envelope)
   end
 
   defp publish_batch(trace_port, batch) do
@@ -308,11 +518,19 @@ defmodule Citadel.Kernel.TracePublisher do
       trace_port.publish_traces(batch)
     else
       Enum.reduce_while(batch, :ok, fn envelope, :ok ->
-        case trace_port.publish_trace(envelope) do
+        case publish_single(trace_port, envelope) do
           :ok -> {:cont, :ok}
           {:error, reason} -> {:halt, {:error, reason}}
         end
       end)
+    end
+  end
+
+  defp publish_single(trace_port, envelope) do
+    if function_exported?(trace_port, :publish_trace, 1) do
+      trace_port.publish_trace(envelope)
+    else
+      {:error, @unavailable_trace_backend_reason}
     end
   end
 

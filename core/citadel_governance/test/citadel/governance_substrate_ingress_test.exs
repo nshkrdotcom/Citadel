@@ -5,7 +5,10 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
   alias Citadel.AuthorityContract.AuthorityDecision.V1, as: AuthorityDecisionV1
   alias Citadel.ExecutionGovernance.V1, as: ExecutionGovernanceV1
   alias Citadel.Governance.SubstrateIngress
+  alias Citadel.InvocationRequest
   alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
+
+  @invocation_fixture_dir Path.expand("../fixtures/invocation_request", __DIR__)
 
   test "compiles an accepted substrate packet without host session continuity" do
     assert {:ok, compiled} =
@@ -21,6 +24,7 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
 
     request = compiled.lower_intent.invocation_request
 
+    assert request.schema_version == InvocationRequestV2.schema_version()
     assert request.request_id == "execution-1"
     assert request.session_id == "substrate/execution-1"
     assert request.trace_id == "trace-substrate"
@@ -33,6 +37,13 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
     assert compiled.lower_intent.outbox_entry.action.action_kind ==
              "citadel.substrate_invocation_request.v2"
 
+    assert compiled.lower_intent.outbox_entry.action.payload["contract"] ==
+             "citadel.invocation_request.v2"
+
+    assert compiled.lower_intent.outbox_entry.action.payload["invocation_request"][
+             "schema_version"
+           ] == InvocationRequestV2.schema_version()
+
     assert compiled.audit_attrs == %{
              decision_hash: compiled.decision_hash,
              execution_id: "execution-1",
@@ -42,6 +53,22 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
              tenant_id: "tenant-1",
              trace_id: "trace-substrate"
            }
+  end
+
+  test "rejects legacy invocation request shaped input before action outbox" do
+    legacy_request =
+      "structured_request.json"
+      |> read_invocation_fixture!()
+      |> InvocationRequest.new!()
+      |> InvocationRequest.dump()
+
+    assert {:error, rejection} =
+             SubstrateIngress.compile(legacy_request, [policy_pack()])
+
+    assert rejection.class == :validation_error
+    assert rejection.terminal?
+    assert rejection.audit_attrs.fact_kind == :substrate_governance_validation_failed
+    refute Map.has_key?(rejection, :lower_intent)
   end
 
   test "classifies unplannable substrate packets with non-terminal retry metadata" do
@@ -261,5 +288,12 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
       },
       extensions: %{}
     }
+  end
+
+  defp read_invocation_fixture!(name) do
+    @invocation_fixture_dir
+    |> Path.join(name)
+    |> File.read!()
+    |> Jason.decode!()
   end
 end

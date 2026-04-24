@@ -40,6 +40,46 @@ defmodule Citadel.ContractCore.CanonicalJson do
     |> Jcs.encode()
   end
 
+  @spec encode_inline!(term(), keyword()) :: String.t()
+  def encode_inline!(input, opts) when is_list(opts) do
+    max_bytes =
+      opts
+      |> Keyword.fetch!(:max_bytes)
+      |> validate_max_bytes!()
+
+    label =
+      opts
+      |> Keyword.get(:label, "Canonical JSON input")
+      |> validate_label!()
+
+    reject_oversized_inline!(input, max_bytes, label)
+    encode!(input)
+  end
+
+  defp reject_oversized_inline!(input, max_bytes, label) do
+    estimated_bytes = :erlang.external_size(input)
+
+    if estimated_bytes > max_bytes do
+      raise ArgumentError,
+            "#{label} exceeds inline canonicalization byte limit of #{max_bytes} bytes " <>
+              "(estimated #{estimated_bytes} bytes) before canonical JSON encoding"
+    end
+
+    :ok
+  end
+
+  defp validate_max_bytes!(value) when is_integer(value) and value > 0, do: value
+
+  defp validate_max_bytes!(value) do
+    raise ArgumentError, "max_bytes must be a positive integer, got: #{inspect(value)}"
+  end
+
+  defp validate_label!(value) when is_binary(value) and byte_size(value) > 0, do: value
+
+  defp validate_label!(value) do
+    raise ArgumentError, "label must be a non-empty string, got: #{inspect(value)}"
+  end
+
   defp normalize_value!(value, _path)
        when is_binary(value) or is_integer(value) or is_boolean(value) or is_nil(value),
        do: value

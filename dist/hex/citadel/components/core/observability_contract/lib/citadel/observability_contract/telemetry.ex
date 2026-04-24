@@ -1,7 +1,9 @@
 defmodule Citadel.ObservabilityContract.Telemetry do
   @moduledoc """
-  Frozen low-cardinality telemetry event names, measurements, and metadata.
+  Frozen telemetry event names, measurements, metadata, and metric labels.
   """
+
+  alias Citadel.ObservabilityContract.CardinalityBounds
 
   @definitions %{
     decision_task_latency: %{
@@ -53,6 +55,16 @@ defmodule Citadel.ObservabilityContract.Telemetry do
       event_name: [:citadel, :signal_ingress, :high_priority_ready_latency],
       measurements: [:duration_ms],
       metadata: []
+    },
+    signal_ingress_admission_rejection: %{
+      event_name: [:citadel, :signal_ingress, :admission, :rejection],
+      measurements: [:queue_depth, :tenant_scope_in_flight, :retry_after_ms],
+      metadata: [:reason_code, :delivery_order_scope]
+    },
+    signal_ingress_delivery_overload: %{
+      event_name: [:citadel, :signal_ingress, :delivery, :overload],
+      measurements: [:duration_ms, :retry_after_ms],
+      metadata: [:reason_code, :delivery_order_scope, :replay_action]
     },
     trace_buffer_depth: %{
       event_name: [:citadel, :trace, :buffer, :depth],
@@ -150,7 +162,11 @@ defmodule Citadel.ObservabilityContract.Telemetry do
   }
 
   @spec definitions() :: map()
-  def definitions, do: @definitions
+  def definitions do
+    Map.new(@definitions, fn {name, definition} ->
+      {name, Map.put(definition, :metric_labels, metric_labels(definition.metadata))}
+    end)
+  end
 
   @spec event_name(atom()) :: [atom(), ...]
   def event_name(name), do: definition!(name).event_name
@@ -161,11 +177,17 @@ defmodule Citadel.ObservabilityContract.Telemetry do
   @spec metadata_keys(atom()) :: [atom(), ...]
   def metadata_keys(name), do: definition!(name).metadata
 
+  @spec metric_label_keys(atom()) :: [atom()]
+  def metric_label_keys(name), do: definition!(name).metric_labels
+
   @spec definition!(atom()) :: map()
   def definition!(name) do
-    case Map.fetch(@definitions, name) do
+    case Map.fetch(definitions(), name) do
       {:ok, definition} -> definition
       :error -> raise ArgumentError, "unsupported Citadel telemetry definition: #{inspect(name)}"
     end
   end
+
+  defp metric_labels(metadata),
+    do: Enum.filter(metadata, &CardinalityBounds.metric_label_allowed?/1)
 end

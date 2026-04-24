@@ -4,7 +4,7 @@ defmodule Citadel.DecisionHash do
 
   The hash is computed from the projected shared packet with `decision_hash`
   removed, normalized through `Citadel.ContractCore.CanonicalJson`, encoded with
-  `Jcs.encode/1`, and digested with SHA-256.
+  the bounded canonical JSON encoder, and digested with SHA-256.
   """
 
   alias Citadel.AuthorityContract.AuthorityDecision.V1
@@ -12,6 +12,7 @@ defmodule Citadel.DecisionHash do
   alias Citadel.ContractCore.CanonicalJson
 
   @pending_hash String.duplicate("0", 64)
+  @max_authority_hash_inline_bytes 1_000_000
 
   @spec authority_hash!(V1.t() | map() | keyword()) :: String.t()
   def authority_hash!(%V1{} = packet) do
@@ -35,8 +36,15 @@ defmodule Citadel.DecisionHash do
   end
 
   def canonical_payload!(payload) when is_map(payload) do
-    CanonicalJson.encode!(payload)
+    CanonicalJson.encode_inline!(
+      payload,
+      max_bytes: @max_authority_hash_inline_bytes,
+      label: "AuthorityDecision hash input"
+    )
   end
+
+  @spec max_authority_hash_inline_bytes() :: pos_integer()
+  def max_authority_hash_inline_bytes, do: @max_authority_hash_inline_bytes
 
   @spec put_authority_hash!(V1.t() | map() | keyword()) :: V1.t()
   def put_authority_hash!(%V1{} = packet) do

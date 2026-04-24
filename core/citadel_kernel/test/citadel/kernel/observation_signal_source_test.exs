@@ -28,7 +28,7 @@ defmodule Citadel.Kernel.ObservationSignalSourceTest do
     assert :ok = SignalIngress.register_subscription(server, "sess-1")
 
     observation = runtime_observation("sess-1", "signal-1")
-    assert :ok = SignalIngress.deliver_observation(server, observation)
+    assert {:ok, %{async_handoff?: true}} = SignalIngress.deliver_observation(server, observation)
 
     assert %{transport_cursor: "cursor/signal-1"} =
              SignalIngress.subscription_state(server, "sess-1")
@@ -51,7 +51,13 @@ defmodule Citadel.Kernel.ObservationSignalSourceTest do
       subject_ref: %{kind: :run, id: session_id, metadata: %{}},
       evidence_refs: [],
       governance_refs: [],
-      extensions: %{}
+      extensions: %{
+        "tenant_id" => "tenant-1",
+        "authority_scope" => "authority-1",
+        "trace_id" => "trace/#{signal_id}",
+        "causation_id" => "cause/#{signal_id}",
+        "canonical_idempotency_key" => "idem:v1:#{signal_id}"
+      }
     })
   end
 

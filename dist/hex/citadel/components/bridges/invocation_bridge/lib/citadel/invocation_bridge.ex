@@ -244,17 +244,29 @@ defmodule Citadel.InvocationBridge do
   defp normalize_error({:error, reason}) when is_atom(reason), do: reason
   defp normalize_error(_other), do: :unknown
 
-  defp validate_supported_invocation_request_schema_versions!(versions)
-       when is_list(versions) and versions != [] do
-    versions
-    |> Enum.each(fn version ->
-      unless is_integer(version) and version > 0 do
-        raise ArgumentError,
-              "supported_invocation_request_schema_versions must contain positive integers, got: #{inspect(version)}"
-      end
-    end)
+  defp validate_supported_invocation_request_schema_versions!(versions) when is_list(versions) do
+    if versions == [] do
+      raise ArgumentError,
+            "supported_invocation_request_schema_versions must be a non-empty list, got: []"
+    end
 
-    Enum.uniq(versions)
+    normalized =
+      Enum.map(versions, fn version ->
+        unless is_integer(version) and version > 0 do
+          raise ArgumentError,
+                "supported_invocation_request_schema_versions must contain positive integers, got: #{inspect(version)}"
+        end
+
+        version
+      end)
+      |> Enum.uniq()
+
+    if normalized == supported_invocation_request_schema_versions() do
+      normalized
+    else
+      raise ArgumentError,
+            "supported_invocation_request_schema_versions must match current accepted versions #{inspect(supported_invocation_request_schema_versions())}, got: #{inspect(normalized)}"
+    end
   end
 
   defp validate_supported_invocation_request_schema_versions!(other) do

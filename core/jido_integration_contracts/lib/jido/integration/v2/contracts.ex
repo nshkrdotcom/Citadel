@@ -40,6 +40,23 @@ defmodule Jido.Integration.V2.Contracts do
     "ReviewProjection.v1",
     "ReviewBundle.v1"
   ]
+  @lower_truth_integrity_contracts [
+    "JidoIntegration.LowerEventPosition.v1",
+    "JidoIntegration.ClaimCheckLifecycle.v1",
+    "Platform.InstallationRevisionEpoch.v1",
+    "Platform.LeaseRevocation.v1"
+  ]
+  @retry_posture_contracts [
+    "Platform.RetryPosture.v1"
+  ]
+  @memory_foundation_contracts [
+    "Platform.AccessGraph.Edge.v1",
+    "Platform.AccessGraph.v1",
+    "Platform.ClockOrdering.HLC.V1",
+    "Platform.Memory.SnapshotContext.V1",
+    "Platform.NodeIdentity.V1",
+    "Platform.MemoryFragment.V1"
+  ]
 
   @type runtime_class :: :direct | :session | :stream
   @type runtime_kind :: :client | :task | :service
@@ -47,7 +64,7 @@ defmodule Jido.Integration.V2.Contracts do
   @type inference_operation :: :generate_text | :stream_text
   @type inference_target_class :: :cloud_provider | :cli_endpoint | :self_hosted_endpoint
   @type inference_protocol :: :openai_chat_completions
-  @type authority_source :: :jido_integration | :jido_os | :external
+  @type authority_source :: :jido_integration | :external
   @type inference_checkpoint_policy :: :summary | :artifact | :disabled
   @type inference_status :: :ok | :error | :cancelled
   @type sandbox_level :: :strict | :standard | :none
@@ -83,6 +100,48 @@ defmodule Jido.Integration.V2.Contracts do
         }
 
   @checksum_regex ~r/\Asha256:[0-9a-f]{64}\z/
+  @known_atomish_values [
+    :acme,
+    :action,
+    :agent_session_manager,
+    :asm_inference_endpoint,
+    :async_trigger,
+    :cancelled,
+    :checkpoint_resume,
+    :cli,
+    :codex_cli,
+    :error,
+    :gemini,
+    :github,
+    :guest_bridge,
+    :jido_integration_req_llm,
+    :linear,
+    :llama_cpp_sdk,
+    :local_subprocess,
+    :market_data,
+    :market_feed,
+    :notion,
+    :object_store,
+    :ollama,
+    :openai,
+    :openai_chat_completions,
+    :operation,
+    :poll,
+    :protocol_match,
+    :req_llm,
+    :sdk,
+    :session_resume,
+    :ssh_exec,
+    :stdio,
+    :stop,
+    :trigger,
+    :user_cancelled,
+    :warmup_pending,
+    :webhook
+  ]
+  @known_atomish_values_by_string Map.new(@known_atomish_values, fn atom ->
+                                    {Atom.to_string(atom), atom}
+                                  end)
 
   @spec schema_version() :: String.t()
   def schema_version, do: @schema_version
@@ -104,6 +163,15 @@ defmodule Jido.Integration.V2.Contracts do
 
   @spec operator_read_contracts() :: [String.t(), ...]
   def operator_read_contracts, do: @operator_read_contracts
+
+  @spec lower_truth_integrity_contracts() :: [String.t(), ...]
+  def lower_truth_integrity_contracts, do: @lower_truth_integrity_contracts
+
+  @spec retry_posture_contracts() :: [String.t(), ...]
+  def retry_posture_contracts, do: @retry_posture_contracts
+
+  @spec memory_foundation_contracts() :: [String.t(), ...]
+  def memory_foundation_contracts, do: @memory_foundation_contracts
 
   @spec now() :: DateTime.t()
   def now do
@@ -188,6 +256,23 @@ defmodule Jido.Integration.V2.Contracts do
 
       attempt_id ->
         attempt_id = validate_non_empty_string!(attempt_id, "review_packet.attempt_id")
+        base <> "?attempt_id=" <> URI.encode_www_form(attempt_id)
+    end
+  end
+
+  @spec derived_state_attachment_ref(String.t(), String.t() | nil) :: String.t()
+  def derived_state_attachment_ref(run_id, attempt_id \\ nil) when is_binary(run_id) do
+    run_id = validate_non_empty_string!(run_id, "derived_state_attachment.run_id")
+    base = "jido://v2/derived_state_attachment/run/#{URI.encode_www_form(run_id)}"
+
+    case attempt_id do
+      nil ->
+        base
+
+      attempt_id ->
+        attempt_id =
+          validate_non_empty_string!(attempt_id, "derived_state_attachment.attempt_id")
+
         base <> "?attempt_id=" <> URI.encode_www_form(attempt_id)
     end
   end
@@ -477,13 +562,13 @@ defmodule Jido.Integration.V2.Contracts do
 
   @spec validate_authority_source!(authority_source()) :: authority_source()
   def validate_authority_source!(authority_source)
-      when authority_source in [:jido_integration, :jido_os, :external],
+      when authority_source in [:jido_integration, :external],
       do: authority_source
 
   def validate_authority_source!(authority_source) when is_binary(authority_source) do
     validate_enum_string!(
       authority_source,
-      [:jido_integration, :jido_os, :external],
+      [:jido_integration, :external],
       "authority_source"
     )
   end
@@ -896,9 +981,15 @@ defmodule Jido.Integration.V2.Contracts do
   def normalize_atomish!(value, _field_name) when is_atom(value), do: value
 
   def normalize_atomish!(value, field_name) when is_binary(value) do
-    value
-    |> validate_non_empty_string!(field_name)
-    |> String.to_existing_atom()
+    value = validate_non_empty_string!(value, field_name)
+
+    case Map.fetch(@known_atomish_values_by_string, value) do
+      {:ok, atom} ->
+        atom
+
+      :error ->
+        raise ArgumentError, "#{field_name} must be a known atom string, got: #{inspect(value)}"
+    end
   end
 
   def normalize_atomish!(value, field_name) do

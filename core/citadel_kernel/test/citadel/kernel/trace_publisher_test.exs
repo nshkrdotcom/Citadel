@@ -108,6 +108,152 @@ defmodule Citadel.Kernel.TracePublisherTest do
     )
   end
 
+  test "success output is rate-limited without evicting protected evidence" do
+    attach_telemetry(self())
+    drop_event = Telemetry.event_name(:trace_publication_drop)
+
+    publisher =
+      start_trace_publisher(
+        trace_port: NoopTracePort,
+        buffer_capacity: 2,
+        protected_error_capacity: 2,
+        flush_interval_ms: 1_000,
+        batch_size: 2
+      )
+
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               protected_envelope("env-protected-1", "session_blocked")
+             )
+
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               protected_envelope("env-protected-2", "session_crash_recovery_triggered")
+             )
+
+    assert TracePublisher.snapshot(publisher) == %{depth: 2, protected_depth: 2, regular_depth: 0}
+
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               regular_envelope("env-success", "session_attached")
+             )
+
+    assert TracePublisher.snapshot(publisher) == %{depth: 2, protected_depth: 2, regular_depth: 0}
+
+    assert_receive {:telemetry, ^drop_event, %{count: 1},
+                    %{
+                      dropped_family: "session_attached",
+                      dropped_family_classification: :default,
+                      trace_envelope_id: "env-success"
+                    }}
+  end
+
+  test "debug output is dropped by the sampling policy" do
+    attach_telemetry(self())
+    drop_event = Telemetry.event_name(:trace_publication_drop)
+
+    publisher =
+      start_trace_publisher(
+        trace_port: NoopTracePort,
+        buffer_capacity: 4,
+        protected_error_capacity: 2,
+        flush_interval_ms: 1_000,
+        batch_size: 4
+      )
+
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               debug_envelope("env-debug", "session_attached")
+             )
+
+    assert TracePublisher.snapshot(publisher) == %{depth: 0, protected_depth: 0, regular_depth: 0}
+
+    assert_receive {:telemetry, ^drop_event, %{count: 1},
+                    %{
+                      dropped_family: "session_attached",
+                      dropped_family_classification: :default,
+                      trace_envelope_id: "env-debug"
+                    }}
+  end
+
+  test "success output obeys the declared sample rate budget" do
+    attach_telemetry(self())
+    drop_event = Telemetry.event_name(:trace_publication_drop)
+
+    publisher =
+      start_trace_publisher(
+        trace_port: NoopTracePort,
+        buffer_capacity: 4,
+        protected_error_capacity: 1,
+        sample_rate_or_budget: "success=2/min;debug=drop;protected=always",
+        flush_interval_ms: 1_000,
+        batch_size: 4
+      )
+
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               regular_envelope("env-success-1", "session_attached")
+             )
+
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               regular_envelope("env-success-2", "signal_normalized")
+             )
+
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               regular_envelope("env-success-3", "session_resumed")
+             )
+
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               protected_envelope("env-protected", "session_blocked")
+             )
+
+    assert TracePublisher.snapshot(publisher) == %{depth: 3, protected_depth: 1, regular_depth: 2}
+
+    assert_receive {:telemetry, ^drop_event, %{count: 1},
+                    %{
+                      dropped_family: "session_resumed",
+                      dropped_family_classification: :default,
+                      trace_envelope_id: "env-success-3"
+                    }}
+  end
+
+  test "buffer requires a sampling policy for success debug and protected evidence" do
+    assert_raise ArgumentError, ~r/sample_rate_or_budget must include debug=drop/, fn ->
+      TracePublisher.Buffer.new!(
+        total_capacity: 2,
+        protected_capacity: 1,
+        sample_rate_or_budget: "success=10/min;protected=always"
+      )
+    end
+
+    assert_raise ArgumentError, ~r/sample_rate_or_budget must include protected=always/, fn ->
+      TracePublisher.Buffer.new!(
+        total_capacity: 2,
+        protected_capacity: 1,
+        sample_rate_or_budget: "success=10/min;debug=drop"
+      )
+    end
+
+    assert_raise ArgumentError, ~r/sample_policy is unsupported/, fn ->
+      TracePublisher.Buffer.new!(
+        total_capacity: 2,
+        protected_capacity: 1,
+        sample_policy: :unbounded_success
+      )
+    end
+  end
+
   test "publication failures emit low-cardinality telemetry without blocking the caller" do
     attach_telemetry(self())
     failure_event = Telemetry.event_name(:trace_publication_failure)
@@ -149,6 +295,34 @@ defmodule Citadel.Kernel.TracePublisherTest do
       trace_envelope_id: "env-fail",
       family: "session_attached"
     })
+  end
+
+  test "missing default trace backend emits failure telemetry without requiring aitrace" do
+    attach_telemetry(self())
+    failure_event = Telemetry.event_name(:trace_publication_failure)
+
+    publisher =
+      start_trace_publisher(
+        buffer_capacity: 2,
+        protected_error_capacity: 1,
+        flush_interval_ms: 0,
+        batch_size: 1
+      )
+
+    assert :ok =
+             TracePublisher.publish_trace(
+               publisher,
+               regular_envelope("env-no-backend", "session_attached")
+             )
+
+    assert_receive {:telemetry, ^failure_event, %{count: 1, batch_size: 1},
+                    %{
+                      reason_code: :trace_backend_unavailable,
+                      trace_envelope_id: "env-no-backend",
+                      family: "session_attached"
+                    }}
+
+    assert Process.alive?(publisher)
   end
 
   defp start_trace_publisher(opts) do
@@ -198,6 +372,12 @@ defmodule Citadel.Kernel.TracePublisherTest do
       attributes: %{},
       extensions: %{}
     })
+  end
+
+  defp debug_envelope(id, family) do
+    id
+    |> regular_envelope(family)
+    |> Map.put(:phase, "debug")
   end
 
   defp protected_envelope(id, family) do
