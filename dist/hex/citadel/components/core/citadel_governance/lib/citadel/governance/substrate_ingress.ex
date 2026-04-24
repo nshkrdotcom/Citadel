@@ -106,6 +106,7 @@ defmodule Citadel.Governance.SubstrateIngress do
          {:ok, execution_intent_family} <- execution_intent_family(step_extensions),
          {:ok, execution_intent} <- execution_intent(step_extensions),
          {:ok, target_id} <- target_id(target_hint, selector, packet),
+         {:ok, authority_context} <- authority_context(packet, selection, target_id, opts),
          {:ok, boundary_intent} <- boundary_intent(envelope, selection, opts),
          {:ok, topology_intent} <-
            topology_intent(
@@ -116,7 +117,8 @@ defmodule Citadel.Governance.SubstrateIngress do
              execution_intent,
              step_extensions
            ),
-         {:ok, authority_packet} <- authority_packet(packet, selection, boundary_intent),
+         {:ok, authority_packet} <-
+           authority_packet(packet, selection, boundary_intent, authority_context),
          {:ok, execution_governance} <-
            execution_governance(
              packet,
@@ -163,6 +165,9 @@ defmodule Citadel.Governance.SubstrateIngress do
       {:error, {:planning, reason_code}} ->
         rejection = classify_rejection!(packet, selection, reason_code)
         {:error, rejection_result(packet, rejection)}
+
+      {:error, {:authorization, reason_code, metadata}} ->
+        {:error, authorization_rejection_result(packet, reason_code, metadata)}
     end
   end
 
@@ -328,7 +333,112 @@ defmodule Citadel.Governance.SubstrateIngress do
      })}
   end
 
-  defp authority_packet(packet, %Selection{} = selection, %BoundaryIntent{} = boundary_intent) do
+  defp authority_context(packet, %Selection{} = selection, target_id, opts) do
+    case Keyword.get(opts, :access_graph_reader) do
+      nil ->
+        {:ok, nil}
+
+      reader ->
+        query = authority_query(packet, selection, target_id)
+
+        case read_authority_graph(reader, query) do
+          {:ok, view} -> authorize_graph_view(view)
+          {:error, {:stale_epoch, metadata}} -> stale_epoch_error(metadata)
+          {:error, reason} -> {:error, {:authorization, to_string(reason), %{}}}
+        end
+    end
+  end
+
+  defp authority_query(packet, %Selection{} = selection, target_id) do
+    requested_epoch = packet.policy_epoch || selection.policy_epoch
+
+    %{
+      tenant_ref: packet.tenant_id,
+      user_ref: packet.subject_id,
+      agent_ref: packet.actor_ref,
+      resource_ref: target_id,
+      requested_epoch: requested_epoch,
+      policy_refs: packet.policy_refs,
+      effective_access_tuple: %{
+        access_agents: [packet.actor_ref],
+        access_resources: [target_id],
+        access_scopes: [target_id],
+        policy_refs: packet.policy_refs
+      },
+      allow_stale?: false
+    }
+  end
+
+  defp read_authority_graph(reader, query) when is_function(reader, 1), do: reader.(query)
+
+  defp read_authority_graph(reader, query) when is_atom(reader) do
+    reader.authority_compile_view(
+      query.tenant_ref,
+      query.user_ref,
+      query.agent_ref,
+      query.requested_epoch,
+      query.effective_access_tuple
+    )
+  end
+
+  defp authorize_graph_view(view) do
+    if graph_admissible?(view) do
+      {:ok, access_graph_extension(view)}
+    else
+      {:error, {:authorization, "access_graph_denied", %{}}}
+    end
+  end
+
+  defp graph_admissible?(view) when is_map(view) do
+    Map.get(view, :graph_admissible?) == true or Map.get(view, "graph_admissible?") == true
+  end
+
+  defp stale_epoch_error(metadata) when is_map(metadata) do
+    {:error, {:authorization, "stale_authority_epoch", metadata}}
+  end
+
+  defp stale_epoch_error(metadata), do: stale_epoch_error(%{reason: inspect(metadata)})
+
+  defp access_graph_extension(view) do
+    %{
+      "snapshot_epoch" => view_value(view, :snapshot_epoch),
+      "source_node_ref" => view_value(view, :source_node_ref),
+      "commit_lsn" => view_value(view, :commit_lsn),
+      "commit_hlc" => view_value(view, :commit_hlc),
+      "policy_refs" => view |> view_value(:policy_refs) |> sorted_strings()
+    }
+  end
+
+  defp view_value(view, key), do: Map.get(view, key) || Map.get(view, Atom.to_string(key))
+
+  defp sorted_strings(%MapSet{} = values), do: values |> MapSet.to_list() |> Enum.sort()
+
+  defp sorted_strings(values) when is_list(values) do
+    values
+    |> Enum.filter(&(is_binary(&1) and &1 != ""))
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  defp sorted_strings(_values), do: []
+
+  defp authority_packet(
+         packet,
+         %Selection{} = selection,
+         %BoundaryIntent{} = boundary_intent,
+         authority_context
+       ) do
+    citadel_extensions =
+      %{
+        "policy_pack_id" => selection.pack_id,
+        "ingress_kind" => "substrate_origin",
+        "installation_id" => packet.installation_id,
+        "installation_revision" => packet.installation_revision,
+        "request_trace_id" => packet.request_trace_id,
+        "substrate_trace_id" => packet.substrate_trace_id
+      }
+      |> maybe_put_access_graph(authority_context)
+
     {:ok,
      DecisionHash.put_authority_hash!(%{
        contract_version: AuthorityDecisionV1.contract_version(),
@@ -342,17 +452,14 @@ defmodule Citadel.Governance.SubstrateIngress do
        egress_profile: selection.profiles.egress_profile,
        workspace_profile: selection.profiles.workspace_profile,
        resource_profile: selection.profiles.resource_profile,
-       extensions: %{
-         "citadel" => %{
-           "policy_pack_id" => selection.pack_id,
-           "ingress_kind" => "substrate_origin",
-           "installation_id" => packet.installation_id,
-           "installation_revision" => packet.installation_revision,
-           "request_trace_id" => packet.request_trace_id,
-           "substrate_trace_id" => packet.substrate_trace_id
-         }
-       }
+       extensions: %{"citadel" => citadel_extensions}
      })}
+  end
+
+  defp maybe_put_access_graph(extensions, nil), do: extensions
+
+  defp maybe_put_access_graph(extensions, access_graph) when is_map(access_graph) do
+    Map.put(extensions, "access_graph", access_graph)
   end
 
   defp execution_governance(
@@ -541,6 +648,39 @@ defmodule Citadel.Governance.SubstrateIngress do
       },
       operator_message: rejection.summary,
       rejection_classification: DecisionRejection.dump(rejection)
+    }
+  end
+
+  defp authorization_rejection_result(packet, reason_code, metadata) when is_map(metadata) do
+    %{
+      class: :auth_error,
+      terminal?: true,
+      decision_hash: nil,
+      audit_attrs:
+        %{
+          tenant_id: packet.tenant_id,
+          installation_id: packet.installation_id,
+          subject_id: packet.subject_id,
+          execution_id: packet.execution_id,
+          trace_id: packet.substrate_trace_id,
+          rejection_id: "rejection/#{packet.execution_id}/#{reason_code}",
+          rejection_reason: reason_code,
+          rejection_summary: reason_code,
+          retryability: :terminal,
+          publication_requirement: :host_and_substrate,
+          fact_kind: :substrate_governance_rejected
+        }
+        |> Map.merge(metadata),
+      operator_message: reason_code,
+      rejection_classification: %{
+        rejection_id: "rejection/#{packet.execution_id}/#{reason_code}",
+        stage: :authorization,
+        reason_code: reason_code,
+        summary: reason_code,
+        retryability: :terminal,
+        publication_requirement: :host_and_substrate,
+        extensions: metadata
+      }
     }
   end
 

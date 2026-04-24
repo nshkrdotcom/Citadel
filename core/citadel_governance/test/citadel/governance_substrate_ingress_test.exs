@@ -4,6 +4,7 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
   alias Citadel.ActionOutboxEntry
   alias Citadel.AuthorityContract.AuthorityDecision.V1, as: AuthorityDecisionV1
   alias Citadel.ExecutionGovernance.V1, as: ExecutionGovernanceV1
+  alias Citadel.Governance.AccessGraphAuthorityCache
   alias Citadel.Governance.SubstrateIngress
   alias Citadel.InvocationRequest
   alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
@@ -53,6 +54,97 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
              tenant_id: "tenant-1",
              trace_id: "trace-substrate"
            }
+  end
+
+  test "compiles authority from an access graph view" do
+    reader = fn query ->
+      send(self(), {:authority_graph_query, query})
+
+      {:ok,
+       %{
+         snapshot_epoch: 7,
+         access_agents: MapSet.new(["scheduler"]),
+         access_resources: MapSet.new(["workspace/main"]),
+         access_scopes: MapSet.new(["workspace/main"]),
+         scope_resources: MapSet.new(["workspace/main"]),
+         policy_refs: MapSet.new(["policy-v1"]),
+         graph_admissible?: true,
+         source_node_ref: "node://ji_1@127.0.0.1/node-a",
+         commit_lsn: "16/B374D848",
+         commit_hlc: %{"w" => 1_776_947_200_000_000_000, "l" => 0, "n" => "node-a"}
+       }}
+    end
+
+    assert {:ok, compiled} =
+             SubstrateIngress.compile(valid_packet("req-substrate"), [policy_pack()],
+               access_graph_reader: reader
+             )
+
+    assert_receive {:authority_graph_query,
+                    %{
+                      tenant_ref: "tenant-1",
+                      user_ref: "subject-1",
+                      agent_ref: "scheduler",
+                      resource_ref: "workspace/main",
+                      requested_epoch: 7,
+                      policy_refs: ["policy-v1"]
+                    }}
+
+    assert get_in(compiled.authority_packet.extensions, ["citadel", "access_graph"]) == %{
+             "snapshot_epoch" => 7,
+             "source_node_ref" => "node://ji_1@127.0.0.1/node-a",
+             "commit_lsn" => "16/B374D848",
+             "commit_hlc" => %{"w" => 1_776_947_200_000_000_000, "l" => 0, "n" => "node-a"},
+             "policy_refs" => ["policy-v1"]
+           }
+  end
+
+  test "rejects stale authority graph cache after a cross-node revocation" do
+    reader = fn _query ->
+      {:error,
+       {:stale_epoch,
+        %{
+          requested_epoch: 6,
+          current_epoch: 7,
+          source_node_ref: "node://ji_2@127.0.0.1/node-b"
+        }}}
+    end
+
+    assert {:error, rejection} =
+             SubstrateIngress.compile(valid_packet("req-substrate"), [policy_pack()],
+               access_graph_reader: reader
+             )
+
+    assert rejection.class == :auth_error
+    assert rejection.terminal?
+    assert rejection.operator_message == "stale_authority_epoch"
+    assert rejection.audit_attrs.rejection_reason == "stale_authority_epoch"
+    assert rejection.audit_attrs.current_epoch == 7
+  end
+
+  test "authority cache reconciles from access graph invalidation topics" do
+    cache =
+      AccessGraphAuthorityCache.new!(%{
+        tenant_ref: "tenant-1",
+        snapshot_epoch: 6,
+        source_node_ref: "node://ji_1@127.0.0.1/node-a"
+      })
+
+    message = %{
+      invalidation_id: "graph-invalidation://tenant-1/7",
+      tenant_ref: "tenant-1",
+      topic: AccessGraphAuthorityCache.graph_topic!("tenant-1", 7),
+      source_node_ref: "node://ji_2@127.0.0.1/node-b",
+      commit_lsn: "16/B374D848",
+      commit_hlc: %{"w" => 1_776_947_200_000_000_001, "l" => 0, "n" => "node-b"},
+      published_at: ~U[2026-04-24 12:00:00Z],
+      metadata: %{"new_epoch" => 7}
+    }
+
+    assert {:stale, updated_cache} = AccessGraphAuthorityCache.reconcile(cache, message)
+    assert updated_cache.stale?
+    assert updated_cache.current_epoch == 7
+    assert updated_cache.source_node_ref == "node://ji_2@127.0.0.1/node-b"
   end
 
   test "rejects legacy invocation request shaped input before action outbox" do
