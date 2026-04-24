@@ -49,6 +49,14 @@ defmodule Jido.Integration.V2.Contracts do
   @retry_posture_contracts [
     "Platform.RetryPosture.v1"
   ]
+  @memory_foundation_contracts [
+    "Platform.AccessGraph.Edge.v1",
+    "Platform.AccessGraph.v1",
+    "Platform.ClockOrdering.HLC.V1",
+    "Platform.Memory.SnapshotContext.V1",
+    "Platform.NodeIdentity.V1",
+    "Platform.MemoryFragment.V1"
+  ]
 
   @type runtime_class :: :direct | :session | :stream
   @type runtime_kind :: :client | :task | :service
@@ -161,6 +169,9 @@ defmodule Jido.Integration.V2.Contracts do
 
   @spec retry_posture_contracts() :: [String.t(), ...]
   def retry_posture_contracts, do: @retry_posture_contracts
+
+  @spec memory_foundation_contracts() :: [String.t(), ...]
+  def memory_foundation_contracts, do: @memory_foundation_contracts
 
   @spec now() :: DateTime.t()
   def now do
