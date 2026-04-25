@@ -127,9 +127,7 @@ defmodule Citadel.WorkspaceTest do
        do: true
 
   defp execution_plane_dependency_declared?(%{requirement: nil, opts: opts}) do
-    opts[:git]
-    |> to_string()
-    |> String.contains?("/execution_plane")
+    to_string(opts[:git]) =~ "/execution_plane" and opts[:subdir] == "core/execution_plane"
   end
 
   defp execution_plane_dependency_declared?(dependency) when is_list(dependency) do

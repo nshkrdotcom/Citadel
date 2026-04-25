@@ -25,7 +25,7 @@ Status: Phase 4 authority packet hardened.
 ## Dependencies
 
 - `core/contract_core`
-- root `execution_plane` for authority-verifier behaviour and admission
+- `execution_plane` package for authority-verifier behaviour and admission
   rejection values
 
 ## Wave 2 Posture

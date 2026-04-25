@@ -158,10 +158,11 @@ artifact, carries the
 `core/jido_integration_contracts` slice in-workspace, and preserves package
 ownership instead of flattening the workspace into a monolith.
 
-The welded artifact declares the root `execution_plane` contract dependency so
-the authority verifier boundary is explicit. During local in-flight workspace
-development this may resolve to the sibling Execution Plane checkout; formal
-publication should use the published `execution_plane` package.
+The welded artifact declares the `execution_plane` package dependency so the
+authority verifier boundary is explicit. During local in-flight workspace
+development this may resolve to the sibling Execution Plane checkout at
+`core/execution_plane`; formal publication should use the published
+`execution_plane` package.
 
 Common publication commands:
 

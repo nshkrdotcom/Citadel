@@ -93,7 +93,8 @@ defmodule Citadel.MixProject do
   defp deps do
     [
       {:aitrace, "~> 0.1.0"},
-      {:execution_plane, [git: "file:///home/home/p/g/n/execution_plane"]},
+      {:execution_plane,
+       [git: "file:///home/home/p/g/n/execution_plane", subdir: "core/execution_plane"]},
       {:jcs, "~> 0.2.0"},
       {:telemetry, "~> 1.3"},
       {:zoi, "~> 0.17"},

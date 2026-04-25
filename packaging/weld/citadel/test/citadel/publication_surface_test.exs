@@ -50,13 +50,12 @@ defmodule Citadel.PublicationSurfaceTest do
     end)
   end
 
-  defp execution_plane_dependency?({:execution_plane, requirement, []}) when is_binary(requirement),
-    do: true
+  defp execution_plane_dependency?({:execution_plane, requirement, []})
+       when is_binary(requirement),
+       do: true
 
   defp execution_plane_dependency?({:execution_plane, nil, opts}) do
-    opts[:git]
-    |> to_string()
-    |> String.contains?("/execution_plane")
+    to_string(opts[:git]) =~ "/execution_plane" and opts[:subdir] == "core/execution_plane"
   end
 
   defp execution_plane_dependency?(_other), do: false
