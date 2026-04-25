@@ -16,6 +16,8 @@ Status: Phase 4 authority packet hardened.
 - Phase 6 `AuthorityTenantPropagation.v1` aggregate evidence ownership for
   authority decision, tenant, budget, authorization-scope, lineage,
   idempotency, and lower-facts propagation refs
+- `Citadel.AuthorityContract.ExecutionPlaneAuthorityVerifier`, the adapter that
+  lets an Execution Plane node host validate Citadel-authored authority refs
 - required field inventory and versioning rule for authority packet successors
 - the `extensions["citadel"]` posture for Citadel-only extras
 - contract-facing fixtures and validation boundary placement
@@ -23,6 +25,8 @@ Status: Phase 4 authority packet hardened.
 ## Dependencies
 
 - `core/contract_core`
+- root `execution_plane` for authority-verifier behaviour and admission
+  rejection values
 
 ## Wave 2 Posture
 
@@ -77,3 +81,10 @@ authorization scope, no-spend budget, lineage, causation, idempotency, and Jido
 Integration lower-facts propagation refs. Missing authority, missing budget,
 cross-tenant authorization scope, lower-facts tenant mismatch, direct lower
 shortcuts, and harness-only authority assertions fail closed.
+
+## Execution Plane Boundary
+
+The authority verifier checks only the opaque authority reference metadata that
+Execution Plane admission needs: reference identity, payload hash, policy
+version, decision id, decision hash, audience, and expiry posture. It does not
+interpret Brain policy and it does not host lower runtime code.

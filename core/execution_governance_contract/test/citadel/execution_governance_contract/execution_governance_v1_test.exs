@@ -30,6 +30,7 @@ defmodule Citadel.ExecutionGovernanceContract.ExecutionGovernance.V1Test do
              extensions: {:map, :citadel_namespaced_json}
            ]
 
+    assert packet.sandbox["acceptable_attestation"] == ["local-erlexec-weak"]
     assert CanonicalJson.normalize!(V1.dump(packet)) == fixture
   end
 
@@ -38,6 +39,12 @@ defmodule Citadel.ExecutionGovernanceContract.ExecutionGovernance.V1Test do
     packet = V1.new!(fixture)
 
     assert packet.extensions["citadel"]["selection_source"] == "policy_pack/runtime"
+
+    assert packet.sandbox["acceptable_attestation"] == [
+             "spiffe://prod/microvm-strict@v1",
+             "local-erlexec-weak"
+           ]
+
     assert packet.resources["wall_clock_budget_ms"] == 90_000
     assert packet.placement["node_affinity"] == "cell-a"
     assert CanonicalJson.normalize!(V1.dump(packet)) == fixture

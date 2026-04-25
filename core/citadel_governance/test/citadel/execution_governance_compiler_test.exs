@@ -17,6 +17,7 @@ defmodule Citadel.ExecutionGovernanceCompilerTest do
         sandbox_level: "standard",
         sandbox_egress: "restricted",
         sandbox_approvals: "auto",
+        acceptable_attestation: ["local-erlexec-weak", "spiffe://prod/microvm-strict@v1"],
         allowed_tools: ["write_patch", "read_repo"],
         file_scope_ref: "workspace://project/main",
         file_scope_hint: "apps/citadel",
@@ -33,6 +34,12 @@ defmodule Citadel.ExecutionGovernanceCompilerTest do
     assert %ExecutionGovernanceV1{} = packet
     assert packet.authority_ref["decision_id"] == "decision-compiler-1"
     assert packet.sandbox["level"] == "standard"
+
+    assert packet.sandbox["acceptable_attestation"] == [
+             "local-erlexec-weak",
+             "spiffe://prod/microvm-strict@v1"
+           ]
+
     assert packet.sandbox["allowed_tools"] == ["write_patch", "read_repo"]
     assert packet.workspace["logical_workspace_ref"] == "workspace://project/main"
     assert packet.resources["resource_profile"] == "standard"
@@ -51,6 +58,7 @@ defmodule Citadel.ExecutionGovernanceCompilerTest do
         sandbox_level: "strict",
         sandbox_egress: "blocked",
         sandbox_approvals: "manual",
+        acceptable_attestation: ["spiffe://prod/microvm-strict@v1"],
         allowed_tools: ["read_repo"],
         file_scope_ref: "workspace://tenant-x/project-y",
         logical_workspace_ref: "workspace://tenant-x/project-y",

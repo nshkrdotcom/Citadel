@@ -21,3 +21,8 @@ available as a Hex dependency.
 
 Citadel code must still treat this vendored package as a local runtime boundary.
 Cross-repo coercion belongs in `Citadel.JidoIntegrationBridge.LineageCodec`.
+
+`ExecutionGovernanceProjection` carries
+`sandbox.acceptable_attestation` into the runtime and gateway shadows so the
+Spine can build Execution Plane admission requests without inferring a hidden
+local fallback.

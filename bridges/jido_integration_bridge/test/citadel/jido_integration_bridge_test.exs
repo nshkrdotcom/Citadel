@@ -265,6 +265,7 @@ defmodule Citadel.JidoIntegrationBridgeTest do
           sandbox_level: "strict",
           sandbox_egress: "restricted",
           sandbox_approvals: "manual",
+          acceptable_attestation: ["local-erlexec-weak"],
           allowed_tools: ["bash", "git"],
           file_scope_ref: "workspace://tenant-bridge-1/root",
           file_scope_hint: "/srv/workspaces/tenant-bridge-1",

@@ -10,6 +10,10 @@
     "level": "strict",
     "egress": "blocked",
     "approvals": "manual",
+    "acceptable_attestation": [
+      "spiffe://prod/microvm-strict@v1",
+      "local-erlexec-weak"
+    ],
     "allowed_tools": [
       "read_repo"
     ],

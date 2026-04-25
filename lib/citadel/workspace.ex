@@ -157,7 +157,8 @@ defmodule Citadel.Workspace do
       aitrace: [
         requirement: DependencyResolver.published_aitrace_requirement(),
         opts: []
-      ]
+      ],
+      execution_plane: DependencyResolver.execution_plane_weld_dependency()
     ]
   end
 
@@ -202,7 +203,9 @@ defmodule Citadel.Workspace do
             assets: @publication_output_assets
           ],
           verify: [
-            artifact_tests: ["packaging/weld/citadel/test"]
+            artifact_tests: ["packaging/weld/citadel/test"],
+            hex_build: not DependencyResolver.local_execution_plane_weld_dependency?(),
+            hex_publish: not DependencyResolver.local_execution_plane_weld_dependency?()
           ]
         ]
       ]

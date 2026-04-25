@@ -30,6 +30,7 @@ defmodule Citadel.PublicationSurfaceTest do
     deps = Mix.Project.config()[:deps]
 
     assert dependency_tuple(deps, :aitrace) == {:aitrace, "~> 0.1.0", []}
+    assert execution_plane_dependency?(dependency_tuple(deps, :execution_plane))
     refute dependency_tuple(deps, :jido_integration_contracts)
   end
 
@@ -48,4 +49,15 @@ defmodule Citadel.PublicationSurfaceTest do
         nil
     end)
   end
+
+  defp execution_plane_dependency?({:execution_plane, requirement, []}) when is_binary(requirement),
+    do: true
+
+  defp execution_plane_dependency?({:execution_plane, nil, opts}) do
+    opts[:git]
+    |> to_string()
+    |> String.contains?("/execution_plane")
+  end
+
+  defp execution_plane_dependency?(_other), do: false
 end

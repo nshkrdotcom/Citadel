@@ -265,6 +265,7 @@ defmodule Citadel.InvocationBridgeInfrastructureFaultInjectionTest do
           sandbox_level: "standard",
           sandbox_egress: "restricted",
           sandbox_approvals: "auto",
+          acceptable_attestation: ["local-erlexec-weak"],
           allowed_tools: ["fetch_http"],
           file_scope_ref: "workspace://project/main",
           logical_workspace_ref: "workspace://project/main",

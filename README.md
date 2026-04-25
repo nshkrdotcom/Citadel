@@ -42,6 +42,14 @@ Citadel does not own:
 - raw natural-language interpretation
 - product-shell UI or channel state
 
+For governed execution, Citadel authors the Brain-side governance packet and
+authority reference. `ExecutionGovernance.v1` now requires
+`sandbox.acceptable_attestation`, so a Brain decision names the target
+attestation classes it is willing to admit instead of relying on implicit local
+fallback. Citadel also provides an `ExecutionPlane.Authority.Verifier`
+implementation that node hosts may register to validate Citadel authority refs;
+that does not make Citadel a lane host or execution node.
+
 ## Workspace
 
 ```text
@@ -149,6 +157,11 @@ Weld manifest lives at `packaging/weld/citadel.exs`, projects the public
 artifact, carries the
 `core/jido_integration_contracts` slice in-workspace, and preserves package
 ownership instead of flattening the workspace into a monolith.
+
+The welded artifact declares the root `execution_plane` contract dependency so
+the authority verifier boundary is explicit. During local in-flight workspace
+development this may resolve to the sibling Execution Plane checkout; formal
+publication should use the published `execution_plane` package.
 
 Common publication commands:
 

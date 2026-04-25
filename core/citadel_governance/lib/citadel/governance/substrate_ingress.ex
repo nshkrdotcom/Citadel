@@ -485,6 +485,7 @@ defmodule Citadel.Governance.SubstrateIngress do
        sandbox_level: sandbox_level(step_extensions, candidate_step, selection),
        sandbox_egress: sandbox_egress(selection.profiles.egress_profile),
        sandbox_approvals: sandbox_approvals(step_extensions, selection.profiles.approval_profile),
+       acceptable_attestation: acceptable_attestation(step_extensions),
        allowed_tools: normalize_string_list(Map.get(step_extensions, "allowed_tools", [])),
        file_scope_ref: logical_workspace_ref,
        file_scope_hint: selector.workspace_root,
@@ -832,6 +833,16 @@ defmodule Citadel.Governance.SubstrateIngress do
 
       _other ->
         "auto"
+    end
+  end
+
+  defp acceptable_attestation(step_extensions) do
+    step_extensions
+    |> Map.get("acceptable_attestation", ["local-erlexec-weak"])
+    |> normalize_string_list()
+    |> case do
+      [] -> ["local-erlexec-weak"]
+      values -> values
     end
   end
 

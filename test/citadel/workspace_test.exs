@@ -79,6 +79,8 @@ defmodule Citadel.WorkspaceTest do
     refute Keyword.has_key?(publication_deps, :jido_integration_contracts)
     assert publication_deps[:aitrace][:opts] == []
     assert is_binary(publication_deps[:aitrace][:requirement])
+
+    assert execution_plane_dependency_declared?(publication_deps[:execution_plane])
   end
 
   test "weld manifest keeps publication derivative of the workspace architecture" do
@@ -103,6 +105,7 @@ defmodule Citadel.WorkspaceTest do
     refute "surfaces/citadel_domain_surface" in result.artifact.selected_projects
 
     assert "aitrace" in result.artifact.external_deps
+    assert "execution_plane" in result.artifact.external_deps
     refute "jido_integration_contracts" in result.artifact.external_deps
   end
 
@@ -118,4 +121,20 @@ defmodule Citadel.WorkspaceTest do
 
     assert output =~ "citadel"
   end
+
+  defp execution_plane_dependency_declared?(%{requirement: requirement, opts: []})
+       when is_binary(requirement),
+       do: true
+
+  defp execution_plane_dependency_declared?(%{requirement: nil, opts: opts}) do
+    opts[:git]
+    |> to_string()
+    |> String.contains?("/execution_plane")
+  end
+
+  defp execution_plane_dependency_declared?(dependency) when is_list(dependency) do
+    execution_plane_dependency_declared?(Map.new(dependency))
+  end
+
+  defp execution_plane_dependency_declared?(_other), do: false
 end

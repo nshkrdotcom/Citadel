@@ -14,6 +14,7 @@ defmodule Citadel.ExecutionGovernanceCompiler do
     :sandbox_level,
     :sandbox_egress,
     :sandbox_approvals,
+    :acceptable_attestation,
     :allowed_tools,
     :file_scope_ref,
     :file_scope_hint,
@@ -82,6 +83,19 @@ defmodule Citadel.ExecutionGovernanceCompiler do
             "Citadel.ExecutionGovernanceCompiler",
             fn value ->
               Value.string!(value, "Citadel.ExecutionGovernanceCompiler.sandbox_approvals")
+            end
+          ),
+        "acceptable_attestation" =>
+          Value.required(
+            attrs,
+            :acceptable_attestation,
+            "Citadel.ExecutionGovernanceCompiler",
+            fn value ->
+              Value.unique_strings!(
+                value,
+                "Citadel.ExecutionGovernanceCompiler.acceptable_attestation",
+                allow_empty?: false
+              )
             end
           ),
         "allowed_tools" =>

@@ -21,6 +21,7 @@ defmodule Citadel.AuthorityContract.MixProject do
   defp deps do
     [
       {:citadel_contract_core, path: "../contract_core"},
+      {:execution_plane, path: "../../../execution_plane"},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
