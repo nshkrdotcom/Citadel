@@ -23,7 +23,21 @@
 - `./mix.exs`: Tooling root for the Citadel non-umbrella monorepo
 - `./surfaces/citadel_domain_surface/mix.exs`: Typed host-facing domain surface package above the Citadel kernel
 
+Generated Weld output under `dist/hex/citadel/mix.exs` is not a source
+workspace project. Treat it as generated publication output and verify it with
+Weld/Citadel gates when publication metadata changes.
+
 # AGENTS.md
+
+## Execution Plane dependency wiring
+
+- `core/authority_contract` consumes the publishable Execution Plane substrate
+  at `../../../execution_plane/core/execution_plane` for local sibling
+  development.
+- Citadel Weld/local git fallback must keep `subdir: "core/execution_plane"`
+  when it points at the sibling Execution Plane git checkout.
+- Do not point `:execution_plane` at the sibling repo root without that subdir.
+  The root is the non-published Blitz workspace project, not the Hex package.
 
 ## Temporal developer environment
 
