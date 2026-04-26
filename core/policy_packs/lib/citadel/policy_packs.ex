@@ -256,6 +256,199 @@ defmodule Citadel.PolicyPacks.Profiles do
   end
 end
 
+defmodule Citadel.PolicyPacks.ExecutionPolicy do
+  @moduledoc """
+  Policy-owned execution posture compiled into governance packets.
+  """
+
+  alias Citadel.ContractCore.Value
+
+  @sandbox_levels ["strict", "standard", "none"]
+  @egress_policies ["blocked", "restricted", "open"]
+  @approval_modes ["manual", "auto", "none"]
+  @workspace_mutabilities ["read_only", "read_write", "ephemeral"]
+  @placement_intents ["host_local", "remote_scope", "remote_workspace", "ephemeral_session"]
+  @execution_families ["process", "http", "json_rpc", "service"]
+
+  @schema [
+    minimum_sandbox_level: :string,
+    maximum_egress: :string,
+    approval_mode: :string,
+    acceptable_attestation: {:list, :string},
+    allowed_tools: {:list, :string},
+    allowed_operations: {:list, :string},
+    effect_classes: {:list, :string},
+    command_classes: {:list, :string},
+    workspace_mutability: :string,
+    placement_intents: {:list, :string},
+    execution_families: {:list, :string},
+    wall_clock_budget_ms: :non_neg_integer,
+    extensions: {:map, :json}
+  ]
+  @fields Keyword.keys(@schema)
+
+  @type t :: %__MODULE__{
+          minimum_sandbox_level: String.t(),
+          maximum_egress: String.t(),
+          approval_mode: String.t(),
+          acceptable_attestation: [String.t()],
+          allowed_tools: [String.t()],
+          allowed_operations: [String.t()],
+          effect_classes: [String.t()],
+          command_classes: [String.t()],
+          workspace_mutability: String.t(),
+          placement_intents: [String.t()],
+          execution_families: [String.t()],
+          wall_clock_budget_ms: non_neg_integer() | nil,
+          extensions: map()
+        }
+
+  @enforce_keys @fields
+  defstruct @fields
+
+  def schema, do: @schema
+
+  def new!(%__MODULE__{} = policy) do
+    policy
+    |> dump()
+    |> new!()
+  end
+
+  def new!(attrs) do
+    attrs = Value.normalize_attrs!(attrs, "Citadel.PolicyPacks.ExecutionPolicy", @fields)
+
+    %__MODULE__{
+      minimum_sandbox_level:
+        enum_string(
+          attrs,
+          :minimum_sandbox_level,
+          @sandbox_levels,
+          "strict",
+          "minimum_sandbox_level"
+        ),
+      maximum_egress:
+        enum_string(attrs, :maximum_egress, @egress_policies, "restricted", "maximum_egress"),
+      approval_mode: enum_string(attrs, :approval_mode, @approval_modes, "auto", "approval_mode"),
+      acceptable_attestation:
+        optional_strings(attrs, :acceptable_attestation, ["local-erlexec-weak"]),
+      allowed_tools: optional_strings(attrs, :allowed_tools, []),
+      allowed_operations: optional_strings(attrs, :allowed_operations, []),
+      effect_classes: optional_strings(attrs, :effect_classes, []),
+      command_classes: optional_strings(attrs, :command_classes, []),
+      workspace_mutability:
+        enum_string(
+          attrs,
+          :workspace_mutability,
+          @workspace_mutabilities,
+          "read_write",
+          "workspace_mutability"
+        ),
+      placement_intents:
+        enum_string_list(
+          attrs,
+          :placement_intents,
+          @placement_intents,
+          ["host_local"],
+          "placement_intents"
+        ),
+      execution_families:
+        enum_string_list(
+          attrs,
+          :execution_families,
+          @execution_families,
+          ["process"],
+          "execution_families"
+        ),
+      wall_clock_budget_ms:
+        Value.optional(
+          attrs,
+          :wall_clock_budget_ms,
+          "Citadel.PolicyPacks.ExecutionPolicy",
+          fn value ->
+            Value.non_neg_integer!(
+              value,
+              "Citadel.PolicyPacks.ExecutionPolicy.wall_clock_budget_ms"
+            )
+          end,
+          nil
+        ),
+      extensions:
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.PolicyPacks.ExecutionPolicy",
+          fn value ->
+            Value.json_object!(value, "Citadel.PolicyPacks.ExecutionPolicy.extensions")
+          end,
+          %{}
+        )
+    }
+  end
+
+  def dump(%__MODULE__{} = policy) do
+    %{
+      minimum_sandbox_level: policy.minimum_sandbox_level,
+      maximum_egress: policy.maximum_egress,
+      approval_mode: policy.approval_mode,
+      acceptable_attestation: policy.acceptable_attestation,
+      allowed_tools: policy.allowed_tools,
+      allowed_operations: policy.allowed_operations,
+      effect_classes: policy.effect_classes,
+      command_classes: policy.command_classes,
+      workspace_mutability: policy.workspace_mutability,
+      placement_intents: policy.placement_intents,
+      execution_families: policy.execution_families,
+      wall_clock_budget_ms: policy.wall_clock_budget_ms,
+      extensions: policy.extensions
+    }
+  end
+
+  defp enum_string(attrs, key, allowed, default, label) do
+    value =
+      Value.optional(
+        attrs,
+        key,
+        "Citadel.PolicyPacks.ExecutionPolicy",
+        fn value ->
+          Value.string!(value, "Citadel.PolicyPacks.ExecutionPolicy.#{label}")
+        end,
+        default
+      )
+
+    if value in allowed do
+      value
+    else
+      raise ArgumentError,
+            "Citadel.PolicyPacks.ExecutionPolicy.#{label} must be one of #{inspect(allowed)}, got: #{inspect(value)}"
+    end
+  end
+
+  defp enum_string_list(attrs, key, allowed, default, label) do
+    values = optional_strings(attrs, key, default)
+
+    invalid = Enum.reject(values, &(&1 in allowed))
+
+    if invalid == [] do
+      values
+    else
+      raise ArgumentError,
+            "Citadel.PolicyPacks.ExecutionPolicy.#{label} contains unsupported values: #{inspect(invalid)}"
+    end
+  end
+
+  defp optional_strings(attrs, key, default) do
+    Value.optional(
+      attrs,
+      key,
+      "Citadel.PolicyPacks.ExecutionPolicy",
+      fn value ->
+        Value.unique_strings!(value, "Citadel.PolicyPacks.ExecutionPolicy.#{key}")
+      end,
+      default
+    )
+  end
+end
+
 defmodule Citadel.PolicyPacks.RejectionPolicy do
   @moduledoc """
   Pure policy inputs for rejection retryability and publication classification.
@@ -377,6 +570,7 @@ defmodule Citadel.PolicyPacks.PolicyPack do
   """
 
   alias Citadel.ContractCore.Value
+  alias Citadel.PolicyPacks.ExecutionPolicy
   alias Citadel.PolicyPacks.Profiles
   alias Citadel.PolicyPacks.RejectionPolicy
   alias Citadel.PolicyPacks.Selector
@@ -388,6 +582,7 @@ defmodule Citadel.PolicyPacks.PolicyPack do
     priority: :non_neg_integer,
     selector: {:struct, Selector},
     profiles: {:struct, Profiles},
+    execution_policy: {:struct, ExecutionPolicy},
     rejection_policy: {:struct, RejectionPolicy},
     extensions: {:map, :json}
   ]
@@ -400,6 +595,7 @@ defmodule Citadel.PolicyPacks.PolicyPack do
           priority: non_neg_integer(),
           selector: Selector.t(),
           profiles: Profiles.t(),
+          execution_policy: ExecutionPolicy.t() | nil,
           rejection_policy: RejectionPolicy.t(),
           extensions: map()
         }
@@ -449,6 +645,20 @@ defmodule Citadel.PolicyPacks.PolicyPack do
         Value.required(attrs, :profiles, "Citadel.PolicyPacks.PolicyPack", fn value ->
           Value.module!(value, Profiles, "Citadel.PolicyPacks.PolicyPack.profiles")
         end),
+      execution_policy:
+        Value.optional(
+          attrs,
+          :execution_policy,
+          "Citadel.PolicyPacks.PolicyPack",
+          fn value ->
+            Value.module!(
+              value,
+              ExecutionPolicy,
+              "Citadel.PolicyPacks.PolicyPack.execution_policy"
+            )
+          end,
+          nil
+        ),
       rejection_policy:
         Value.required(attrs, :rejection_policy, "Citadel.PolicyPacks.PolicyPack", fn value ->
           Value.module!(value, RejectionPolicy, "Citadel.PolicyPacks.PolicyPack.rejection_policy")
@@ -474,10 +684,14 @@ defmodule Citadel.PolicyPacks.PolicyPack do
       priority: pack.priority,
       selector: Selector.dump(pack.selector),
       profiles: Profiles.dump(pack.profiles),
+      execution_policy: dump_execution_policy(pack.execution_policy),
       rejection_policy: RejectionPolicy.dump(pack.rejection_policy),
       extensions: pack.extensions
     }
   end
+
+  defp dump_execution_policy(nil), do: nil
+  defp dump_execution_policy(%ExecutionPolicy{} = policy), do: ExecutionPolicy.dump(policy)
 
   def matches?(%__MODULE__{} = pack, attrs) do
     pack = new!(pack)
@@ -491,6 +705,7 @@ defmodule Citadel.PolicyPacks.Selection do
   """
 
   alias Citadel.ContractCore.Value
+  alias Citadel.PolicyPacks.ExecutionPolicy
   alias Citadel.PolicyPacks.Profiles
   alias Citadel.PolicyPacks.RejectionPolicy
 
@@ -500,6 +715,7 @@ defmodule Citadel.PolicyPacks.Selection do
     policy_epoch: :non_neg_integer,
     priority: :non_neg_integer,
     profiles: {:struct, Profiles},
+    execution_policy: {:struct, ExecutionPolicy},
     rejection_policy: {:struct, RejectionPolicy},
     extensions: {:map, :json}
   ]
@@ -511,6 +727,7 @@ defmodule Citadel.PolicyPacks.Selection do
           policy_epoch: non_neg_integer(),
           priority: non_neg_integer(),
           profiles: Profiles.t(),
+          execution_policy: ExecutionPolicy.t() | nil,
           rejection_policy: RejectionPolicy.t(),
           extensions: map()
         }
@@ -544,6 +761,20 @@ defmodule Citadel.PolicyPacks.Selection do
         Value.required(attrs, :profiles, "Citadel.PolicyPacks.Selection", fn value ->
           Value.module!(value, Profiles, "Citadel.PolicyPacks.Selection.profiles")
         end),
+      execution_policy:
+        Value.optional(
+          attrs,
+          :execution_policy,
+          "Citadel.PolicyPacks.Selection",
+          fn value ->
+            Value.module!(
+              value,
+              ExecutionPolicy,
+              "Citadel.PolicyPacks.Selection.execution_policy"
+            )
+          end,
+          nil
+        ),
       rejection_policy:
         Value.required(attrs, :rejection_policy, "Citadel.PolicyPacks.Selection", fn value ->
           Value.module!(value, RejectionPolicy, "Citadel.PolicyPacks.Selection.rejection_policy")
@@ -568,10 +799,14 @@ defmodule Citadel.PolicyPacks.Selection do
       policy_epoch: selection.policy_epoch,
       priority: selection.priority,
       profiles: Profiles.dump(selection.profiles),
+      execution_policy: dump_execution_policy(selection.execution_policy),
       rejection_policy: RejectionPolicy.dump(selection.rejection_policy),
       extensions: selection.extensions
     }
   end
+
+  defp dump_execution_policy(nil), do: nil
+  defp dump_execution_policy(%ExecutionPolicy{} = policy), do: ExecutionPolicy.dump(policy)
 end
 
 defmodule Citadel.PolicyPacks do
@@ -580,6 +815,7 @@ defmodule Citadel.PolicyPacks do
   """
 
   alias Citadel.ContractCore.Value
+  alias Citadel.PolicyPacks.ExecutionPolicy
   alias Citadel.PolicyPacks.PolicyPack
   alias Citadel.PolicyPacks.Selection
 
@@ -635,6 +871,7 @@ defmodule Citadel.PolicyPacks do
           policy_epoch: pack.policy_epoch,
           priority: pack.priority,
           profiles: pack.profiles,
+          execution_policy: pack.execution_policy,
           rejection_policy: pack.rejection_policy,
           extensions: pack.extensions
         })
@@ -651,6 +888,110 @@ defmodule Citadel.PolicyPacks do
 
   @spec stable_selection_ordering() :: :priority_desc_then_pack_id_asc
   def stable_selection_ordering, do: :priority_desc_then_pack_id_asc
+
+  @spec coding_ops_standard_pack!(keyword()) :: PolicyPack.t()
+  def coding_ops_standard_pack!(opts \\ []) when is_list(opts) do
+    policy_version = Keyword.get(opts, :policy_version, "coding-ops-2026-04-25")
+    policy_epoch = Keyword.get(opts, :policy_epoch, 1)
+
+    PolicyPack.new!(%{
+      pack_id: Keyword.get(opts, :pack_id, "coding-ops-standard"),
+      policy_version: policy_version,
+      policy_epoch: policy_epoch,
+      priority: Keyword.get(opts, :priority, 100),
+      selector:
+        Keyword.get(opts, :selector, %{
+          tenant_ids: Keyword.get(opts, :tenant_ids, []),
+          scope_kinds: Keyword.get(opts, :scope_kinds, []),
+          environments: Keyword.get(opts, :environments, []),
+          default?: Keyword.get(opts, :default?, true),
+          extensions: %{}
+        }),
+      profiles: %{
+        trust_profile: "trusted_operator",
+        approval_profile: "manual",
+        egress_profile: "restricted",
+        workspace_profile: "coding_workspace",
+        resource_profile: "standard",
+        boundary_class: "workspace_session",
+        extensions: %{}
+      },
+      execution_policy: coding_ops_standard_execution_policy!(),
+      rejection_policy: %{
+        denial_audit_reason_codes: [
+          "policy_denied",
+          "approval_missing",
+          "sandbox_downgrade",
+          "egress_downgrade",
+          "approval_downgrade",
+          "tool_not_allowed",
+          "operation_not_allowed",
+          "unsupported_placement_intent"
+        ],
+        derived_state_reason_codes: ["planning_failed"],
+        runtime_change_reason_codes: ["scope_unavailable", "service_hidden", "boundary_stale"],
+        governance_change_reason_codes: ["approval_missing", "stale_authority_epoch"],
+        extensions: %{}
+      },
+      extensions: %{"policy_family" => "coding_ops", "policy_version" => policy_version}
+    })
+  end
+
+  @spec coding_ops_standard_execution_policy!() :: ExecutionPolicy.t()
+  def coding_ops_standard_execution_policy! do
+    ExecutionPolicy.new!(%{
+      minimum_sandbox_level: "strict",
+      maximum_egress: "restricted",
+      approval_mode: "manual",
+      acceptable_attestation: ["local-erlexec-weak"],
+      allowed_tools: [
+        "bash",
+        "git",
+        "read_repo",
+        "write_patch",
+        "codex.session.start",
+        "codex.session.turn",
+        "codex.session.stream",
+        "codex.session.status",
+        "codex.session.cancel",
+        "github.pr.create",
+        "github.pr.update",
+        "github.pr.review.create",
+        "linear.issue.update",
+        "linear.comment.create",
+        "linear.comment.update"
+      ],
+      allowed_operations: [
+        "shell.exec",
+        "read_repo",
+        "write_patch",
+        "codex.session.start",
+        "codex.session.turn",
+        "codex.session.stream",
+        "codex.session.status",
+        "codex.session.cancel",
+        "github.pr.create",
+        "github.pr.update",
+        "github.pr.review.create",
+        "linear.issue.update",
+        "linear.comment.create",
+        "linear.comment.update"
+      ],
+      effect_classes: ["filesystem", "process", "network"],
+      command_classes: [
+        "repo_read",
+        "repo_write",
+        "test_execution",
+        "source_publish",
+        "pull_request"
+      ],
+      workspace_mutability: "read_write",
+      placement_intents: ["host_local", "remote_workspace"],
+      execution_families: ["process"],
+      wall_clock_budget_ms: 300_000,
+      extensions: %{"non_interactive" => %{"approval_default" => "manual"}}
+    })
+  end
 
   defp normalize_selection_inputs!(attrs) do
     attrs =

@@ -25,6 +25,7 @@ defmodule Citadel.Governance.SubstrateIngress do
   alias Citadel.PlanHints
   alias Citadel.PlanHints.CandidateStep
   alias Citadel.PolicyPacks
+  alias Citadel.PolicyPacks.ExecutionPolicy
   alias Citadel.PolicyPacks.Selection
   alias Citadel.StalenessRequirements
   alias Citadel.TopologyIntent
@@ -44,6 +45,10 @@ defmodule Citadel.Governance.SubstrateIngress do
     "ephemeral_session"
   ]
   @allowed_sandbox_levels ["strict", "standard", "none"]
+  @sandbox_rank %{"strict" => 0, "standard" => 1, "none" => 2}
+  @egress_rank %{"blocked" => 0, "restricted" => 1, "open" => 2}
+  @approval_rank %{"manual" => 0, "auto" => 1, "none" => 2}
+  @workspace_mutability_rank %{"read_only" => 0, "read_write" => 1, "ephemeral" => 2}
   @action_kind "citadel.substrate_invocation_request.v2"
 
   @type packet :: map()
@@ -476,35 +481,129 @@ defmodule Citadel.Governance.SubstrateIngress do
        ) do
     logical_workspace_ref = logical_workspace_ref(selector)
 
-    {:ok,
-     ExecutionGovernanceCompiler.compile!(
-       authority_packet,
-       boundary_intent,
-       topology_intent,
-       execution_governance_id: "execgov/#{packet.execution_id}",
-       sandbox_level: sandbox_level(step_extensions, candidate_step, selection),
-       sandbox_egress: sandbox_egress(selection.profiles.egress_profile),
-       sandbox_approvals: sandbox_approvals(step_extensions, selection.profiles.approval_profile),
-       acceptable_attestation: acceptable_attestation(step_extensions),
-       allowed_tools: normalize_string_list(Map.get(step_extensions, "allowed_tools", [])),
-       file_scope_ref: logical_workspace_ref,
-       file_scope_hint: selector.workspace_root,
-       logical_workspace_ref: logical_workspace_ref,
-       workspace_mutability: workspace_mutability(step_extensions, candidate_step),
-       execution_family: execution_family(step_extensions, execution_intent_family),
-       placement_intent: placement_intent(step_extensions),
-       target_kind: target_hint.target_kind,
-       node_affinity: normalize_optional_string(Map.get(step_extensions, "node_affinity")),
-       allowed_operations: candidate_step.allowed_operations,
-       effect_classes: effect_classes(step_extensions, candidate_step),
-       cpu_class: normalize_optional_string(Map.get(step_extensions, "cpu_class")),
-       memory_class: normalize_optional_string(Map.get(step_extensions, "memory_class")),
-       wall_clock_budget_ms:
-         normalize_optional_non_neg_integer(
-           Map.get(step_extensions, "wall_clock_budget_ms", @default_wall_clock_budget_ms)
-         )
-     )}
+    with {:ok, governance_attrs} <-
+           execution_governance_attrs(
+             selection,
+             candidate_step,
+             step_extensions,
+             execution_intent_family
+           ) do
+      {:ok,
+       ExecutionGovernanceCompiler.compile!(
+         authority_packet,
+         boundary_intent,
+         topology_intent,
+         [
+           execution_governance_id: "execgov/#{packet.execution_id}",
+           file_scope_ref: logical_workspace_ref,
+           file_scope_hint: selector.workspace_root,
+           logical_workspace_ref: logical_workspace_ref,
+           target_kind: target_hint.target_kind,
+           node_affinity: normalize_optional_string(Map.get(step_extensions, "node_affinity")),
+           cpu_class: normalize_optional_string(Map.get(step_extensions, "cpu_class")),
+           memory_class: normalize_optional_string(Map.get(step_extensions, "memory_class"))
+         ] ++ governance_attrs
+       )}
+    end
   end
+
+  defp execution_governance_attrs(
+         %Selection{} = selection,
+         %CandidateStep{} = candidate_step,
+         step_extensions,
+         execution_intent_family
+       ) do
+    requested = %{
+      sandbox_level: sandbox_level(step_extensions, candidate_step, selection),
+      sandbox_egress: sandbox_egress(step_extensions, selection.profiles.egress_profile),
+      sandbox_approvals: sandbox_approvals(step_extensions, selection.profiles.approval_profile),
+      acceptable_attestation: acceptable_attestation(step_extensions, selection.execution_policy),
+      allowed_tools: normalize_string_list(Map.get(step_extensions, "allowed_tools", [])),
+      workspace_mutability: workspace_mutability(step_extensions, candidate_step),
+      execution_family: execution_family(step_extensions, execution_intent_family),
+      placement_intent: placement_intent(step_extensions),
+      allowed_operations: candidate_step.allowed_operations,
+      effect_classes: effect_classes(step_extensions, candidate_step),
+      wall_clock_budget_ms:
+        normalize_optional_non_neg_integer(
+          Map.get(step_extensions, "wall_clock_budget_ms", @default_wall_clock_budget_ms)
+        )
+    }
+
+    with :ok <- enforce_execution_policy(selection.execution_policy, requested) do
+      {:ok,
+       [
+         sandbox_level: requested.sandbox_level,
+         sandbox_egress: requested.sandbox_egress,
+         sandbox_approvals: requested.sandbox_approvals,
+         acceptable_attestation: requested.acceptable_attestation,
+         allowed_tools: requested.allowed_tools,
+         workspace_mutability: requested.workspace_mutability,
+         execution_family: requested.execution_family,
+         placement_intent: requested.placement_intent,
+         allowed_operations: requested.allowed_operations,
+         effect_classes: requested.effect_classes,
+         wall_clock_budget_ms: requested.wall_clock_budget_ms
+       ]}
+    end
+  end
+
+  defp enforce_execution_policy(nil, _requested), do: :ok
+
+  defp enforce_execution_policy(%ExecutionPolicy{} = policy, requested) do
+    cond do
+      weaker_rank?(requested.sandbox_level, policy.minimum_sandbox_level, @sandbox_rank) ->
+        {:error, {:planning, "sandbox_downgrade"}}
+
+      weaker_rank?(requested.sandbox_egress, policy.maximum_egress, @egress_rank) ->
+        {:error, {:planning, "egress_downgrade"}}
+
+      weaker_rank?(requested.sandbox_approvals, policy.approval_mode, @approval_rank) ->
+        {:error, {:planning, "approval_downgrade"}}
+
+      not subset?(requested.allowed_tools, policy.allowed_tools) ->
+        {:error, {:planning, "tool_not_allowed"}}
+
+      not subset?(requested.allowed_operations, policy.allowed_operations) ->
+        {:error, {:planning, "operation_not_allowed"}}
+
+      not subset?(requested.effect_classes, policy.effect_classes) ->
+        {:error, {:planning, "effect_class_not_allowed"}}
+
+      requested.placement_intent not in policy.placement_intents ->
+        {:error, {:planning, "unsupported_placement_intent"}}
+
+      requested.execution_family not in policy.execution_families ->
+        {:error, {:planning, "unsupported_execution_intent_family"}}
+
+      weaker_rank?(
+        requested.workspace_mutability,
+        policy.workspace_mutability,
+        @workspace_mutability_rank
+      ) ->
+        {:error, {:planning, "workspace_mutability_downgrade"}}
+
+      over_budget?(requested.wall_clock_budget_ms, policy.wall_clock_budget_ms) ->
+        {:error, {:planning, "wall_clock_budget_exceeded"}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp weaker_rank?(requested, allowed, ranks) when is_map(ranks) do
+    Map.fetch!(ranks, requested) > Map.fetch!(ranks, allowed)
+  end
+
+  defp subset?(_requested, []), do: true
+
+  defp subset?(requested, allowed) do
+    Enum.all?(requested, &(&1 in allowed))
+  end
+
+  defp over_budget?(_requested, nil), do: false
+  defp over_budget?(nil, _allowed), do: false
+  defp over_budget?(requested, allowed), do: requested > allowed
 
   defp invocation_request(
          packet,
@@ -817,8 +916,12 @@ defmodule Citadel.Governance.SubstrateIngress do
     end
   end
 
-  defp sandbox_egress(value) when value in @allowed_egress_policies, do: value
-  defp sandbox_egress(_value), do: "restricted"
+  defp sandbox_egress(step_extensions, fallback) do
+    case Map.get(step_extensions, "sandbox_egress", fallback) do
+      value when value in @allowed_egress_policies -> value
+      _value -> "restricted"
+    end
+  end
 
   defp sandbox_approvals(step_extensions, approval_profile) do
     case Map.get(step_extensions, "sandbox_approvals") do
@@ -836,12 +939,18 @@ defmodule Citadel.Governance.SubstrateIngress do
     end
   end
 
-  defp acceptable_attestation(step_extensions) do
+  defp acceptable_attestation(step_extensions, policy) do
+    default =
+      case policy do
+        %ExecutionPolicy{acceptable_attestation: values} -> values
+        _other -> ["local-erlexec-weak"]
+      end
+
     step_extensions
-    |> Map.get("acceptable_attestation", ["local-erlexec-weak"])
+    |> Map.get("acceptable_attestation", default)
     |> normalize_string_list()
     |> case do
-      [] -> ["local-erlexec-weak"]
+      [] -> default
       values -> values
     end
   end

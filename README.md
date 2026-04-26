@@ -50,6 +50,13 @@ fallback. Citadel also provides an `ExecutionPlane.Authority.Verifier`
 implementation that node hosts may register to validate Citadel authority refs;
 that does not make Citadel a lane host or execution node.
 
+The coding-ops policy pack now carries explicit execution posture: minimum
+sandbox level, maximum egress, approval mode, allowed tools and operations,
+workspace mutability, command classes, and local/remote placement intents.
+`Citadel.Governance.SubstrateIngress` compiles that posture into
+`ExecutionGovernance.v1` and rejects sandbox, egress, approval, tool,
+operation, or placement downgrades before lower submission.
+
 ## Workspace
 
 ```text

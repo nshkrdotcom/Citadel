@@ -8,6 +8,7 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
   alias Citadel.Governance.SubstrateIngress
   alias Citadel.InvocationRequest
   alias Citadel.InvocationRequest.V2, as: InvocationRequestV2
+  alias Citadel.PolicyPacks
 
   @invocation_fixture_dir Path.expand("../fixtures/invocation_request", __DIR__)
 
@@ -54,6 +55,88 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
              tenant_id: "tenant-1",
              trace_id: "trace-substrate"
            }
+  end
+
+  test "compiles coding-ops policy into execution governance" do
+    assert {:ok, compiled} =
+             SubstrateIngress.compile(valid_packet("req-coding-ops"), [
+               PolicyPacks.coding_ops_standard_pack!()
+             ])
+
+    governance = compiled.lower_intent.invocation_request.execution_governance
+
+    assert governance.sandbox["level"] == "strict"
+    assert governance.sandbox["egress"] == "restricted"
+    assert governance.sandbox["approvals"] == "manual"
+    assert governance.sandbox["allowed_tools"] == ["bash", "git"]
+    assert governance.workspace["mutability"] == "read_write"
+    assert governance.placement["placement_intent"] == "remote_workspace"
+    assert governance.operations["allowed_operations"] == ["shell.exec"]
+    assert governance.operations["effect_classes"] == ["filesystem", "process"]
+  end
+
+  test "rejects coding-ops sandbox downgrades before lower submission" do
+    packet = put_step_extension(valid_packet("req-sandbox-downgrade"), "sandbox_level", "none")
+
+    assert {:error, rejection} =
+             SubstrateIngress.compile(packet, [PolicyPacks.coding_ops_standard_pack!()])
+
+    assert rejection.class == :policy_error
+    assert rejection.operator_message == "sandbox_downgrade"
+    assert rejection.audit_attrs.fact_kind == :substrate_governance_rejected
+  end
+
+  test "rejects coding-ops egress and approval downgrades" do
+    egress_packet =
+      put_step_extension(valid_packet("req-egress-downgrade"), "sandbox_egress", "open")
+
+    assert {:error, egress_rejection} =
+             SubstrateIngress.compile(egress_packet, [PolicyPacks.coding_ops_standard_pack!()])
+
+    assert egress_rejection.operator_message == "egress_downgrade"
+
+    approval_packet =
+      put_step_extension(valid_packet("req-approval-downgrade"), "sandbox_approvals", "auto")
+
+    assert {:error, approval_rejection} =
+             SubstrateIngress.compile(approval_packet, [PolicyPacks.coding_ops_standard_pack!()])
+
+    assert approval_rejection.operator_message == "approval_downgrade"
+  end
+
+  test "rejects coding-ops tools, operations, and placements outside policy" do
+    tool_packet =
+      valid_packet("req-tool-denied")
+      |> put_step_extension("allowed_tools", ["bash", "curl"])
+
+    assert {:error, tool_rejection} =
+             SubstrateIngress.compile(tool_packet, [PolicyPacks.coding_ops_standard_pack!()])
+
+    assert tool_rejection.operator_message == "tool_not_allowed"
+
+    operation_packet =
+      valid_packet("req-operation-denied")
+      |> put_in(
+        [:intent_envelope, :plan_hints, :candidate_steps, Access.at(0), :allowed_operations],
+        ["shell.root"]
+      )
+
+    assert {:error, operation_rejection} =
+             SubstrateIngress.compile(operation_packet, [PolicyPacks.coding_ops_standard_pack!()])
+
+    assert operation_rejection.operator_message == "operation_not_allowed"
+
+    placement_packet =
+      put_step_extension(
+        valid_packet("req-placement-denied"),
+        "placement_intent",
+        "ephemeral_session"
+      )
+
+    assert {:error, placement_rejection} =
+             SubstrateIngress.compile(placement_packet, [PolicyPacks.coding_ops_standard_pack!()])
+
+    assert placement_rejection.operator_message == "unsupported_placement_intent"
   end
 
   test "compiles authority from an access graph view" do
@@ -238,6 +321,22 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
       metadata: %{"source" => "test"},
       intent_envelope: valid_intent_envelope(request_id)
     }
+  end
+
+  defp put_step_extension(packet, key, value) do
+    put_in(
+      packet,
+      [
+        :intent_envelope,
+        :plan_hints,
+        :candidate_steps,
+        Access.at(0),
+        :extensions,
+        "citadel",
+        key
+      ],
+      value
+    )
   end
 
   defp valid_intent_envelope(request_id) do

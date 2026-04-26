@@ -36,6 +36,13 @@ Wave 2 freezes the public carrier shapes before deeper runtime behavior:
   decision hash, builds the authority packet, and emits the lower invocation
   request/outbox entry without `Citadel.HostIngress`, `SessionServer`,
   `SessionDirectory`, or persisted host-session continuity
+- substrate-origin ingress also applies the selected policy pack's
+  `ExecutionPolicy`, compiling sandbox, egress, approval, allowed-tool,
+  allowed-operation, workspace-mutability, placement, and budget posture into
+  `ExecutionGovernance.v1`
+- governance compilation rejects lower posture downgrades before outbox
+  publication; lower packages receive the exact policy projection rather than
+  recomputing product-local safety settings
 - Waves 3 and 4 may tighten ingress mappings, but incompatible carrier-shape
   changes now require an explicit `schema_version` step
 

@@ -3,6 +3,7 @@ defmodule Citadel.PolicyPacksTest do
   use ExUnitProperties
 
   alias Citadel.PolicyPacks
+  alias Citadel.PolicyPacks.ExecutionPolicy
   alias Citadel.PolicyPacks.PolicyPack
   alias Citadel.PolicyPacks.Selection
 
@@ -75,6 +76,25 @@ defmodule Citadel.PolicyPacksTest do
              "policy_denied",
              "approval_missing"
            ]
+  end
+
+  test "defines a coding-ops standard pack with explicit execution policy" do
+    pack = PolicyPacks.coding_ops_standard_pack!()
+
+    assert %PolicyPack{} = pack
+    assert pack.pack_id == "coding-ops-standard"
+    assert pack.profiles.approval_profile == "manual"
+    assert pack.profiles.egress_profile == "restricted"
+    assert %ExecutionPolicy{} = pack.execution_policy
+
+    assert pack.execution_policy.minimum_sandbox_level == "strict"
+    assert pack.execution_policy.maximum_egress == "restricted"
+    assert pack.execution_policy.approval_mode == "manual"
+    assert "codex.session.turn" in pack.execution_policy.allowed_operations
+    assert "write_patch" in pack.execution_policy.allowed_tools
+    assert "repo_write" in pack.execution_policy.command_classes
+    assert pack.execution_policy.workspace_mutability == "read_write"
+    assert pack.execution_policy.placement_intents == ["host_local", "remote_workspace"]
   end
 
   defp default_pack do
