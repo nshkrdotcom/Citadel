@@ -151,7 +151,7 @@
       "mix.exs",
       "projection.lock.json"
     ],
-    "git_revision": "5d95e62924e7585f6639dedc6c98a7c0d552000c",
+    "git_revision": "3e18df1107ee38722d97e47a6255c0feaec82879",
     "tree_digest": "a523e9a9defcc788b5dd005db1fd7bd4e7d78ade9e5418c3c849b109ac6cfab6"
   },
   "manifest": {
