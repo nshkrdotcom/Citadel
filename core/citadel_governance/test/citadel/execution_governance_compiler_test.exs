@@ -76,7 +76,32 @@ defmodule Citadel.ExecutionGovernanceCompilerTest do
     assert packet.placement["node_affinity"] == "cell-a"
   end
 
-  defp authority_packet do
+  test "carries Phase 7 action-bound authority into execution governance extensions" do
+    packet =
+      ExecutionGovernanceCompiler.compile!(
+        authority_packet(for_action_ref: "action://agent-loop/turn-1"),
+        boundary_intent(),
+        topology_intent(),
+        execution_governance_id: "execgov-compiler-action",
+        sandbox_level: "standard",
+        sandbox_egress: "restricted",
+        sandbox_approvals: "auto",
+        acceptable_attestation: ["local-erlexec-weak"],
+        allowed_tools: ["write_patch"],
+        file_scope_ref: "workspace://project/main",
+        logical_workspace_ref: "workspace://project/main",
+        workspace_mutability: "read_write",
+        execution_family: "process",
+        placement_intent: "host_local",
+        target_kind: "workspace",
+        allowed_operations: ["write_patch"],
+        effect_classes: []
+      )
+
+    assert packet.extensions["citadel"]["for_action_ref"] == "action://agent-loop/turn-1"
+  end
+
+  defp authority_packet(opts \\ []) do
     AuthorityDecisionV1.new!(%{
       contract_version: "v1",
       decision_id: "decision-compiler-1",
@@ -90,7 +115,13 @@ defmodule Citadel.ExecutionGovernanceCompilerTest do
       workspace_profile: "project_workspace",
       resource_profile: "standard",
       decision_hash: String.duplicate("a", 64),
-      extensions: %{"citadel" => %{}}
+      extensions: %{
+        "citadel" =>
+          if(for_action_ref = Keyword.get(opts, :for_action_ref),
+            do: %{"for_action_ref" => for_action_ref},
+            else: %{}
+          )
+      }
     })
   end
 

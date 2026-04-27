@@ -244,8 +244,8 @@ defmodule Citadel.ExecutionGovernanceCompiler do
           )
       },
       extensions:
-        Value.optional(
-          attrs,
+        attrs
+        |> Value.optional(
           :extensions,
           "Citadel.ExecutionGovernanceCompiler",
           fn value ->
@@ -253,6 +253,38 @@ defmodule Citadel.ExecutionGovernanceCompiler do
           end,
           %{"citadel" => %{}}
         )
+        |> include_action_binding(authority_packet)
     })
+  end
+
+  defp include_action_binding(extensions, %AuthorityDecisionV1{} = authority_packet) do
+    case authority_for_action_ref(authority_packet) do
+      nil ->
+        extensions
+
+      for_action_ref ->
+        Map.update(extensions, "citadel", %{"for_action_ref" => for_action_ref}, fn
+          %{} = citadel -> Map.put_new(citadel, "for_action_ref", for_action_ref)
+          _other -> %{"for_action_ref" => for_action_ref}
+        end)
+    end
+  end
+
+  defp authority_for_action_ref(%AuthorityDecisionV1{extensions: extensions}) do
+    extensions
+    |> case do
+      %{} = root ->
+        case Map.get(root, "citadel") do
+          %{} = citadel -> Map.get(citadel, "for_action_ref")
+          _other -> nil
+        end
+
+      _other ->
+        nil
+    end
+    |> case do
+      value when is_binary(value) and value != "" -> value
+      _other -> nil
+    end
   end
 end

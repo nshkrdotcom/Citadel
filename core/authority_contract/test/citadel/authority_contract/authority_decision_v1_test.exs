@@ -42,6 +42,27 @@ defmodule Citadel.AuthorityContract.AuthorityDecision.V1Test do
     assert CanonicalJson.normalize!(V1.dump(packet)) == fixture
   end
 
+  test "exposes Phase 7 for_action_ref binding through the citadel extension" do
+    packet =
+      "minimal.json"
+      |> read_fixture!()
+      |> Map.put("extensions", %{
+        "citadel" => %{"for_action_ref" => "action://agent-loop/turn-1"}
+      })
+      |> V1.new!()
+
+    assert V1.action_bound?(packet)
+    assert V1.for_action_ref(packet) == "action://agent-loop/turn-1"
+    assert V1.require_for_action_ref!(packet) == "action://agent-loop/turn-1"
+
+    unbound = read_fixture!("minimal.json") |> V1.new!()
+    refute V1.action_bound?(unbound)
+
+    assert_raise ArgumentError, ~r/for_action_ref is required/, fn ->
+      V1.require_for_action_ref!(unbound)
+    end
+  end
+
   test "rejects unknown extension namespaces" do
     fixture = read_fixture!("minimal.json")
     attrs = put_in(fixture, ["extensions", "other"], %{})

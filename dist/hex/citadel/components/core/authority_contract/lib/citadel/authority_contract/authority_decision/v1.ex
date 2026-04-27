@@ -14,6 +14,7 @@ defmodule Citadel.AuthorityContract.AuthorityDecision.V1 do
   @contract_version "v1"
   @decision_hash_regex ~r/\A[0-9a-f]{64}\z/
   @extensions_namespaces ["citadel"]
+  @action_binding_key "for_action_ref"
   @schema [
     contract_version: {:literal, @contract_version},
     decision_id: :string,
@@ -67,6 +68,34 @@ defmodule Citadel.AuthorityContract.AuthorityDecision.V1 do
 
   @spec versioning_rule() :: atom()
   def versioning_rule, do: :explicit_successor_required_for_field_or_semantic_change
+
+  @spec for_action_ref(t()) :: String.t() | nil
+  def for_action_ref(%__MODULE__{} = packet) do
+    packet.extensions
+    |> Map.get("citadel", %{})
+    |> case do
+      %{} = citadel -> Map.get(citadel, @action_binding_key)
+      _other -> nil
+    end
+    |> case do
+      value when is_binary(value) and value != "" -> value
+      _other -> nil
+    end
+  end
+
+  @spec action_bound?(t()) :: boolean()
+  def action_bound?(%__MODULE__{} = packet), do: not is_nil(for_action_ref(packet))
+
+  @spec require_for_action_ref!(t()) :: String.t()
+  def require_for_action_ref!(%__MODULE__{} = packet) do
+    case for_action_ref(packet) do
+      value when is_binary(value) ->
+        value
+
+      nil ->
+        raise ArgumentError, "#{@packet_name}.extensions[\"citadel\"].for_action_ref is required"
+    end
+  end
 
   @spec new(t() | map() | keyword()) :: {:ok, t()} | {:error, Exception.t()}
   def new(%__MODULE__{} = packet), do: normalize(packet)
