@@ -151,59 +151,25 @@
       "mix.exs",
       "projection.lock.json"
     ],
-    "git_revision": "720d8a04020792f2d13e5e144eb296e47b6ecf20",
+    "git_revision": "9189f2a8121d7da9e6416c6877f24edfc0e0dd25",
     "tree_digest": "9deb4e5fc9dafafd1ca98433a68030a61336a5c4dd01462903c548a0c5d69bfa"
   },
   "manifest": {
     "path": "/home/home/p/g/n/citadel/packaging/weld/citadel.exs",
     "digest": "50257e2b932ffa7d4300ec0ddc0e034d8cf81a10fcaf5b6736b2e6e90c499cd4"
   },
-  "verification": [
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "deps.get"
-    },
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "deps.compile"
-    },
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "compile --warnings-as-errors --no-compile-deps"
-    },
-    {
-      "env": "test",
-      "status": "ok",
-      "task": "test",
-      "failure_count": 0,
-      "test_count": 2
-    },
-    {
-      "env": "dev",
-      "status": "ok",
-      "task": "docs --warnings-as-errors"
-    },
-    {
-      "env": "dev",
-      "reason": "artifact_opted_out",
-      "status": "skipped",
-      "task": "hex.build"
-    },
-    {
-      "env": "dev",
-      "reason": "hex_build_disabled",
-      "status": "skipped",
-      "task": "hex.publish --dry-run --yes"
+  "artifact": {
+    "id": "citadel",
+    "package": {
+      "name": "citadel",
+      "version": "0.1.0",
+      "otp_app": "citadel"
     }
-  ],
+  },
   "workspace": {
     "root": "/home/home/p/g/n/citadel",
     "discovery": {
       "source": "manifest",
-      "adapter": null,
       "project_ids": [
         ".",
         "apps/coding_assist",
@@ -228,6 +194,7 @@
         "core/policy_packs",
         "surfaces/citadel_domain_surface"
       ],
+      "adapter": null,
       "globs": [
         ".",
         "apps/*",
@@ -238,14 +205,6 @@
       "root_project?": true
     },
     "project_count": 22
-  },
-  "artifact": {
-    "id": "citadel",
-    "package": {
-      "name": "citadel",
-      "version": "0.1.0",
-      "otp_app": "citadel"
-    }
   },
   "graph": {
     "edges": [
@@ -908,5 +867,46 @@
       "core/policy_packs"
     ],
     "violations": []
-  }
+  },
+  "verification": [
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.get"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "deps.compile"
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "compile --warnings-as-errors --no-compile-deps"
+    },
+    {
+      "env": "test",
+      "status": "ok",
+      "task": "test",
+      "failure_count": 0,
+      "test_count": 2
+    },
+    {
+      "env": "dev",
+      "status": "ok",
+      "task": "docs --warnings-as-errors"
+    },
+    {
+      "env": "dev",
+      "reason": "artifact_opted_out",
+      "status": "skipped",
+      "task": "hex.build"
+    },
+    {
+      "env": "dev",
+      "reason": "hex_build_disabled",
+      "status": "skipped",
+      "task": "hex.publish --dry-run --yes"
+    }
+  ]
 }
