@@ -55,3 +55,48 @@ just temporal-ui
 ```
 
 Do not invent raw `temporal server start-dev` commands for normal work. Do not reset local Temporal state unless the user explicitly approves `just temporal-reset-confirm`.
+
+<!-- gn-ten:repo-agent:start repo=citadel source_sha=ab276c0640772b73065ab12bf05d77be51f1bb67 -->
+# citadel Agent Instructions Draft
+
+## Owns
+
+- Typed Brain kernel.
+- DomainSurface.
+- Policy packets.
+- Authority posture.
+- Structured host ingress.
+- Governance compilation.
+
+## Does Not Own
+
+- Durable run/review truth.
+- Connector credential lifecycle.
+- Lower execution lanes.
+- Raw natural-language interpretation.
+- Product UI.
+
+## Allowed Dependencies
+
+- GroundPlane refs.
+- Jido Integration contract seams.
+- Execution Plane authority verifier contracts where explicitly intended.
+- AITrace observability contracts.
+
+## Forbidden Imports
+
+- Product modules.
+- Raw provider SDK calls.
+- Mezzanine persistence internals.
+
+## Verification
+
+- `mix ci`
+- Packet seam lint.
+- Governance hardening tests when policy or authority changes.
+
+## Escalation
+
+If a decision requires durable truth, hand it to Mezzanine/Jido Integration
+instead of adding persistence ownership here.
+<!-- gn-ten:repo-agent:end -->
