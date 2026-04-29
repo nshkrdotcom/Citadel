@@ -4,6 +4,7 @@
 /doc/
 /dist/archive/
 /dist/release_bundles/
+/dist/hex/*/projection.lock.json
 
 **/_build/
 **/cover/

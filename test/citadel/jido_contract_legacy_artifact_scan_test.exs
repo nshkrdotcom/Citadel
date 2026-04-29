@@ -41,8 +41,23 @@ defmodule Citadel.JidoContractLegacyArtifactScanTest do
     assert strategy =~ "non-publishable generated history"
   end
 
+  test "projection lock is generated and not tracked source" do
+    lock_path = "dist/hex/citadel/projection.lock.json"
+
+    assert tracked_paths_with(lock_path) == [] or deleted_paths_with(lock_path) == [lock_path]
+    assert git_ignored?(lock_path)
+  end
+
   defp tracked_paths_with(fragment) do
     {output, 0} = System.cmd("git", ["ls-files"], cd: @repo_root, stderr_to_stdout: true)
+
+    output
+    |> String.split("\n", trim: true)
+    |> Enum.filter(&String.contains?(&1, fragment))
+  end
+
+  defp deleted_paths_with(fragment) do
+    {output, 0} = System.cmd("git", ["ls-files", "--deleted"], cd: @repo_root)
 
     output
     |> String.split("\n", trim: true)
@@ -64,7 +79,7 @@ defmodule Citadel.JidoContractLegacyArtifactScanTest do
   end
 
   defp git_ignored?(path) do
-    case System.cmd("git", ["check-ignore", "--quiet", path],
+    case System.cmd("git", ["check-ignore", "--quiet", "--no-index", path],
            cd: @repo_root,
            stderr_to_stdout: true
          ) do
