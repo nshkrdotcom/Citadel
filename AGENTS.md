@@ -29,6 +29,11 @@ Weld/Citadel gates when publication metadata changes.
 
 # AGENTS.md
 
+## Onboarding
+
+Read `ONBOARDING.md` first for the repo's one-screen ownership, first command,
+and proof path.
+
 ## Execution Plane dependency wiring
 
 - `core/authority_contract` consumes the publishable Execution Plane substrate
