@@ -1598,9 +1598,9 @@ defmodule Citadel.PolicyPacks do
         "github.pr.create",
         "github.pr.update",
         "github.pr.review.create",
-        "linear.issue.update",
-        "linear.comment.create",
-        "linear.comment.update"
+        "linear.issues.update",
+        "linear.comments.create",
+        "linear.comments.update"
       ],
       allowed_operations: [
         "shell.exec",
@@ -1614,9 +1614,9 @@ defmodule Citadel.PolicyPacks do
         "github.pr.create",
         "github.pr.update",
         "github.pr.review.create",
-        "linear.issue.update",
-        "linear.comment.create",
-        "linear.comment.update"
+        "linear.issues.update",
+        "linear.comments.create",
+        "linear.comments.update"
       ],
       effect_classes: ["filesystem", "process", "network"],
       command_classes: [
