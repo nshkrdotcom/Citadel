@@ -89,6 +89,40 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
     assert request_extensions["guardrail_chain_policy"]["fail_closed"] == true
   end
 
+  test "selects a prebuilt Cedar bundle and emits deterministic refs for TRE lanes" do
+    assert {:ok, compiled} =
+             SubstrateIngress.compile(valid_packet("req-tre-policy"), [
+               PolicyPacks.coding_ops_standard_pack!()
+             ])
+
+    authority_tre_policy = compiled.authority_packet.extensions["citadel"]["tre_policy"]
+
+    governance_tre_policy =
+      compiled.lower_intent.invocation_request.execution_governance.extensions["citadel"][
+        "tre_policy"
+      ]
+
+    request_tre_policy =
+      compiled.lower_intent.invocation_request.extensions["citadel"]["tre_policy"]
+
+    assert authority_tre_policy == governance_tre_policy
+    assert authority_tre_policy == request_tre_policy
+    assert authority_tre_policy["selection_mode"] == "prebuilt_bundle_ref"
+
+    assert authority_tre_policy["policy_profile_ref"] ==
+             "tre-policy-profile://coding-ops/standard"
+
+    assert authority_tre_policy["policy_bundle_ref"] =~
+             "tre-policy-bundle://coding-ops/coding-ops-2026-04-25/1"
+
+    assert authority_tre_policy["policy_bundle_hash"] =~ "sha256:"
+    assert authority_tre_policy["cedar_schema_ref"] == "cedar-schema://nshkr_tre/coding_ops/v1"
+    assert authority_tre_policy["cedar_schema_hash"] =~ "sha256:"
+    assert "tre.run" in authority_tre_policy["allowed_actions"]
+    assert "process.spawn" in authority_tre_policy["allowed_actions"]
+    assert authority_tre_policy["denied_actions"] == []
+  end
+
   test "rejects coding-ops sandbox downgrades before lower submission" do
     packet = put_step_extension(valid_packet("req-sandbox-downgrade"), "sandbox_level", "none")
 
@@ -116,6 +150,23 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
              SubstrateIngress.compile(approval_packet, [PolicyPacks.coding_ops_standard_pack!()])
 
     assert approval_rejection.operator_message == "approval_downgrade"
+  end
+
+  test "rejects coding-ops attestation downgrades" do
+    packet =
+      valid_packet("req-attestation-downgrade")
+      |> put_step_extension("acceptable_attestation", ["local-erlexec-weak"])
+
+    pack =
+      PolicyPacks.coding_ops_standard_pack!()
+      |> Citadel.PolicyPacks.PolicyPack.dump()
+      |> put_in(
+        [:execution_policy, :acceptable_attestation],
+        ["spiffe://prod/microvm-strict@v1"]
+      )
+
+    assert {:error, rejection} = SubstrateIngress.compile(packet, [pack])
+    assert rejection.operator_message == "attestation_downgrade"
   end
 
   test "rejects coding-ops tools, operations, and placements outside policy" do
@@ -151,6 +202,29 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
              SubstrateIngress.compile(placement_packet, [PolicyPacks.coding_ops_standard_pack!()])
 
     assert placement_rejection.operator_message == "unsupported_placement_intent"
+  end
+
+  test "rejects unresolved resource scopes and raw Cedar policy text before lower submission" do
+    unresolved_packet =
+      valid_packet("req-unresolved-resource")
+      |> put_in(
+        [:intent_envelope, :scope_selectors, Access.at(0), :scope_id],
+        "unresolved://workspace/main"
+      )
+
+    assert {:error, unresolved_rejection} =
+             SubstrateIngress.compile(unresolved_packet, [PolicyPacks.coding_ops_standard_pack!()])
+
+    assert unresolved_rejection.operator_message == "resource_scope_unresolvable"
+
+    raw_policy_packet =
+      valid_packet("req-raw-cedar")
+      |> put_step_extension("cedar_policy_text", "permit(principal, action, resource);")
+
+    assert {:error, raw_policy_rejection} =
+             SubstrateIngress.compile(raw_policy_packet, [PolicyPacks.coding_ops_standard_pack!()])
+
+    assert raw_policy_rejection.operator_message == "raw_cedar_policy_text_not_allowed"
   end
 
   test "compiles authority from an access graph view" do

@@ -25,6 +25,7 @@ defmodule Citadel.Governance.SubstrateIngress do
   alias Citadel.PlanHints
   alias Citadel.PlanHints.CandidateStep
   alias Citadel.PolicyPacks
+  alias Citadel.PolicyPacks.CedarPolicyBundle
   alias Citadel.PolicyPacks.ExecutionPolicy
   alias Citadel.PolicyPacks.Selection
   alias Citadel.StalenessRequirements
@@ -45,6 +46,16 @@ defmodule Citadel.Governance.SubstrateIngress do
     "ephemeral_session"
   ]
   @allowed_sandbox_levels ["strict", "standard", "none"]
+  @raw_cedar_extension_keys MapSet.new([
+                              "cedar_entities",
+                              "cedar_policy",
+                              "cedar_policy_source",
+                              "cedar_policy_text",
+                              "cedar_schema",
+                              "cedar_schema_text",
+                              "policy_text",
+                              "schema_text"
+                            ])
   @sandbox_rank %{"strict" => 0, "standard" => 1, "none" => 2}
   @egress_rank %{"blocked" => 0, "restricted" => 1, "open" => 2}
   @approval_rank %{"manual" => 0, "auto" => 1, "none" => 2}
@@ -236,8 +247,9 @@ defmodule Citadel.Governance.SubstrateIngress do
   defp first_candidate_step(_envelope), do: {:error, {:planning, "missing_candidate_step"}}
 
   defp citadel_step_extensions(%CandidateStep{extensions: %{"citadel" => extensions}})
-       when is_map(extensions),
-       do: {:ok, extensions}
+       when is_map(extensions) do
+    reject_raw_cedar_policy_text(extensions)
+  end
 
   defp citadel_step_extensions(%CandidateStep{}), do: {:ok, %{}}
 
@@ -444,6 +456,7 @@ defmodule Citadel.Governance.SubstrateIngress do
       }
       |> maybe_put_prompt_version_policy(selection.prompt_version_policy)
       |> maybe_put_guardrail_chain_policy(selection.guardrail_chain_policy)
+      |> maybe_put_tre_policy(selection.cedar_policy_bundle)
       |> maybe_put_access_graph(authority_context)
 
     {:ok,
@@ -504,6 +517,28 @@ defmodule Citadel.Governance.SubstrateIngress do
     })
   end
 
+  defp maybe_put_tre_policy(extensions, nil), do: extensions
+
+  defp maybe_put_tre_policy(extensions, policy) when is_map(policy) and not is_struct(policy) do
+    Map.put(extensions, "tre_policy", policy)
+  end
+
+  defp maybe_put_tre_policy(extensions, %CedarPolicyBundle{} = policy) do
+    Map.put(extensions, "tre_policy", %{
+      "selection_mode" => policy.selection_mode,
+      "policy_profile_ref" => policy.policy_profile_ref,
+      "policy_bundle_ref" => policy.policy_bundle_ref,
+      "policy_bundle_hash" => policy.policy_bundle_hash,
+      "cedar_schema_ref" => policy.cedar_schema_ref,
+      "cedar_schema_hash" => policy.cedar_schema_hash,
+      "allowed_actions" => policy.allowed_actions,
+      "denied_actions" => policy.denied_actions,
+      "source_pack_ref" => policy.source_pack_ref,
+      "compiler_version" => policy.compiler_version,
+      "extensions" => policy.extensions
+    })
+  end
+
   defp execution_governance(
          packet,
          %ScopeSelector{} = selector,
@@ -518,7 +553,8 @@ defmodule Citadel.Governance.SubstrateIngress do
        ) do
     logical_workspace_ref = logical_workspace_ref(selector)
 
-    with {:ok, governance_attrs} <-
+    with :ok <- validate_logical_workspace_ref(logical_workspace_ref),
+         {:ok, governance_attrs} <-
            execution_governance_attrs(
              selection,
              candidate_step,
@@ -538,7 +574,8 @@ defmodule Citadel.Governance.SubstrateIngress do
            target_kind: target_hint.target_kind,
            node_affinity: normalize_optional_string(Map.get(step_extensions, "node_affinity")),
            cpu_class: normalize_optional_string(Map.get(step_extensions, "cpu_class")),
-           memory_class: normalize_optional_string(Map.get(step_extensions, "memory_class"))
+           memory_class: normalize_optional_string(Map.get(step_extensions, "memory_class")),
+           extensions: %{"citadel" => maybe_put_tre_policy(%{}, selection.cedar_policy_bundle)}
          ] ++ governance_attrs
        )}
     end
@@ -597,6 +634,9 @@ defmodule Citadel.Governance.SubstrateIngress do
 
       weaker_rank?(requested.sandbox_approvals, policy.approval_mode, @approval_rank) ->
         {:error, {:planning, "approval_downgrade"}}
+
+      not subset?(requested.acceptable_attestation, policy.acceptable_attestation) ->
+        {:error, {:planning, "attestation_downgrade"}}
 
       not subset?(requested.allowed_tools, policy.allowed_tools) ->
         {:error, {:planning, "tool_not_allowed"}}
@@ -675,6 +715,7 @@ defmodule Citadel.Governance.SubstrateIngress do
       |> maybe_put_guardrail_chain_policy(
         authority_packet.extensions["citadel"]["guardrail_chain_policy"]
       )
+      |> maybe_put_tre_policy(authority_packet.extensions["citadel"]["tre_policy"])
       |> maybe_put_execution_envelope(step_extensions)
 
     {:ok,
@@ -929,6 +970,9 @@ defmodule Citadel.Governance.SubstrateIngress do
 
   defp logical_workspace_ref(%ScopeSelector{} = selector) do
     cond do
+      is_binary(selector.scope_id) and String.starts_with?(selector.scope_id, "unresolved://") ->
+        selector.scope_id
+
       is_binary(selector.scope_id) and selector.scope_id != "" and
           String.starts_with?(selector.scope_id, "workspace://") ->
         selector.scope_id
@@ -944,6 +988,11 @@ defmodule Citadel.Governance.SubstrateIngress do
               "substrate ingress compilation requires scope selector scope_id or workspace_root"
     end
   end
+
+  defp validate_logical_workspace_ref("unresolved://" <> _rest),
+    do: {:error, {:planning, "resource_scope_unresolvable"}}
+
+  defp validate_logical_workspace_ref(_logical_workspace_ref), do: :ok
 
   defp sandbox_level(step_extensions, %CandidateStep{} = candidate_step, selection) do
     case Map.get(step_extensions, "sandbox_level") do
@@ -1110,6 +1159,26 @@ defmodule Citadel.Governance.SubstrateIngress do
   defp normalize_optional_string(nil), do: nil
   defp normalize_optional_string(value) when is_binary(value) and value != "", do: value
   defp normalize_optional_string(_other), do: nil
+
+  defp reject_raw_cedar_policy_text(extensions) when is_map(extensions) do
+    if raw_cedar_policy_text?(extensions) do
+      {:error, {:planning, "raw_cedar_policy_text_not_allowed"}}
+    else
+      {:ok, extensions}
+    end
+  end
+
+  defp raw_cedar_policy_text?(%{} = value) do
+    Enum.any?(value, fn {key, nested_value} ->
+      MapSet.member?(@raw_cedar_extension_keys, to_string(key)) or
+        raw_cedar_policy_text?(nested_value)
+    end)
+  end
+
+  defp raw_cedar_policy_text?(value) when is_list(value),
+    do: Enum.any?(value, &raw_cedar_policy_text?/1)
+
+  defp raw_cedar_policy_text?(_value), do: false
 
   defp maybe_put_execution_envelope(extensions, %{"execution_envelope" => %{} = envelope}) do
     Map.put(extensions, "execution_envelope", envelope)

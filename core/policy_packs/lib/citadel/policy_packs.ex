@@ -1074,6 +1074,208 @@ defmodule Citadel.PolicyPacks.BudgetPolicy do
   end
 end
 
+defmodule Citadel.PolicyPacks.CedarPolicyBundle do
+  @moduledoc """
+  Release-controlled Cedar policy bundle selected by a policy pack.
+  """
+
+  alias Citadel.ContractCore.CanonicalJson
+  alias Citadel.ContractCore.Value
+
+  @max_hash_inline_bytes 128_000
+  @schema [
+    selection_mode: :string,
+    policy_profile_ref: :string,
+    policy_bundle_ref: :string,
+    policy_bundle_hash: :string,
+    cedar_schema_ref: :string,
+    cedar_schema_hash: :string,
+    allowed_actions: {:list, :string},
+    denied_actions: {:list, :string},
+    source_pack_ref: :string,
+    compiler_version: :string,
+    extensions: {:map, :json}
+  ]
+  @fields Keyword.keys(@schema)
+
+  @type t :: %__MODULE__{
+          selection_mode: String.t(),
+          policy_profile_ref: String.t(),
+          policy_bundle_ref: String.t(),
+          policy_bundle_hash: String.t(),
+          cedar_schema_ref: String.t(),
+          cedar_schema_hash: String.t(),
+          allowed_actions: [String.t()],
+          denied_actions: [String.t()],
+          source_pack_ref: String.t(),
+          compiler_version: String.t(),
+          extensions: map()
+        }
+
+  @enforce_keys @fields
+  defstruct @fields
+
+  def schema, do: @schema
+
+  def new!(%__MODULE__{} = bundle) do
+    bundle
+    |> dump()
+    |> new!()
+  end
+
+  def new!(attrs) do
+    attrs = Value.normalize_attrs!(attrs, "Citadel.PolicyPacks.CedarPolicyBundle", @fields)
+
+    selection_mode =
+      Value.optional(
+        attrs,
+        :selection_mode,
+        "Citadel.PolicyPacks.CedarPolicyBundle",
+        fn value ->
+          Value.string!(value, "Citadel.PolicyPacks.CedarPolicyBundle.selection_mode")
+        end,
+        "prebuilt_bundle_ref"
+      )
+
+    policy_profile_ref =
+      required_string(attrs, :policy_profile_ref, "policy_profile_ref")
+
+    policy_bundle_ref =
+      required_string(attrs, :policy_bundle_ref, "policy_bundle_ref")
+
+    cedar_schema_ref =
+      required_string(attrs, :cedar_schema_ref, "cedar_schema_ref")
+
+    allowed_actions = optional_strings(attrs, :allowed_actions, [])
+    denied_actions = optional_strings(attrs, :denied_actions, [])
+    source_pack_ref = required_string(attrs, :source_pack_ref, "source_pack_ref")
+    compiler_version = required_string(attrs, :compiler_version, "compiler_version")
+    extensions = json_option(attrs, :extensions, %{})
+
+    bundle_hash =
+      Value.optional(
+        attrs,
+        :policy_bundle_hash,
+        "Citadel.PolicyPacks.CedarPolicyBundle",
+        fn value ->
+          Value.string!(value, "Citadel.PolicyPacks.CedarPolicyBundle.policy_bundle_hash")
+        end,
+        nil
+      ) ||
+        hash!(%{
+          selection_mode: selection_mode,
+          policy_profile_ref: policy_profile_ref,
+          policy_bundle_ref: policy_bundle_ref,
+          cedar_schema_ref: cedar_schema_ref,
+          allowed_actions: allowed_actions,
+          denied_actions: denied_actions,
+          source_pack_ref: source_pack_ref,
+          compiler_version: compiler_version,
+          extensions: extensions
+        })
+
+    schema_hash =
+      Value.optional(
+        attrs,
+        :cedar_schema_hash,
+        "Citadel.PolicyPacks.CedarPolicyBundle",
+        fn value ->
+          Value.string!(value, "Citadel.PolicyPacks.CedarPolicyBundle.cedar_schema_hash")
+        end,
+        nil
+      ) ||
+        hash!(%{
+          cedar_schema_ref: cedar_schema_ref,
+          schema_family: "nshkr_tre_coding_ops",
+          schema_version: 1,
+          compiler_version: compiler_version
+        })
+
+    %__MODULE__{
+      selection_mode: selection_mode,
+      policy_profile_ref: policy_profile_ref,
+      policy_bundle_ref: policy_bundle_ref,
+      policy_bundle_hash: bundle_hash,
+      cedar_schema_ref: cedar_schema_ref,
+      cedar_schema_hash: schema_hash,
+      allowed_actions: allowed_actions,
+      denied_actions: denied_actions,
+      source_pack_ref: source_pack_ref,
+      compiler_version: compiler_version,
+      extensions: extensions
+    }
+  end
+
+  def dump(%__MODULE__{} = bundle) do
+    %{
+      selection_mode: bundle.selection_mode,
+      policy_profile_ref: bundle.policy_profile_ref,
+      policy_bundle_ref: bundle.policy_bundle_ref,
+      policy_bundle_hash: bundle.policy_bundle_hash,
+      cedar_schema_ref: bundle.cedar_schema_ref,
+      cedar_schema_hash: bundle.cedar_schema_hash,
+      allowed_actions: bundle.allowed_actions,
+      denied_actions: bundle.denied_actions,
+      source_pack_ref: bundle.source_pack_ref,
+      compiler_version: bundle.compiler_version,
+      extensions: bundle.extensions
+    }
+  end
+
+  defp required_string(attrs, field, label) do
+    Value.required(attrs, field, "Citadel.PolicyPacks.CedarPolicyBundle", fn value ->
+      Value.string!(value, "Citadel.PolicyPacks.CedarPolicyBundle.#{label}")
+    end)
+  end
+
+  defp optional_strings(attrs, field, default) do
+    Value.optional(
+      attrs,
+      field,
+      "Citadel.PolicyPacks.CedarPolicyBundle",
+      fn value ->
+        Value.unique_strings!(value, "Citadel.PolicyPacks.CedarPolicyBundle.#{field}")
+      end,
+      default
+    )
+  end
+
+  defp json_option(attrs, field, default) do
+    Value.optional(
+      attrs,
+      field,
+      "Citadel.PolicyPacks.CedarPolicyBundle",
+      fn value ->
+        Value.json_object!(value, "Citadel.PolicyPacks.CedarPolicyBundle.#{field}")
+      end,
+      default
+    )
+  end
+
+  defp hash!(payload) do
+    digest =
+      payload
+      |> reject_oversized_hash_input!()
+      |> CanonicalJson.encode!()
+      |> then(&:crypto.hash(:sha256, &1))
+      |> Base.encode16(case: :lower)
+
+    "sha256:#{digest}"
+  end
+
+  defp reject_oversized_hash_input!(payload) do
+    estimated_bytes = :erlang.external_size(payload)
+
+    if estimated_bytes > @max_hash_inline_bytes do
+      raise ArgumentError,
+            "CedarPolicyBundle hash input exceeds inline canonicalization byte limit of #{@max_hash_inline_bytes} bytes " <>
+              "(estimated #{estimated_bytes} bytes) before canonical JSON encoding"
+    end
+
+    payload
+  end
+end
+
 defmodule Citadel.PolicyPacks.PolicyPack do
   @moduledoc """
   One explicit policy pack plus its selector, profile set, and rejection policy.
@@ -1081,6 +1283,7 @@ defmodule Citadel.PolicyPacks.PolicyPack do
 
   alias Citadel.ContractCore.Value
   alias Citadel.PolicyPacks.BudgetPolicy
+  alias Citadel.PolicyPacks.CedarPolicyBundle
   alias Citadel.PolicyPacks.ExecutionPolicy
   alias Citadel.PolicyPacks.GuardrailChainPolicy
   alias Citadel.PolicyPacks.Profiles
@@ -1099,6 +1302,7 @@ defmodule Citadel.PolicyPacks.PolicyPack do
     prompt_version_policy: {:struct, PromptVersionPolicy},
     guardrail_chain_policy: {:struct, GuardrailChainPolicy},
     budget_policy: {:struct, BudgetPolicy},
+    cedar_policy_bundle: {:struct, CedarPolicyBundle},
     rejection_policy: {:struct, RejectionPolicy},
     extensions: {:map, :json}
   ]
@@ -1115,6 +1319,7 @@ defmodule Citadel.PolicyPacks.PolicyPack do
           prompt_version_policy: PromptVersionPolicy.t() | nil,
           guardrail_chain_policy: GuardrailChainPolicy.t() | nil,
           budget_policy: BudgetPolicy.t() | nil,
+          cedar_policy_bundle: CedarPolicyBundle.t() | nil,
           rejection_policy: RejectionPolicy.t(),
           extensions: map()
         }
@@ -1216,6 +1421,20 @@ defmodule Citadel.PolicyPacks.PolicyPack do
           end,
           nil
         ),
+      cedar_policy_bundle:
+        Value.optional(
+          attrs,
+          :cedar_policy_bundle,
+          "Citadel.PolicyPacks.PolicyPack",
+          fn value ->
+            Value.module!(
+              value,
+              CedarPolicyBundle,
+              "Citadel.PolicyPacks.PolicyPack.cedar_policy_bundle"
+            )
+          end,
+          nil
+        ),
       rejection_policy:
         Value.required(attrs, :rejection_policy, "Citadel.PolicyPacks.PolicyPack", fn value ->
           Value.module!(value, RejectionPolicy, "Citadel.PolicyPacks.PolicyPack.rejection_policy")
@@ -1245,6 +1464,7 @@ defmodule Citadel.PolicyPacks.PolicyPack do
       prompt_version_policy: dump_prompt_version_policy(pack.prompt_version_policy),
       guardrail_chain_policy: dump_guardrail_chain_policy(pack.guardrail_chain_policy),
       budget_policy: dump_budget_policy(pack.budget_policy),
+      cedar_policy_bundle: dump_cedar_policy_bundle(pack.cedar_policy_bundle),
       rejection_policy: RejectionPolicy.dump(pack.rejection_policy),
       extensions: pack.extensions
     }
@@ -1264,6 +1484,10 @@ defmodule Citadel.PolicyPacks.PolicyPack do
 
   defp dump_budget_policy(nil), do: nil
   defp dump_budget_policy(%BudgetPolicy{} = policy), do: BudgetPolicy.dump(policy)
+  defp dump_cedar_policy_bundle(nil), do: nil
+
+  defp dump_cedar_policy_bundle(%CedarPolicyBundle{} = bundle),
+    do: CedarPolicyBundle.dump(bundle)
 
   def matches?(%__MODULE__{} = pack, attrs) do
     pack = new!(pack)
@@ -1278,6 +1502,7 @@ defmodule Citadel.PolicyPacks.Selection do
 
   alias Citadel.ContractCore.Value
   alias Citadel.PolicyPacks.BudgetPolicy
+  alias Citadel.PolicyPacks.CedarPolicyBundle
   alias Citadel.PolicyPacks.ExecutionPolicy
   alias Citadel.PolicyPacks.GuardrailChainPolicy
   alias Citadel.PolicyPacks.Profiles
@@ -1294,6 +1519,7 @@ defmodule Citadel.PolicyPacks.Selection do
     prompt_version_policy: {:struct, PromptVersionPolicy},
     guardrail_chain_policy: {:struct, GuardrailChainPolicy},
     budget_policy: {:struct, BudgetPolicy},
+    cedar_policy_bundle: {:struct, CedarPolicyBundle},
     rejection_policy: {:struct, RejectionPolicy},
     extensions: {:map, :json}
   ]
@@ -1309,6 +1535,7 @@ defmodule Citadel.PolicyPacks.Selection do
           prompt_version_policy: PromptVersionPolicy.t() | nil,
           guardrail_chain_policy: GuardrailChainPolicy.t() | nil,
           budget_policy: BudgetPolicy.t() | nil,
+          cedar_policy_bundle: CedarPolicyBundle.t() | nil,
           rejection_policy: RejectionPolicy.t(),
           extensions: map()
         }
@@ -1394,6 +1621,20 @@ defmodule Citadel.PolicyPacks.Selection do
           end,
           nil
         ),
+      cedar_policy_bundle:
+        Value.optional(
+          attrs,
+          :cedar_policy_bundle,
+          "Citadel.PolicyPacks.Selection",
+          fn value ->
+            Value.module!(
+              value,
+              CedarPolicyBundle,
+              "Citadel.PolicyPacks.Selection.cedar_policy_bundle"
+            )
+          end,
+          nil
+        ),
       rejection_policy:
         Value.required(attrs, :rejection_policy, "Citadel.PolicyPacks.Selection", fn value ->
           Value.module!(value, RejectionPolicy, "Citadel.PolicyPacks.Selection.rejection_policy")
@@ -1422,6 +1663,7 @@ defmodule Citadel.PolicyPacks.Selection do
       prompt_version_policy: dump_prompt_version_policy(selection.prompt_version_policy),
       guardrail_chain_policy: dump_guardrail_chain_policy(selection.guardrail_chain_policy),
       budget_policy: dump_budget_policy(selection.budget_policy),
+      cedar_policy_bundle: dump_cedar_policy_bundle(selection.cedar_policy_bundle),
       rejection_policy: RejectionPolicy.dump(selection.rejection_policy),
       extensions: selection.extensions
     }
@@ -1441,6 +1683,10 @@ defmodule Citadel.PolicyPacks.Selection do
 
   defp dump_budget_policy(nil), do: nil
   defp dump_budget_policy(%BudgetPolicy{} = policy), do: BudgetPolicy.dump(policy)
+  defp dump_cedar_policy_bundle(nil), do: nil
+
+  defp dump_cedar_policy_bundle(%CedarPolicyBundle{} = bundle),
+    do: CedarPolicyBundle.dump(bundle)
 end
 
 defmodule Citadel.PolicyPacks do
@@ -1450,6 +1696,7 @@ defmodule Citadel.PolicyPacks do
 
   alias Citadel.ContractCore.Value
   alias Citadel.PolicyPacks.BudgetPolicy
+  alias Citadel.PolicyPacks.CedarPolicyBundle
   alias Citadel.PolicyPacks.ExecutionPolicy
   alias Citadel.PolicyPacks.PolicyPack
   alias Citadel.PolicyPacks.Selection
@@ -1510,6 +1757,7 @@ defmodule Citadel.PolicyPacks do
           prompt_version_policy: pack.prompt_version_policy,
           guardrail_chain_policy: pack.guardrail_chain_policy,
           budget_policy: pack.budget_policy,
+          cedar_policy_bundle: pack.cedar_policy_bundle,
           rejection_policy: pack.rejection_policy,
           extensions: pack.extensions
         })
@@ -1558,6 +1806,11 @@ defmodule Citadel.PolicyPacks do
       prompt_version_policy: coding_ops_standard_prompt_version_policy!(),
       guardrail_chain_policy: coding_ops_standard_guardrail_chain_policy!(),
       budget_policy: coding_ops_standard_budget_policy!(),
+      cedar_policy_bundle:
+        coding_ops_standard_cedar_policy_bundle!(
+          policy_version: policy_version,
+          policy_epoch: policy_epoch
+        ),
       rejection_policy: %{
         denial_audit_reason_codes: [
           "policy_denied",
@@ -1565,8 +1818,11 @@ defmodule Citadel.PolicyPacks do
           "sandbox_downgrade",
           "egress_downgrade",
           "approval_downgrade",
+          "attestation_downgrade",
           "tool_not_allowed",
           "operation_not_allowed",
+          "resource_scope_unresolvable",
+          "raw_cedar_policy_text_not_allowed",
           "unsupported_placement_intent"
         ],
         derived_state_reason_codes: ["planning_failed"],
@@ -1686,6 +1942,36 @@ defmodule Citadel.PolicyPacks do
         }
       ],
       extensions: %{"policy_family" => "coding_ops_budget"}
+    })
+  end
+
+  @spec coding_ops_standard_cedar_policy_bundle!(keyword()) :: CedarPolicyBundle.t()
+  def coding_ops_standard_cedar_policy_bundle!(opts \\ []) when is_list(opts) do
+    policy_version = Keyword.get(opts, :policy_version, "coding-ops-2026-04-25")
+    policy_epoch = Keyword.get(opts, :policy_epoch, 1)
+
+    CedarPolicyBundle.new!(%{
+      selection_mode: "prebuilt_bundle_ref",
+      policy_profile_ref: "tre-policy-profile://coding-ops/standard",
+      policy_bundle_ref: "tre-policy-bundle://coding-ops/#{policy_version}/#{policy_epoch}",
+      cedar_schema_ref: "cedar-schema://nshkr_tre/coding_ops/v1",
+      allowed_actions: [
+        "tre.run",
+        "tre.compile_script",
+        "fs.read",
+        "fs.write",
+        "fs.stat",
+        "fs.list",
+        "process.spawn",
+        "artifact.write",
+        "metric.emit",
+        "log.emit",
+        "target.attach"
+      ],
+      denied_actions: [],
+      source_pack_ref: "policy-pack://citadel/coding_ops_standard",
+      compiler_version: "citadel-policy-packs/phase13-prebuilt-v1",
+      extensions: %{"policy_family" => "coding_ops_tre"}
     })
   end
 
