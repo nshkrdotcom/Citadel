@@ -1,5 +1,11 @@
+unless Code.ensure_loaded?(Citadel.Build.DependencyResolver) do
+  Code.require_file("../../lib/citadel/build/dependency_resolver.ex", __DIR__)
+end
+
 defmodule Citadel.AuthorityContract.MixProject do
   use Mix.Project
+
+  alias Citadel.Build.DependencyResolver
 
   def project do
     [
@@ -21,8 +27,8 @@ defmodule Citadel.AuthorityContract.MixProject do
   defp deps do
     [
       {:citadel_contract_core, path: "../contract_core"},
-      {:execution_plane, path: "../../../execution_plane/core/execution_plane"},
-      {:ground_plane_persistence_policy, path: "../../../ground_plane/core/persistence_policy"},
+      DependencyResolver.execution_plane(),
+      DependencyResolver.ground_plane_persistence_policy(),
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end

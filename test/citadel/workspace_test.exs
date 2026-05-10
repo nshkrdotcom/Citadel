@@ -29,6 +29,12 @@ defmodule Citadel.WorkspaceTest do
     assert Workspace.toolchain() == %{elixir: "~> 1.19", otp: "28"}
   end
 
+  test "limits packet seam atom lint to runtime source paths" do
+    refute "build_support" in Workspace.static_analysis_paths()
+    assert "lib" in Workspace.static_analysis_paths()
+    assert "core/*/lib" in Workspace.static_analysis_paths()
+  end
+
   test "uses the released Weld line directly" do
     assert {:weld, "~> 0.8.1", only: [:dev, :test], runtime: false} in MixProject.project()[:deps]
   end
@@ -123,13 +129,7 @@ defmodule Citadel.WorkspaceTest do
 
   test "weld manifest can be inspected through the mix task entrypoint" do
     {output, 0} =
-      System.cmd("mix", ["weld.inspect"],
-        env: [
-          {"CITADEL_JIDO_INTEGRATION_CONTRACTS_PATH", "published"},
-          {"AITRACE_PATH", "published"}
-        ],
-        stderr_to_stdout: true
-      )
+      System.cmd("mix", ["weld.inspect"], stderr_to_stdout: true)
 
     assert String.contains?(output, "citadel")
   end

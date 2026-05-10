@@ -15,8 +15,9 @@ defmodule Citadel.JidoContractConsumerDependencyTest do
     mix_files_with_contract_refs =
       "mix.exs"
       |> tracked_paths_with("jido_integration_contracts")
-      |> Enum.reject(&(&1 == "core/jido_integration_contracts/mix.exs"))
-      |> Enum.reject(&String.starts_with?(&1, "dist/"))
+      |> Enum.reject(
+        &(&1 == "core/jido_integration_contracts/mix.exs" or String.starts_with?(&1, "dist/"))
+      )
       |> Enum.sort()
 
     assert mix_files_with_contract_refs == Enum.sort(Map.keys(@local_welded_slice_deps))
@@ -50,11 +51,29 @@ defmodule Citadel.JidoContractConsumerDependencyTest do
     resolver = File.read!(Path.join(@repo_root, "lib/citadel/build/dependency_resolver.ex"))
     workspace = File.read!(Path.join(@repo_root, "lib/citadel/workspace.ex"))
 
+    dependency_config =
+      File.read!(Path.join(@repo_root, "build_support/dependency_sources.config.exs"))
+
     assert String.contains?(resolver, "def jido_integration_contracts")
-    assert String.contains?(resolver, "JIDO_INTEGRATION_PATH")
-    assert String.contains?(resolver, "core/contracts")
+    assert String.contains?(resolver, "apply(:dep")
     assert String.contains?(resolver, "@published_jido_integration_contracts_requirement")
+    refute String.contains?(resolver, "JIDO_INTEGRATION_PATH")
+    refute String.contains?(resolver, "CITADEL_JIDO_INTEGRATION_CONTRACTS_PATH")
+    refute String.contains?(resolver, "System.get_env")
     assert String.contains?(workspace, "DependencyResolver.jido_integration_contracts_source()")
+    assert String.contains?(dependency_config, "repo: \"agentjido/jido_integration\"")
+    assert String.contains?(dependency_config, "subdir: \"core/contracts\"")
+  end
+
+  test "conformance published-contract script does not select dependencies through env" do
+    script = File.read!(Path.join(@repo_root, "core/conformance/bin/test_published_contracts.sh"))
+
+    refute String.contains?(script, "JIDO_INTEGRATION_PATH")
+    refute String.contains?(script, "CITADEL_JIDO_INTEGRATION_CONTRACTS_PATH")
+    refute String.contains?(script, "CITADEL_CONFORMANCE_CONTRACT_MODE")
+    assert String.contains?(script, "contract_mode ${mode}")
+    assert String.contains?(script, "run_contract_tests published_artifact")
+    assert String.contains?(script, "run_contract_tests staged_artifact")
   end
 
   defp tracked_paths_with(suffix, fragment) do

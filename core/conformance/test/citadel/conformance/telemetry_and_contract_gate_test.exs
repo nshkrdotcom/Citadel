@@ -109,6 +109,25 @@ defmodule Citadel.Conformance.TelemetryAndContractGateTest do
     end
   end
 
+  test "contract mode is explicit caller/config data" do
+    previous = Application.get_env(:citadel_conformance, :contract_mode, :__missing__)
+
+    on_exit(fn ->
+      case previous do
+        :__missing__ -> Application.delete_env(:citadel_conformance, :contract_mode)
+        value -> Application.put_env(:citadel_conformance, :contract_mode, value)
+      end
+    end)
+
+    Application.put_env(:citadel_conformance, :contract_mode, :staged)
+
+    assert Conformance.requested_contract_mode() == :staged_artifact
+    assert Conformance.shared_contract_mode(contract_mode: :published) == :published_artifact
+    assert Conformance.release_artifact_gate_requested?(contract_mode: "staged")
+    assert Conformance.published_artifact_gate_requested?(contract_mode: "published")
+    refute Conformance.published_artifact_gate_requested?(contract_mode: :path_local)
+  end
+
   defp seed_dead_lettered_session(session_directory, session_id, entry_id, dead_letter_reason) do
     entry = dead_letter_entry(entry_id, dead_letter_reason)
 

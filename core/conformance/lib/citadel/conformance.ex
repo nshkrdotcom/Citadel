@@ -31,27 +31,44 @@ defmodule Citadel.Conformance do
   @spec manifest() :: map()
   def manifest, do: @manifest
 
-  @spec shared_contract_mode() :: :path_local | :staged_artifact | :published_artifact
-  def shared_contract_mode do
-    requested_contract_mode()
+  @type contract_mode :: :path_local | :staged_artifact | :published_artifact
+
+  @spec shared_contract_mode(keyword()) :: contract_mode()
+  def shared_contract_mode(opts \\ []) do
+    requested_contract_mode(opts)
   end
 
-  @spec requested_contract_mode() :: :path_local | :staged_artifact | :published_artifact
-  def requested_contract_mode do
-    case System.get_env("CITADEL_CONFORMANCE_CONTRACT_MODE") do
-      "published" -> :published_artifact
-      "staged" -> :staged_artifact
-      _ -> :path_local
-    end
+  @spec requested_contract_mode(keyword()) :: contract_mode()
+  def requested_contract_mode(opts \\ []) do
+    opts
+    |> Keyword.get_lazy(:contract_mode, fn ->
+      Application.get_env(:citadel_conformance, :contract_mode, :path_local)
+    end)
+    |> normalize_contract_mode()
   end
 
-  @spec release_artifact_gate_requested?() :: boolean()
-  def release_artifact_gate_requested? do
-    requested_contract_mode() in [:staged_artifact, :published_artifact]
+  @spec release_artifact_gate_requested?(keyword()) :: boolean()
+  def release_artifact_gate_requested?(opts \\ []) do
+    requested_contract_mode(opts) in [:staged_artifact, :published_artifact]
   end
 
-  @spec published_artifact_gate_requested?() :: boolean()
-  def published_artifact_gate_requested? do
-    requested_contract_mode() == :published_artifact
+  @spec published_artifact_gate_requested?(keyword()) :: boolean()
+  def published_artifact_gate_requested?(opts \\ []) do
+    requested_contract_mode(opts) == :published_artifact
   end
+
+  defp normalize_contract_mode(mode)
+       when mode in [:path_local, :staged_artifact, :published_artifact],
+       do: mode
+
+  defp normalize_contract_mode(mode) when mode in [:path, "path", "path_local"],
+    do: :path_local
+
+  defp normalize_contract_mode(mode) when mode in [:staged, "staged", "staged_artifact"],
+    do: :staged_artifact
+
+  defp normalize_contract_mode(mode) when mode in [:published, "published", "published_artifact"],
+    do: :published_artifact
+
+  defp normalize_contract_mode(_mode), do: :path_local
 end

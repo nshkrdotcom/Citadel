@@ -25,3 +25,6 @@ path-only contract changes do not become the only verified compatibility mode.
 Run the published-or-staged artifact gate with:
 
 `bin/test_published_contracts.sh`
+
+The script configures conformance mode through VM application config. It does
+not use environment variables to select dependency sources.

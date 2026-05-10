@@ -44,7 +44,6 @@ defmodule Citadel.Workspace do
   ]
   @static_analysis_paths [
     "lib",
-    "build_support",
     "core/*/lib",
     "bridges/*/lib",
     "apps/host_surface_harness/lib",
@@ -131,7 +130,11 @@ defmodule Citadel.Workspace do
     |> Enum.reject(&File.regular?(Path.join(&1, "mix.exs")))
   end
 
-  @spec shared_contract_dependency_source() :: {:hex, String.t()} | {:path, String.t()}
+  @spec shared_contract_dependency_source() ::
+          {:hex, String.t()}
+          | {:hex, String.t(), keyword()}
+          | {:github, String.t(), keyword()}
+          | {:path, String.t()}
   def shared_contract_dependency_source do
     DependencyResolver.jido_integration_contracts_source()
   end

@@ -6,7 +6,6 @@
         included: [
           "mix.exs",
           "lib/",
-          "build_support/",
           "core/*/lib/",
           "bridges/*/lib/",
           "apps/*/lib/"
@@ -20,6 +19,7 @@
         ]
       },
       checks: [
+        {Weld.Credo.Check.NoRuntimeOsEnv, []},
         {Credo.Check.Warning.BoolOperationOnSameValues, []},
         {Credo.Check.Warning.Dbg, []},
         {Credo.Check.Warning.IExPry, []},

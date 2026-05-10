@@ -70,6 +70,31 @@ or `GH_TOKEN`/`GITHUB_TOKEN` from the wrapper. Codex SDK examples use the existi
 Codex/OpenAI machine auth through the wrapper. Live provider smoke is not product
 acceptance unless it runs the product-owned Extravaganza command path.
 
+## Dependency Sources And Runtime Env
+
+- Dependency source selection is handled by
+  `build_support/dependency_sources.exs` plus
+  `build_support/dependency_sources.config.exs`.
+- Use `.dependency_sources.local.exs` for local overrides; it is gitignored and
+  must not be committed.
+- Default dependency priority is `path -> GitHub -> Hex`; publish mode is
+  Hex-only and must fail with exact blockers when an internal dependency is not
+  available on Hex.
+- Dependency source selection must not read OS environment variables.
+- Weld verifies helper drift, manifests, dependency blockers, publish order, and
+  AGENTS guidance; Weld is not required before `mix deps.get`.
+- The only current Hex publication target in the Extravaganza readiness pass is
+  Weld `0.8.1`; do not publish Citadel as part of this pass.
+- Runtime application code under `lib/**` must not call direct OS env APIs such
+  as `System.get_env`, `System.fetch_env`, `System.put_env`, or
+  `System.delete_env`.
+- Runtime/deployment env reads belong in `config/runtime.exs` or an explicit
+  `Config.Provider`. Libraries receive explicit options, config structs,
+  credential providers, or caller-supplied env maps from the top-level
+  application.
+- Tests may manipulate env only for config-boundary, compatibility, or
+  live-wrapper checks.
+
 <!-- gn-ten:repo-agent:start repo=citadel source_sha=ab276c0640772b73065ab12bf05d77be51f1bb67 -->
 # citadel Agent Instructions Draft
 
