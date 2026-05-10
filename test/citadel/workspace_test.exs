@@ -36,7 +36,7 @@ defmodule Citadel.WorkspaceTest do
   end
 
   test "uses the released Weld line directly" do
-    assert {:weld, "~> 0.8.1", only: [:dev, :test], runtime: false} in MixProject.project()[:deps]
+    assert {:weld, "~> 0.8.2", only: [:dev, :test], runtime: false} in MixProject.project()[:deps]
   end
 
   test "uses Weld task autodiscovery instead of local release aliases" do
