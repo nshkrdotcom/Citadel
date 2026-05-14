@@ -81,24 +81,24 @@ controls.
 
 ```mermaid
 flowchart TD
-  Host["Host or substrate ingress"] --> Context["Brain context"]
-  Context --> Policy["Policy pack compiler"]
-  Policy --> Authority["Authority ref"]
-  Policy --> Governance["ExecutionGovernance.v1"]
-  Governance --> Bridge["Boundary and invocation bridges"]
-  Bridge --> Jido["Jido Integration gateway"]
-  Jido --> Execution["Execution Plane verifier"]
-  Execution --> Evidence["Trace and projection refs"]
+  Host["Host<br/>ingress"] --> Context["Brain<br/>context"]
+  Context --> Policy["Policy<br/>compiler"]
+  Policy --> Authority["Authority<br/>ref"]
+  Policy --> Governance["Execution<br/>governance"]
+  Governance --> Bridge["Boundary<br/>bridges"]
+  Bridge --> Jido["Jido<br/>gateway"]
+  Jido --> Execution["Execution<br/>verifier"]
+  Execution --> Evidence["Trace<br/>refs"]
 ```
 
 ```mermaid
 flowchart LR
-  Packet["Contract core"] --> Kernel["Citadel kernel"]
-  Packs["Policy packs"] --> Kernel
-  Kernel --> HostBridge["Host ingress bridge"]
-  Kernel --> Projection["Projection bridge"]
-  Domain["Citadel.DomainSurface"] --> HostBridge
-  Harness["Proof apps"] --> Domain
+  Packet["Contract<br/>core"] --> Kernel["Citadel<br/>kernel"]
+  Packs["Policy<br/>packs"] --> Kernel
+  Kernel --> HostBridge["Host<br/>bridge"]
+  Kernel --> Projection["Projection<br/>bridge"]
+  Domain["Domain<br/>surface"] --> HostBridge
+  Harness["Proof<br/>apps"] --> Domain
 ```
 
 Citadel owns:
