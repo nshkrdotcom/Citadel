@@ -101,6 +101,29 @@ flowchart LR
   Harness["Proof<br/>apps"] --> Domain
 ```
 
+## Developer Flow Diagrams
+
+```mermaid
+flowchart TD
+  Domain["Domain<br/>surface"] --> Host["Host<br/>ingress"]
+  Host --> Context["Request<br/>context"]
+  Context --> Compile["Invocation<br/>compiler"]
+  Compile --> Kernel["Kernel<br/>context"]
+  Kernel --> Governance["Governance<br/>packet"]
+  Governance --> Invoke["Invocation<br/>bridge"]
+  Invoke --> Lower["Lower<br/>contracts"]
+```
+
+```mermaid
+flowchart LR
+  Selector["Policy<br/>selector"] --> Pack["Policy<br/>pack"]
+  Pack --> Posture["Execution<br/>posture"]
+  Posture --> Downgrade["Downgrade<br/>checks"]
+  Downgrade --> Authority["Authority<br/>verifier"]
+  Authority --> SeamLint["Packet<br/>seam lint"]
+  SeamLint --> Hardening["Hardening<br/>tests"]
+```
+
 Citadel owns:
 
 - canonical Brain context construction
