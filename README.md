@@ -1,5 +1,14 @@
 <p align="center">
-  <img src="assets/citadel.svg" alt="Citadel" width="220" />
+  <img src="assets/citadel.svg" width="200" height="200" alt="Citadel logo" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/nshkrdotcom/citadel">
+    <img alt="GitHub: citadel" src="https://img.shields.io/badge/GitHub-citadel-0b0f14?logo=github" />
+  </a>
+  <a href="https://github.com/nshkrdotcom/citadel/blob/main/LICENSE">
+    <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0b0f14.svg" />
+  </a>
 </p>
 
 # Citadel
@@ -67,6 +76,30 @@ packet?" Mezzanine owns durable lifecycle and workflow reduction. Jido
 Integration owns connector/runtime invocation. Execution Plane owns node/lane
 execution. AppKit and product repos consume the resulting read models and
 controls.
+
+## Governance Diagrams
+
+```mermaid
+flowchart TD
+  Host["Host or substrate ingress"] --> Context["Brain context"]
+  Context --> Policy["Policy pack compiler"]
+  Policy --> Authority["Authority ref"]
+  Policy --> Governance["ExecutionGovernance.v1"]
+  Governance --> Bridge["Boundary and invocation bridges"]
+  Bridge --> Jido["Jido Integration gateway"]
+  Jido --> Execution["Execution Plane verifier"]
+  Execution --> Evidence["Trace and projection refs"]
+```
+
+```mermaid
+flowchart LR
+  Packet["Contract core"] --> Kernel["Citadel kernel"]
+  Packs["Policy packs"] --> Kernel
+  Kernel --> HostBridge["Host ingress bridge"]
+  Kernel --> Projection["Projection bridge"]
+  Domain["Citadel.DomainSurface"] --> HostBridge
+  Harness["Proof apps"] --> Domain
+```
 
 Citadel owns:
 
