@@ -26,6 +26,48 @@ host surfaces / shells
               -> providers, runtimes, services, connectors
 ```
 
+## Current Governance Surface
+
+Citadel is the Brain-side governance kernel for the stack. The usable surface
+today is not a product UI; it is the typed authority and policy machinery that
+lets higher layers submit governed work without giving provider adapters or
+runtime nodes permission to reinterpret the decision.
+
+The current workspace provides four practical layers:
+
+- contract packages for authority refs, execution governance packets,
+  observability values, Jido Integration shared contracts, and host/kernel
+  packet values
+- policy-pack packages that compile coding-ops posture into explicit sandbox,
+  egress, approval, tool, operation, workspace, command-class, and placement
+  requirements
+- bridge packages for invocation, query, signal, boundary, host ingress,
+  projection, and trace adapter code
+- thin proof applications and the `Citadel.DomainSurface` package for
+  northbound host-facing commands, queries, routes, and capability boundaries
+
+For governed execution, Citadel authors the authority reference and the
+`ExecutionGovernance.v1` projection consumed below the kernel. That projection
+names acceptable sandbox attestation classes, allowed tool and operation
+families, approval mode, maximum egress, workspace mutability, and placement
+intent. Downgrades are rejected before lower submission. Node hosts can use the
+Citadel `ExecutionPlane.Authority.Verifier` implementation to validate Citadel
+authority refs, but Citadel still does not become the lane host or lower
+execution node.
+
+The repo also carries the host-ingress bridge used by host applications that
+need structured ingress into the kernel. That bridge accepts typed request
+context, compiles invocation intent, and returns accepted-result contracts
+without exposing lower provider calls, raw credentials, or durable execution
+truth to the host shell.
+
+Operationally, Citadel is the repo that answers: "Is this work allowed, under
+which authority, with which posture, and with which traceable governance
+packet?" Mezzanine owns durable lifecycle and workflow reduction. Jido
+Integration owns connector/runtime invocation. Execution Plane owns node/lane
+execution. AppKit and product repos consume the resulting read models and
+controls.
+
 Citadel owns:
 
 - canonical Brain context construction
