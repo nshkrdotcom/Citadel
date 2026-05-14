@@ -47,8 +47,8 @@
       <path d="M124 54 C128 45 140 43 146 50 C152 57 149 67 140 70 L135 75 L129 69 L134 64" stroke="#8affc1" stroke-width="4"/>
       <path d="M98 124 H102 M96 132 H104" stroke="#ffe08a" stroke-width="2.5"/>
     </g>
-    <path d="M100 108 L124 121 C120 143 110 157 100 162 C90 157 80 143 76 121 Z" fill="#17223a" stroke="#8affc1" stroke-width="3"/>
-    <path d="M88 124 L97 134 L113 119" fill="none" stroke="#8affc1" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M100 106 L124 119 C121 142 110 157 100 163 C90 157 79 142 76 119 Z" fill="#17223a" stroke="#8affc1" stroke-width="3"/>
+    <path d="M88 128 L98 138 L118 119" fill="none" stroke="#8affc1" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M100 4 L183 52 L183 148 L100 196 L17 148 L17 52 Z" fill="none" stroke="#f7fbff" stroke-width="4"/>
   </g>
 </svg>
