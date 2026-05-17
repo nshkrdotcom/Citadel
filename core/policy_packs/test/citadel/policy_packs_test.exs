@@ -116,6 +116,32 @@ defmodule Citadel.PolicyPacksTest do
     assert permission.permission_ref == "permission://budget/override"
   end
 
+  test "defines a provider-neutral generic substrate policy pack" do
+    pack = PolicyPacks.generic_substrate_pack!()
+
+    assert %PolicyPack{} = pack
+    assert pack.pack_id == "generic-substrate-standard"
+    assert pack.extensions["policy_family"] == "generic_substrate"
+
+    assert pack.execution_policy.allowed_operations == [
+             "source_read",
+             "source_write",
+             "runtime_session",
+             "runtime_tool_invocation",
+             "evidence_collection",
+             "resource_effect",
+             "lower_read",
+             "trace_replay",
+             "review_decision"
+           ]
+
+    dumped = inspect(PolicyPack.dump(pack))
+
+    refute String.contains?(dumped, "codex")
+    refute String.contains?(dumped, "github")
+    refute String.contains?(dumped, "linear")
+  end
+
   test "policy packs preserve prompt and guard policy through selection dumps" do
     pack = PolicyPacks.coding_ops_standard_pack!()
 

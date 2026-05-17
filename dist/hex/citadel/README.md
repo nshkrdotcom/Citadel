@@ -1,5 +1,14 @@
 <p align="center">
-  <img src="assets/citadel.svg" alt="Citadel" width="220" />
+  <img src="assets/citadel.svg" width="200" height="200" alt="Citadel logo" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/nshkrdotcom/citadel">
+    <img alt="GitHub: citadel" src="https://img.shields.io/badge/GitHub-citadel-0b0f14?logo=github" />
+  </a>
+  <a href="https://github.com/nshkrdotcom/citadel/blob/main/LICENSE">
+    <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-0b0f14.svg" />
+  </a>
 </p>
 
 # Citadel
@@ -24,6 +33,95 @@ host surfaces / shells
       -> jido_integration
           -> execution plane
               -> providers, runtimes, services, connectors
+```
+
+## Current Governance Surface
+
+Citadel is the Brain-side governance kernel for the stack. The usable surface
+today is not a product UI; it is the typed authority and policy machinery that
+lets higher layers submit governed work without giving provider adapters or
+runtime nodes permission to reinterpret the decision.
+
+The current workspace provides four practical layers:
+
+- contract packages for authority refs, execution governance packets,
+  observability values, Jido Integration shared contracts, and host/kernel
+  packet values
+- policy-pack packages that compile coding-ops posture into explicit sandbox,
+  egress, approval, tool, operation, workspace, command-class, and placement
+  requirements
+- bridge packages for invocation, query, signal, boundary, host ingress,
+  projection, and trace adapter code
+- thin proof applications and the `Citadel.DomainSurface` package for
+  northbound host-facing commands, queries, routes, and capability boundaries
+
+For governed execution, Citadel authors the authority reference and the
+`ExecutionGovernance.v1` projection consumed below the kernel. That projection
+names acceptable sandbox attestation classes, allowed tool and operation
+families, approval mode, maximum egress, workspace mutability, and placement
+intent. Downgrades are rejected before lower submission. Node hosts can use the
+Citadel `ExecutionPlane.Authority.Verifier` implementation to validate Citadel
+authority refs, but Citadel still does not become the lane host or lower
+execution node.
+
+The repo also carries the host-ingress bridge used by host applications that
+need structured ingress into the kernel. That bridge accepts typed request
+context, compiles invocation intent, and returns accepted-result contracts
+without exposing lower provider calls, raw credentials, or durable execution
+truth to the host shell.
+
+Operationally, Citadel is the repo that answers: "Is this work allowed, under
+which authority, with which posture, and with which traceable governance
+packet?" Mezzanine owns durable lifecycle and workflow reduction. Jido
+Integration owns connector/runtime invocation. Execution Plane owns node/lane
+execution. AppKit and product repos consume the resulting read models and
+controls.
+
+## Governance Diagrams
+
+```mermaid
+flowchart TD
+  Host["Host<br/>ingress"] --> Context["Brain<br/>context"]
+  Context --> Policy["Policy<br/>compiler"]
+  Policy --> Authority["Authority<br/>ref"]
+  Policy --> Governance["Execution<br/>governance"]
+  Governance --> Bridge["Boundary<br/>bridges"]
+  Bridge --> Jido["Jido<br/>gateway"]
+  Jido --> Execution["Execution<br/>verifier"]
+  Execution --> Evidence["Trace<br/>refs"]
+```
+
+```mermaid
+flowchart LR
+  Packet["Contract<br/>core"] --> Kernel["Citadel<br/>kernel"]
+  Packs["Policy<br/>packs"] --> Kernel
+  Kernel --> HostBridge["Host<br/>bridge"]
+  Kernel --> Projection["Projection<br/>bridge"]
+  Domain["Domain<br/>surface"] --> HostBridge
+  Harness["Proof<br/>apps"] --> Domain
+```
+
+## Developer Flow Diagrams
+
+```mermaid
+flowchart TD
+  Domain["Domain<br/>surface"] --> Host["Host<br/>ingress"]
+  Host --> Context["Request<br/>context"]
+  Context --> Compile["Invocation<br/>compiler"]
+  Compile --> Kernel["Kernel<br/>context"]
+  Kernel --> Governance["Governance<br/>packet"]
+  Governance --> Invoke["Invocation<br/>bridge"]
+  Invoke --> Lower["Lower<br/>contracts"]
+```
+
+```mermaid
+flowchart LR
+  Selector["Policy<br/>selector"] --> Pack["Policy<br/>pack"]
+  Pack --> Posture["Execution<br/>posture"]
+  Posture --> Downgrade["Downgrade<br/>checks"]
+  Downgrade --> Authority["Authority<br/>verifier"]
+  Authority --> SeamLint["Packet<br/>seam lint"]
+  SeamLint --> Hardening["Hardening<br/>tests"]
 ```
 
 Citadel owns:

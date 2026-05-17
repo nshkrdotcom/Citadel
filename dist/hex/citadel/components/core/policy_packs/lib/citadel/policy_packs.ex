@@ -1717,6 +1717,18 @@ defmodule Citadel.PolicyPacks do
 
   @selection_input_fields [:tenant_id, :scope_kind, :environment, :policy_epoch]
 
+  @generic_substrate_operations [
+    "source_read",
+    "source_write",
+    "runtime_session",
+    "runtime_tool_invocation",
+    "evidence_collection",
+    "resource_effect",
+    "lower_read",
+    "trace_replay",
+    "review_decision"
+  ]
+
   @type selection_input :: %{
           required(:tenant_id) => String.t(),
           required(:scope_kind) => String.t(),
@@ -1831,6 +1843,80 @@ defmodule Citadel.PolicyPacks do
         extensions: %{}
       },
       extensions: %{"policy_family" => "coding_ops", "policy_version" => policy_version}
+    })
+  end
+
+  @spec generic_substrate_pack!(keyword()) :: PolicyPack.t()
+  def generic_substrate_pack!(opts \\ []) when is_list(opts) do
+    policy_version = Keyword.get(opts, :policy_version, "generic-substrate-2026-05-17")
+    policy_epoch = Keyword.get(opts, :policy_epoch, 1)
+
+    PolicyPack.new!(%{
+      pack_id: Keyword.get(opts, :pack_id, "generic-substrate-standard"),
+      policy_version: policy_version,
+      policy_epoch: policy_epoch,
+      priority: Keyword.get(opts, :priority, 50),
+      selector:
+        Keyword.get(opts, :selector, %{
+          tenant_ids: Keyword.get(opts, :tenant_ids, []),
+          scope_kinds: Keyword.get(opts, :scope_kinds, []),
+          environments: Keyword.get(opts, :environments, []),
+          default?: Keyword.get(opts, :default?, true),
+          extensions: %{}
+        }),
+      profiles: %{
+        trust_profile: "generic_operator",
+        approval_profile: "operation_class_policy",
+        egress_profile: "manifest_constrained",
+        workspace_profile: "binding_snapshot_workspace",
+        resource_profile: "generic_operation_resource",
+        boundary_class: "governed_operation",
+        extensions: %{}
+      },
+      execution_policy: generic_substrate_execution_policy!(),
+      prompt_version_policy: nil,
+      guardrail_chain_policy: nil,
+      budget_policy: nil,
+      cedar_policy_bundle: nil,
+      rejection_policy: %{
+        denial_audit_reason_codes: [
+          "operation_class_not_allowed",
+          "capability_not_allowed",
+          "manifest_ref_not_allowed",
+          "binding_ref_not_allowed",
+          "credential_scope_not_allowed",
+          "side_effect_class_not_allowed",
+          "required_scope_not_allowed",
+          "missing_confirmation_policy"
+        ],
+        derived_state_reason_codes: ["binding_snapshot_unavailable"],
+        runtime_change_reason_codes: ["manifest_changed", "credential_lease_unavailable"],
+        governance_change_reason_codes: [
+          "policy_epoch_stale",
+          "authority_reauthorization_required"
+        ],
+        extensions: %{}
+      },
+      extensions: %{"policy_family" => "generic_substrate", "policy_version" => policy_version}
+    })
+  end
+
+  @spec generic_substrate_execution_policy!() :: ExecutionPolicy.t()
+  def generic_substrate_execution_policy! do
+    ExecutionPolicy.new!(%{
+      minimum_sandbox_level: "strict",
+      maximum_egress: "restricted",
+      approval_mode: "manual",
+      acceptable_attestation: ["manifest-descriptor"],
+      allowed_tools: [],
+      allowed_operations: @generic_substrate_operations,
+      effect_classes: ["read", "write", "external_effect"],
+      command_classes: @generic_substrate_operations,
+      workspace_mutability: "read_write",
+      placement_intents: ["host_local", "remote_workspace"],
+      execution_families: ["process", "http", "json_rpc", "service"],
+      wall_clock_budget_ms: 300_000,
+      extensions: %{"operation_class_policy" => @generic_substrate_operations}
     })
   end
 
