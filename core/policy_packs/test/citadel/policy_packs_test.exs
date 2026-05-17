@@ -94,9 +94,10 @@ defmodule Citadel.PolicyPacksTest do
     assert pack.execution_policy.minimum_sandbox_level == "strict"
     assert pack.execution_policy.maximum_egress == "restricted"
     assert pack.execution_policy.approval_mode == "manual"
-    assert "codex.session.turn" in pack.execution_policy.allowed_operations
+    assert "runtime_session" in pack.execution_policy.allowed_operations
     assert "write_patch" in pack.execution_policy.allowed_tools
     assert "repo_write" in pack.execution_policy.command_classes
+    assert "source_write" in pack.execution_policy.command_classes
     assert pack.execution_policy.workspace_mutability == "read_write"
     assert pack.execution_policy.placement_intents == ["host_local", "remote_workspace"]
     assert %PromptVersionPolicy{} = pack.prompt_version_policy

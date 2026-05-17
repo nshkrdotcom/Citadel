@@ -71,7 +71,7 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
     assert governance.sandbox["allowed_tools"] == ["bash", "git"]
     assert governance.workspace["mutability"] == "read_write"
     assert governance.placement["placement_intent"] == "remote_workspace"
-    assert governance.operations["allowed_operations"] == ["shell.exec"]
+    assert governance.operations["allowed_operations"] == ["runtime_session"]
     assert governance.operations["effect_classes"] == ["filesystem", "process"]
 
     citadel_extensions = compiled.authority_packet.extensions["citadel"]
@@ -490,7 +490,7 @@ defmodule Citadel.GovernanceSubstrateIngressTest do
           %{
             step_kind: "capability",
             capability_id: "compile.workspace",
-            allowed_operations: ["shell.exec"],
+            allowed_operations: ["runtime_session"],
             extensions: %{
               "citadel" => %{
                 "execution_intent_family" => "process",
