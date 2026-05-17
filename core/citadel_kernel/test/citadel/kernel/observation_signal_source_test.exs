@@ -19,10 +19,17 @@ defmodule Citadel.Kernel.ObservationSignalSourceTest do
   end
 
   test "deliver_observation routes a normalized observation through signal ingress" do
+    partition_worker_supervisor = unique_name(:partition_worker_supervisor)
+
+    start_supervised!(
+      {DynamicSupervisor, strategy: :one_for_one, name: partition_worker_supervisor}
+    )
+
     {:ok, server} =
       SignalIngress.start_link(
         name: unique_name(:signal_ingress),
-        signal_source: ObservationSignalSource
+        signal_source: ObservationSignalSource,
+        partition_worker_supervisor: partition_worker_supervisor
       )
 
     assert :ok = SignalIngress.register_subscription(server, "sess-1")

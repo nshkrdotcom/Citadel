@@ -48,6 +48,10 @@ defmodule Citadel.Kernel.SignalIngress do
 
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
+
+    opts =
+      Keyword.put_new_lazy(opts, :partition_worker_supervisor, &default_partition_supervisor!/0)
+
     GenServer.start_link(__MODULE__, opts, name: name)
   end
 
@@ -69,6 +73,24 @@ defmodule Citadel.Kernel.SignalIngress do
 
   def deliver_signal(server \\ __MODULE__, raw_signal) do
     GenServer.call(server, {:deliver_signal, raw_signal})
+  end
+
+  defp default_partition_supervisor! do
+    supervisor = Citadel.Kernel.SignalIngress.PartitionSupervisor
+
+    case Process.whereis(supervisor) do
+      pid when is_pid(pid) ->
+        supervisor
+
+      nil ->
+        case Application.ensure_all_started(:citadel_kernel) do
+          {:ok, _started} ->
+            supervisor
+
+          {:error, reason} ->
+            raise "failed to start citadel kernel supervisors: #{inspect(reason)}"
+        end
+    end
   end
 
   def deliver_observation(server \\ __MODULE__, %RuntimeObservation{} = observation) do
@@ -108,6 +130,12 @@ defmodule Citadel.Kernel.SignalIngress do
         rebuild_scheduled?: false,
         partition_workers: %{},
         partition_worker_monitors: %{},
+        partition_worker_supervisor:
+          Keyword.get(
+            opts,
+            :partition_worker_supervisor,
+            Citadel.Kernel.SignalIngress.PartitionSupervisor
+          ),
         partition_queue_depths: %{},
         partition_overload_until_ms: %{},
         partition_last_seen_at_ms: %{},
@@ -811,10 +839,10 @@ defmodule Citadel.Kernel.SignalIngress do
   end
 
   defp start_partition_worker(state, partition) do
-    case __MODULE__.PartitionWorker.start(
-           owner: self(),
-           partition_ref: partition.ref
-         ) do
+    child_spec =
+      {__MODULE__.PartitionWorker, owner: self(), partition_ref: partition.ref}
+
+    case start_partition_child(state.partition_worker_supervisor, child_spec) do
       {:ok, pid} ->
         monitor_ref = Process.monitor(pid)
 
@@ -837,6 +865,22 @@ defmodule Citadel.Kernel.SignalIngress do
            resource_exhaustion?: true
          }, state}
     end
+  end
+
+  defp start_partition_child(supervisor, child_spec) do
+    supervisor = ensure_partition_supervisor!(supervisor)
+
+    DynamicSupervisor.start_child(supervisor, child_spec)
+  catch
+    :exit, reason -> {:error, reason}
+  end
+
+  defp ensure_partition_supervisor!(Citadel.Kernel.SignalIngress.PartitionSupervisor) do
+    default_partition_supervisor!()
+  end
+
+  defp ensure_partition_supervisor!(supervisor) do
+    supervisor
   end
 
   defp refreshed_token_bucket(state, partition_ref) do
@@ -1614,7 +1658,11 @@ defmodule Citadel.Kernel.SignalIngress.PartitionWorker do
   alias Citadel.Kernel.SessionServer
 
   def start(opts) do
-    GenServer.start(__MODULE__, opts)
+    start_link(opts)
+  end
+
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts)
   end
 
   def deliver(worker, delivery) when is_pid(worker) do

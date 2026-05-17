@@ -31,6 +31,14 @@ defmodule Citadel.Kernel.BoundaryLeaseTracker do
 
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
+
+    opts =
+      Keyword.put_new_lazy(
+        opts,
+        :bootstrap_task_supervisor,
+        &default_bootstrap_task_supervisor!/0
+      )
+
     GenServer.start_link(__MODULE__, opts, name: name)
   end
 
@@ -88,6 +96,12 @@ defmodule Citadel.Kernel.BoundaryLeaseTracker do
        resume_policy: Keyword.get(opts, :resume_policy, BoundaryResumePolicy.new!(%{})),
        bootstrap_fun:
          Keyword.get(opts, :bootstrap_fun, fn _boundary_ref -> {:error, :not_ready} end),
+       bootstrap_task_supervisor:
+         Keyword.get(
+           opts,
+           :bootstrap_task_supervisor,
+           Citadel.Kernel.BoundaryLeaseBootstrapSupervisor
+         ),
        classification_key_fun:
          Keyword.get(opts, :classification_key_fun, fn _boundary_ref -> nil end),
        inflight: %{},
@@ -350,7 +364,7 @@ defmodule Citadel.Kernel.BoundaryLeaseTracker do
         state.resume_policy.coalesced_request_ttl_ms
       )
 
-    Task.start(fn ->
+    start_bootstrap_task(state.bootstrap_task_supervisor, fn ->
       send(
         owner,
         {:bootstrap_result, coalesce_key, boundary_ref, state.bootstrap_fun.(boundary_ref)}
@@ -362,6 +376,47 @@ defmodule Citadel.Kernel.BoundaryLeaseTracker do
       | ttl_timer_ref: ttl_timer_ref,
         retry_timer_ref: nil
     })
+  end
+
+  defp start_bootstrap_task(supervisor, fun) when is_function(fun, 0) do
+    supervisor = ensure_bootstrap_task_supervisor!(supervisor)
+
+    case Task.Supervisor.start_child(supervisor, fun) do
+      {:ok, _pid} ->
+        :ok
+
+      {:error, reason} ->
+        raise "failed to start boundary lease bootstrap task: #{inspect(reason)}"
+    end
+  catch
+    :exit, reason ->
+      raise "failed to start boundary lease bootstrap task: #{inspect(reason)}"
+  end
+
+  defp ensure_bootstrap_task_supervisor!(Citadel.Kernel.BoundaryLeaseBootstrapSupervisor) do
+    default_bootstrap_task_supervisor!()
+  end
+
+  defp ensure_bootstrap_task_supervisor!(supervisor) do
+    supervisor
+  end
+
+  defp default_bootstrap_task_supervisor! do
+    supervisor = Citadel.Kernel.BoundaryLeaseBootstrapSupervisor
+
+    case Process.whereis(supervisor) do
+      pid when is_pid(pid) ->
+        supervisor
+
+      nil ->
+        case Application.ensure_all_started(:citadel_kernel) do
+          {:ok, _started} ->
+            supervisor
+
+          {:error, reason} ->
+            raise "failed to start citadel kernel supervisors: #{inspect(reason)}"
+        end
+    end
   end
 
   defp maybe_retry_bootstrap(state, coalesce_key, inflight_entry, boundary_ref) do

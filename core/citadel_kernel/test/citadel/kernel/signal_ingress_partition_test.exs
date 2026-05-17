@@ -390,9 +390,22 @@ defmodule Citadel.Kernel.SignalIngressPartitionTest do
 
   defp start_signal_ingress(opts) do
     name = unique_name(:signal_ingress)
+    partition_worker_supervisor = unique_name(:partition_worker_supervisor)
 
     start_supervised!(
-      {SignalIngress, Keyword.merge([name: name, signal_source: TestSignalSource], opts)}
+      {DynamicSupervisor, strategy: :one_for_one, name: partition_worker_supervisor}
+    )
+
+    start_supervised!(
+      {SignalIngress,
+       Keyword.merge(
+         [
+           name: name,
+           signal_source: TestSignalSource,
+           partition_worker_supervisor: partition_worker_supervisor
+         ],
+         opts
+       )}
     )
 
     name
