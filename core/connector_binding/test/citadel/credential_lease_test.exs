@@ -33,15 +33,16 @@ defmodule Citadel.CredentialLeaseTest do
   test "rejects credential scope widening" do
     assert {:error, {:credential_scope_mismatch, [:credential_scope_ref]}} =
              CredentialLease.materialize(
-               :tool,
-               lease_attrs(:tool),
-               expected_credential_scope_ref: "credential-scope://tenant/tool/other"
+               :runtime_tool,
+               lease_attrs(:runtime_tool),
+               expected_credential_scope_ref: "credential-scope://tenant/runtime_tool/other"
              )
 
     assert {:error, {:required_scope_not_allowed, ["scope:write"]}} =
              CredentialLease.materialize(
-               :tool,
-               lease_attrs(:tool) |> Map.put(:required_scopes, ["scope:read", "scope:write"]),
+               :runtime_tool,
+               lease_attrs(:runtime_tool)
+               |> Map.put(:required_scopes, ["scope:read", "scope:write"]),
                allowed_required_scopes: ["scope:read"]
              )
   end

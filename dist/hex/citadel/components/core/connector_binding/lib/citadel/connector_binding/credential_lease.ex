@@ -8,7 +8,14 @@ defmodule Citadel.ConnectorBinding.CredentialLease do
 
   alias Citadel.ContractCore.Value
 
-  @binding_kinds [:source, :source_publication, :runtime, :tool, :evidence, :resource_effect]
+  @binding_kinds [
+    :source,
+    :source_publication,
+    :runtime,
+    :runtime_tool,
+    :evidence,
+    :resource_effect
+  ]
   @operation_classes [
     :source_read,
     :source_write,
