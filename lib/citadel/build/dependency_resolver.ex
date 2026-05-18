@@ -10,6 +10,7 @@ defmodule Citadel.Build.DependencyResolver do
 
   @repo_root Path.expand("../../..", __DIR__)
   @published_jido_integration_contracts_requirement "~> 0.1.0"
+  @published_jido_integration_provider_classification_requirement "~> 0.1.0"
   @published_aitrace_requirement "~> 0.1.0"
   @published_execution_plane_requirement "~> 0.1.0"
   @published_ground_plane_persistence_policy_requirement "~> 0.1.0"
@@ -25,6 +26,10 @@ defmodule Citadel.Build.DependencyResolver do
     jido_integration_contracts: [
       repo_root: Path.expand("../jido_integration", @repo_root),
       subdir: "core/contracts"
+    ],
+    jido_integration_provider_classification: [
+      repo_root: Path.expand("../jido_integration", @repo_root),
+      subdir: "core/provider_classification"
     ]
   }
 
@@ -44,8 +49,16 @@ defmodule Citadel.Build.DependencyResolver do
     weld_dependency(:jido_integration_contracts)
   end
 
+  def jido_integration_provider_classification_weld_dependency do
+    weld_dependency(:jido_integration_provider_classification)
+  end
+
   def published_jido_integration_contracts_requirement do
     @published_jido_integration_contracts_requirement
+  end
+
+  def published_jido_integration_provider_classification_requirement do
+    @published_jido_integration_provider_classification_requirement
   end
 
   def aitrace(opts \\ []) do

@@ -171,7 +171,9 @@ defmodule Citadel.Workspace do
       execution_plane: DependencyResolver.execution_plane_weld_dependency(),
       ground_plane_persistence_policy:
         DependencyResolver.ground_plane_persistence_policy_weld_dependency(),
-      jido_integration_contracts: DependencyResolver.jido_integration_contracts_weld_dependency()
+      jido_integration_contracts: DependencyResolver.jido_integration_contracts_weld_dependency(),
+      jido_integration_provider_classification:
+        DependencyResolver.jido_integration_provider_classification_weld_dependency()
     ]
   end
 

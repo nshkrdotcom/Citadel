@@ -4,30 +4,7 @@ defmodule Citadel.ConnectorBinding do
   """
 
   alias Citadel.AuthorityContract.PersistencePosture
-
-  @provider_families [
-    "amp",
-    "claude",
-    "cli",
-    "codex",
-    "gemini",
-    "github",
-    "graphql",
-    "http",
-    "inference",
-    "linear",
-    "notion",
-    "realtime"
-  ]
-
-  @provider_account_statuses [
-    :known,
-    :asserted,
-    :unknown,
-    :unavailable,
-    :revoked,
-    :rotated
-  ]
+  alias Jido.Integration.V2.ProviderClassification
 
   @lifecycles [
     :installed,
@@ -127,10 +104,10 @@ defmodule Citadel.ConnectorBinding do
   @type binding :: %Binding{}
 
   @spec provider_families() :: [String.t()]
-  def provider_families, do: @provider_families
+  def provider_families, do: ProviderClassification.provider_family_tokens()
 
   @spec provider_account_statuses() :: [atom()]
-  def provider_account_statuses, do: @provider_account_statuses
+  def provider_account_statuses, do: ProviderClassification.provider_account_statuses()
 
   @spec lifecycles() :: [atom()]
   def lifecycles, do: @lifecycles
@@ -148,7 +125,12 @@ defmodule Citadel.ConnectorBinding do
     with :ok <- reject_material(attrs),
          :ok <- require_refs(attrs, @required_refs),
          :ok <- validate_provider_family(attrs),
-         {:ok, status} <- enum_value(attrs, :provider_account_status, @provider_account_statuses),
+         {:ok, status} <-
+           enum_value(
+             attrs,
+             :provider_account_status,
+             ProviderClassification.provider_account_statuses()
+           ),
          {:ok, lifecycle} <- enum_value(attrs, :lifecycle, @lifecycles, :installed),
          :ok <- validate_distinct_identity_refs(attrs),
          :ok <- validate_ref_families(attrs, @required_refs ++ @optional_refs) do
@@ -297,7 +279,7 @@ defmodule Citadel.ConnectorBinding do
   defp validate_provider_family(attrs) do
     value = field_value(attrs, :provider_family)
 
-    if value in @provider_families do
+    if ProviderClassification.provider_family_token?(value) do
       :ok
     else
       {:error, {:unsupported_provider_family, value}}

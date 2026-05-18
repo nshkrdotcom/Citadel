@@ -13,7 +13,11 @@ defmodule Citadel.ObservabilityContract do
       :metadata_conventions,
       :platform_audit_hash_chain_v1,
       :observability_cardinality_bounds_v1,
-      :observability_operations_posture_v1
+      :observability_operations_posture_v1,
+      :operational_signal_v1,
+      :operational_slo_thresholds_v1,
+      :operational_runbooks_v1,
+      :operator_signal_backend_envelopes_v1
     ],
     internal_dependencies: [:citadel_contract_core],
     external_dependencies: []
@@ -92,6 +96,36 @@ defmodule Citadel.ObservabilityContract do
   @spec telemetry_metric_label_keys(atom()) :: [atom()]
   def telemetry_metric_label_keys(name),
     do: Citadel.ObservabilityContract.Telemetry.metric_label_keys(name)
+
+  @spec operational_signal_module() :: module()
+  def operational_signal_module, do: Citadel.ObservabilityContract.OperationalSignal
+
+  @spec operational_signal_names() :: [atom(), ...]
+  def operational_signal_names, do: Citadel.ObservabilityContract.OperationalSignal.signal_names()
+
+  @spec operational_signals() :: %{required(atom()) => struct()}
+  def operational_signals, do: Citadel.ObservabilityContract.OperationalSignal.signals()
+
+  @spec operational_signal!(atom() | String.t() | map() | keyword()) :: struct()
+  def operational_signal!(signal),
+    do: Citadel.ObservabilityContract.OperationalSignal.signal!(signal)
+
+  @spec operator_signal_backend_envelopes(struct() | map() | keyword()) :: map()
+  def operator_signal_backend_envelopes(signal),
+    do: Citadel.ObservabilityContract.OperatorSignalAdapter.backend_envelopes(signal)
+
+  @spec operational_slo_module() :: module()
+  def operational_slo_module, do: Citadel.ObservabilityContract.OperationalSLO
+
+  @spec operational_slo_threshold_names() :: [atom(), ...]
+  def operational_slo_threshold_names,
+    do: Citadel.ObservabilityContract.OperationalSLO.threshold_names()
+
+  @spec operational_slo_thresholds() :: %{required(atom()) => struct()}
+  def operational_slo_thresholds, do: Citadel.ObservabilityContract.OperationalSLO.thresholds()
+
+  @spec operational_runbook_entries() :: %{required(atom()) => map()}
+  def operational_runbook_entries, do: Citadel.ObservabilityContract.OperationalRunbook.entries()
 
   @spec audit_hash_chain_module() :: module()
   def audit_hash_chain_module, do: Citadel.ObservabilityContract.AuditHashChain.V1

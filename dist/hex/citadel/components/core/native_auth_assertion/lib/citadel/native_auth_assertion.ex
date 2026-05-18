@@ -4,17 +4,8 @@ defmodule Citadel.NativeAuthAssertion do
   """
 
   alias Citadel.AuthorityContract.PersistencePosture
+  alias Jido.Integration.V2.ProviderClassification
 
-  @provider_families [
-    "amp",
-    "claude",
-    "codex",
-    "gemini",
-    "graphql",
-    "http",
-    "inference",
-    "realtime"
-  ]
   @auth_source_kinds [
     :api_token_file,
     :app_server_login,
@@ -97,7 +88,7 @@ defmodule Citadel.NativeAuthAssertion do
         }
 
   @spec provider_families() :: [String.t()]
-  def provider_families, do: @provider_families
+  def provider_families, do: ProviderClassification.provider_family_tokens()
 
   @spec required_fields() :: [atom()]
   def required_fields, do: @required_fields
@@ -242,9 +233,17 @@ defmodule Citadel.NativeAuthAssertion do
     end
   end
 
-  defp provider_family(value) when value in @provider_families, do: {:ok, value}
+  defp provider_family(value) when is_binary(value) do
+    if ProviderClassification.provider_family_token?(value) do
+      {:ok, value}
+    else
+      provider_family_error(value)
+    end
+  end
 
-  defp provider_family(value) do
+  defp provider_family(value), do: provider_family_error(value)
+
+  defp provider_family_error(value) do
     {:error,
      ArgumentError.exception("unsupported native auth provider family: #{inspect(value)}")}
   end

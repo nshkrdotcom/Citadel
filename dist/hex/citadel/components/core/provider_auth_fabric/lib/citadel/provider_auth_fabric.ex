@@ -5,20 +5,7 @@ defmodule Citadel.ProviderAuthFabric do
 
   alias Citadel.AuthorityContract.PersistencePosture
   alias Citadel.NativeAuthAssertion
-
-  @provider_families [
-    "amp",
-    "claude",
-    "codex",
-    "gemini",
-    "github",
-    "graphql",
-    "http",
-    "inference",
-    "linear",
-    "notion",
-    "realtime"
-  ]
+  alias Jido.Integration.V2.ProviderClassification
 
   @operation_classes ["cli", "http", "graphql", "realtime", "inference"]
 
@@ -143,7 +130,7 @@ defmodule Citadel.ProviderAuthFabric do
   end
 
   @spec provider_families() :: [String.t()]
-  def provider_families, do: @provider_families
+  def provider_families, do: ProviderClassification.provider_family_tokens()
 
   @spec authority_required_refs() :: [atom()]
   def authority_required_refs, do: @authority_required_refs
@@ -533,7 +520,7 @@ defmodule Citadel.ProviderAuthFabric do
   end
 
   defp validate_provider_family(attrs) do
-    if field_value(attrs, :provider_family) in @provider_families do
+    if ProviderClassification.provider_family_token?(field_value(attrs, :provider_family)) do
       :ok
     else
       {:error, {:unsupported_provider_family, field_value(attrs, :provider_family)}}

@@ -158,6 +158,107 @@ defmodule Citadel.ObservabilityContract.Telemetry do
       event_name: [:citadel, :decision, :rejection_count],
       measurements: [:count],
       metadata: [:reason_family]
+    },
+    operational_binding_lookup: %{
+      event_name: [:citadel, :operational, :binding_lookup],
+      measurements: [:count, :duration_ms, :cache_age_ms],
+      metadata: [
+        :event_name,
+        :owner_package,
+        :operation_family,
+        :outcome,
+        :reason_code,
+        :retry_posture,
+        :safe_action
+      ]
+    },
+    operational_authority_decision: %{
+      event_name: [:citadel, :operational, :authority_decision],
+      measurements: [:count, :duration_ms],
+      metadata: [
+        :event_name,
+        :owner_package,
+        :operation_family,
+        :outcome,
+        :reason_code,
+        :safe_action
+      ]
+    },
+    operational_credential_lease_materialization: %{
+      event_name: [:citadel, :operational, :credential_lease_materialization],
+      measurements: [:count, :duration_ms],
+      metadata: [
+        :event_name,
+        :owner_package,
+        :operation_family,
+        :outcome,
+        :connector_family,
+        :error_class,
+        :safe_action
+      ]
+    },
+    operational_lower_invocation: %{
+      event_name: [:citadel, :operational, :lower_invocation],
+      measurements: [:count, :duration_ms, :retry_count],
+      metadata: [
+        :event_name,
+        :owner_package,
+        :operation_family,
+        :outcome,
+        :retry_posture,
+        :connector_family,
+        :error_class,
+        :safe_action
+      ]
+    },
+    operational_receipt_reduction: %{
+      event_name: [:citadel, :operational, :receipt_reduction],
+      measurements: [:count, :duration_ms],
+      metadata: [
+        :event_name,
+        :owner_package,
+        :operation_family,
+        :outcome,
+        :reason_code,
+        :safe_action
+      ]
+    },
+    operational_projection_lag: %{
+      event_name: [:citadel, :operational, :projection_lag],
+      measurements: [:lag_ms, :queue_depth],
+      metadata: [
+        :event_name,
+        :owner_package,
+        :operation_family,
+        :outcome,
+        :queue_family,
+        :safe_action
+      ]
+    },
+    operational_aitrace_export_lag: %{
+      event_name: [:citadel, :operational, :aitrace_export_lag],
+      measurements: [:lag_ms, :queue_depth, :dropped_count],
+      metadata: [
+        :event_name,
+        :owner_package,
+        :operation_family,
+        :outcome,
+        :queue_family,
+        :safe_action
+      ]
+    },
+    operational_live_provider_effect_status: %{
+      event_name: [:citadel, :operational, :live_provider_effect_status],
+      measurements: [:count, :duration_ms, :retry_count],
+      metadata: [
+        :event_name,
+        :owner_package,
+        :operation_family,
+        :outcome,
+        :connector_family,
+        :error_class,
+        :safe_action
+      ]
     }
   }
 

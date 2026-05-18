@@ -92,6 +92,11 @@ defmodule Citadel.WorkspaceTest do
     assert "surfaces/citadel_domain_surface" in Workspace.public_package_paths()
 
     assert jido_contracts_dependency_declared?(publication_deps[:jido_integration_contracts])
+
+    assert jido_provider_classification_dependency_declared?(
+             publication_deps[:jido_integration_provider_classification]
+           )
+
     assert publication_deps[:aitrace][:opts] == []
     assert is_binary(publication_deps[:aitrace][:requirement])
 
@@ -125,6 +130,7 @@ defmodule Citadel.WorkspaceTest do
     assert "aitrace" in result.artifact.external_deps
     assert "execution_plane" in result.artifact.external_deps
     assert "jido_integration_contracts" in result.artifact.external_deps
+    assert "jido_integration_provider_classification" in result.artifact.external_deps
   end
 
   test "weld manifest can be inspected through the mix task entrypoint" do
@@ -163,4 +169,19 @@ defmodule Citadel.WorkspaceTest do
   end
 
   defp jido_contracts_dependency_declared?(_other), do: false
+
+  defp jido_provider_classification_dependency_declared?(%{requirement: requirement, opts: []})
+       when is_binary(requirement),
+       do: true
+
+  defp jido_provider_classification_dependency_declared?(%{requirement: nil, opts: opts}) do
+    String.contains?(to_string(opts[:git]), "/jido_integration") and
+      opts[:subdir] == "core/provider_classification"
+  end
+
+  defp jido_provider_classification_dependency_declared?(dependency) when is_list(dependency) do
+    jido_provider_classification_dependency_declared?(Map.new(dependency))
+  end
+
+  defp jido_provider_classification_dependency_declared?(_other), do: false
 end

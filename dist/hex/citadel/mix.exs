@@ -110,6 +110,12 @@ defmodule Citadel.MixProject do
       {:jcs, "~> 0.2.0"},
       {:jido_integration_contracts,
        [subdir: "core/contracts", git: "file:///home/home/p/g/n/jido_integration", override: true]},
+      {:jido_integration_provider_classification,
+       [
+         subdir: "core/provider_classification",
+         git: "file:///home/home/p/g/n/jido_integration",
+         override: true
+       ]},
       {:telemetry, "~> 1.3"},
       {:ex_doc, "~> 0.40", [only: :dev, runtime: false]}
     ]
