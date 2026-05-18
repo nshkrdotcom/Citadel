@@ -17,7 +17,6 @@
 - `./core/conformance/mix.exs`: Black-box conformance and composition coverage for Citadel
 - `./core/contract_core/mix.exs`: Neutral value helpers and canonical JSON ownership for Citadel
 - `./core/execution_governance_contract/mix.exs`: Execution governance packet ownership for Citadel
-- `./core/jido_integration_contracts/mix.exs`: Citadel-local higher-order Jido Integration V2 contract slice
 - `./core/observability_contract/mix.exs`: Trace and telemetry contract ownership for Citadel
 - `./core/policy_packs/mix.exs`: Policy pack ownership and selection surfaces for Citadel
 - `./mix.exs`: Tooling root for the Citadel non-umbrella monorepo

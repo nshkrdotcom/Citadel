@@ -1,7 +1,7 @@
 defmodule Citadel.JidoIntegrationBridge.LineageCodec do
   @moduledoc """
-  Mandatory choke point for reconstructing Citadel-local vendored
-  `Jido.Integration.V2` lineage structs.
+  Mandatory choke point for reconstructing canonical `Jido.Integration.V2`
+  lineage structs at the Citadel bridge boundary.
   """
 
   alias Jido.Integration.V2.DerivedStateAttachment

@@ -20,7 +20,7 @@ defmodule Citadel.PublicationSurfaceTest do
 
     assert File.dir?("components/core/citadel_kernel")
     assert File.dir?("components/bridges/host_ingress_bridge")
-    assert File.dir?("components/core/jido_integration_contracts")
+    refute File.dir?("components/core/jido_integration_contracts")
     assert File.dir?("components/bridges/trace_bridge")
     refute File.dir?("components/core/conformance")
     refute File.dir?("components/apps/host_surface_harness")
@@ -32,7 +32,7 @@ defmodule Citadel.PublicationSurfaceTest do
     assert dependency_tuple(deps, :aitrace) == {:aitrace, "~> 0.1.0", []}
     assert execution_plane_dependency?(dependency_tuple(deps, :execution_plane))
     assert ground_plane_policy_dependency?(dependency_tuple(deps, :ground_plane_persistence_policy))
-    refute dependency_tuple(deps, :jido_integration_contracts)
+    assert jido_contracts_dependency?(dependency_tuple(deps, :jido_integration_contracts))
   end
 
   defp dependency_tuple(deps, app) do
@@ -72,4 +72,15 @@ defmodule Citadel.PublicationSurfaceTest do
   end
 
   defp ground_plane_policy_dependency?(_other), do: false
+
+  defp jido_contracts_dependency?({:jido_integration_contracts, requirement, []})
+       when is_binary(requirement),
+       do: true
+
+  defp jido_contracts_dependency?({:jido_integration_contracts, nil, opts}) do
+    String.contains?(to_string(opts[:git]), "/jido_integration") and
+      opts[:subdir] == "core/contracts"
+  end
+
+  defp jido_contracts_dependency?(_other), do: false
 end

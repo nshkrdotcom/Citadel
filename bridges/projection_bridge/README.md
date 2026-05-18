@@ -14,7 +14,7 @@ Status: Wave 5 contract frozen, published through the Wave 8 welded artifact bou
 - `core/citadel_kernel`
 - `core/authority_contract`
 - `core/observability_contract`
-- `core/jido_integration_contracts`
+- canonical `jido_integration_contracts`
 
 ## Current Posture
 

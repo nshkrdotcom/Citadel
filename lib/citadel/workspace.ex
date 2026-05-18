@@ -10,7 +10,6 @@ defmodule Citadel.Workspace do
 
   @package_paths [
     "core/contract_core",
-    "core/jido_integration_contracts",
     "core/authority_contract",
     "core/observability_contract",
     "core/policy_packs",
@@ -171,7 +170,8 @@ defmodule Citadel.Workspace do
       ],
       execution_plane: DependencyResolver.execution_plane_weld_dependency(),
       ground_plane_persistence_policy:
-        DependencyResolver.ground_plane_persistence_policy_weld_dependency()
+        DependencyResolver.ground_plane_persistence_policy_weld_dependency(),
+      jido_integration_contracts: DependencyResolver.jido_integration_contracts_weld_dependency()
     ]
   end
 

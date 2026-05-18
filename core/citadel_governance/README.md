@@ -15,7 +15,7 @@ Status: Wave 2 seam freeze.
 ## Dependencies
 
 - `core/contract_core`
-- `core/jido_integration_contracts`
+- canonical `jido_integration_contracts`
 - `core/authority_contract`
 - `core/observability_contract`
 - `core/policy_packs`

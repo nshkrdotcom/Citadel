@@ -3,31 +3,33 @@ defmodule Citadel.JidoContractConsumerDependencyTest do
 
   @repo_root Path.expand("../..", __DIR__)
 
-  @local_welded_slice_deps %{
-    "core/citadel_governance/mix.exs" => "../jido_integration_contracts",
-    "core/conformance/mix.exs" => "../jido_integration_contracts",
-    "bridges/invocation_bridge/mix.exs" => "../../core/jido_integration_contracts",
-    "bridges/jido_integration_bridge/mix.exs" => "../../core/jido_integration_contracts",
-    "bridges/projection_bridge/mix.exs" => "../../core/jido_integration_contracts"
-  }
+  @shared_contract_consumer_mix_files [
+    "bridges/invocation_bridge/mix.exs",
+    "bridges/jido_integration_bridge/mix.exs",
+    "bridges/projection_bridge/mix.exs",
+    "core/citadel_governance/mix.exs",
+    "core/conformance/mix.exs"
+  ]
 
-  test "workspace shared-contract consumers use only the welded local slice" do
+  test "workspace shared-contract consumers use the canonical dependency resolver" do
     mix_files_with_contract_refs =
       "mix.exs"
       |> tracked_paths_with("jido_integration_contracts")
-      |> Enum.reject(
-        &(&1 == "core/jido_integration_contracts/mix.exs" or String.starts_with?(&1, "dist/"))
-      )
+      |> Enum.reject(&String.starts_with?(&1, "dist/"))
       |> Enum.sort()
 
-    assert mix_files_with_contract_refs == Enum.sort(Map.keys(@local_welded_slice_deps))
+    assert mix_files_with_contract_refs == Enum.sort(@shared_contract_consumer_mix_files)
 
-    for {mix_file, relative_path} <- @local_welded_slice_deps do
+    for mix_file <- @shared_contract_consumer_mix_files do
       source = File.read!(Path.join(@repo_root, mix_file))
 
-      assert String.contains?(source, "{:jido_integration_contracts, path: \"#{relative_path}\"}")
+      assert String.contains?(
+               source,
+               "Citadel.Build.DependencyResolver.jido_integration_contracts()"
+             )
+
       refute String.contains?(source, "github.com/agentjido/jido_integration")
-      refute String.contains?(source, "core/contracts")
+      refute String.contains?(source, "core/jido_integration_contracts")
     end
   end
 
@@ -40,10 +42,12 @@ defmodule Citadel.JidoContractConsumerDependencyTest do
     refute String.contains?(lock, "core/jido_integration_contracts")
   end
 
-  test "generated projection embeds the current welded slice path only" do
+  test "generated projection declares Jido contracts as the canonical external dependency" do
     projection = File.read!(Path.join(@repo_root, "dist/hex/citadel/mix.exs"))
 
-    assert String.contains?(projection, "components/core/jido_integration_contracts")
+    refute String.contains?(projection, "components/core/jido_integration_contracts")
+    assert String.contains?(projection, "{:jido_integration_contracts")
+    assert String.contains?(projection, "subdir: \"core/contracts\"")
     refute String.contains?(projection, "jido_integration_v2_contracts")
   end
 

@@ -3,7 +3,6 @@ defmodule Citadel.Build.WorkspaceContract do
 
   @package_paths [
     "core/contract_core",
-    "core/jido_integration_contracts",
     "core/authority_contract",
     "core/observability_contract",
     "core/policy_packs",

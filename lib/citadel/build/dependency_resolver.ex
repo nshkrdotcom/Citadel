@@ -21,6 +21,10 @@ defmodule Citadel.Build.DependencyResolver do
     ground_plane_persistence_policy: [
       repo_root: Path.expand("../ground_plane", @repo_root),
       subdir: "core/persistence_policy"
+    ],
+    jido_integration_contracts: [
+      repo_root: Path.expand("../jido_integration", @repo_root),
+      subdir: "core/contracts"
     ]
   }
 
@@ -30,6 +34,10 @@ defmodule Citadel.Build.DependencyResolver do
 
   def jido_integration_contracts_source do
     source_for(:jido_integration_contracts)
+  end
+
+  def jido_integration_contracts_weld_dependency do
+    weld_dependency(:jido_integration_contracts)
   end
 
   def published_jido_integration_contracts_requirement do

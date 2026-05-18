@@ -24,7 +24,6 @@ defmodule Citadel.MixProject do
         "components/core/connector_binding/src",
         "components/core/contract_core/src",
         "components/core/execution_governance_contract/src",
-        "components/core/jido_integration_contracts/src",
         "components/core/native_auth_assertion/src",
         "components/core/observability_contract/src",
         "components/core/policy_packs/src",
@@ -60,7 +59,6 @@ defmodule Citadel.MixProject do
       "components/core/connector_binding/lib",
       "components/core/contract_core/lib",
       "components/core/execution_governance_contract/lib",
-      "components/core/jido_integration_contracts/lib",
       "components/core/native_auth_assertion/lib",
       "components/core/observability_contract/lib",
       "components/core/policy_packs/lib",
@@ -92,7 +90,6 @@ defmodule Citadel.MixProject do
       "components/core/connector_binding/lib",
       "components/core/contract_core/lib",
       "components/core/execution_governance_contract/lib",
-      "components/core/jido_integration_contracts/lib",
       "components/core/native_auth_assertion/lib",
       "components/core/observability_contract/lib",
       "components/core/policy_packs/lib",
@@ -111,8 +108,9 @@ defmodule Citadel.MixProject do
          override: true
        ]},
       {:jcs, "~> 0.2.0"},
+      {:jido_integration_contracts,
+       [subdir: "core/contracts", git: "file:///home/home/p/g/n/jido_integration", override: true]},
       {:telemetry, "~> 1.3"},
-      {:zoi, "~> 0.17"},
       {:ex_doc, "~> 0.40", [only: :dev, runtime: false]}
     ]
   end
@@ -148,7 +146,6 @@ defmodule Citadel.MixProject do
         "components/core/connector_binding",
         "components/core/contract_core",
         "components/core/execution_governance_contract",
-        "components/core/jido_integration_contracts",
         "components/core/native_auth_assertion",
         "components/core/observability_contract",
         "components/core/policy_packs",

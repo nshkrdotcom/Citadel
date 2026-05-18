@@ -6,11 +6,11 @@ defmodule Citadel.WorkspaceTest do
   alias Weld
 
   test "tracks the packet workspace package contract on disk" do
-    assert Workspace.package_count() == 24
+    assert Workspace.package_count() == 23
     assert Workspace.package_count() == length(Workspace.package_paths())
     assert "apps/host_surface_harness" in Workspace.package_paths()
     assert "core/execution_governance_contract" in Workspace.package_paths()
-    assert "core/jido_integration_contracts" in Workspace.package_paths()
+    refute "core/jido_integration_contracts" in Workspace.package_paths()
     assert "core/native_auth_assertion" in Workspace.package_paths()
     assert "core/provider_auth_fabric" in Workspace.package_paths()
     assert "core/connector_binding" in Workspace.package_paths()
@@ -91,7 +91,7 @@ defmodule Citadel.WorkspaceTest do
     refute "apps/host_surface_harness" in Workspace.public_package_paths()
     assert "surfaces/citadel_domain_surface" in Workspace.public_package_paths()
 
-    refute Keyword.has_key?(publication_deps, :jido_integration_contracts)
+    assert jido_contracts_dependency_declared?(publication_deps[:jido_integration_contracts])
     assert publication_deps[:aitrace][:opts] == []
     assert is_binary(publication_deps[:aitrace][:requirement])
 
@@ -113,7 +113,7 @@ defmodule Citadel.WorkspaceTest do
     assert "core/connector_binding" in result.artifact.selected_projects
     assert "core/provider_auth_fabric" in result.artifact.selected_projects
     assert "core/native_auth_assertion" in result.artifact.selected_projects
-    assert "core/jido_integration_contracts" in result.artifact.selected_projects
+    refute "core/jido_integration_contracts" in result.artifact.selected_projects
     assert "bridges/host_ingress_bridge" in result.artifact.selected_projects
     assert "bridges/jido_integration_bridge" in result.artifact.selected_projects
     assert "bridges/trace_bridge" in result.artifact.selected_projects
@@ -124,7 +124,7 @@ defmodule Citadel.WorkspaceTest do
 
     assert "aitrace" in result.artifact.external_deps
     assert "execution_plane" in result.artifact.external_deps
-    refute "jido_integration_contracts" in result.artifact.external_deps
+    assert "jido_integration_contracts" in result.artifact.external_deps
   end
 
   test "weld manifest can be inspected through the mix task entrypoint" do
@@ -148,4 +148,19 @@ defmodule Citadel.WorkspaceTest do
   end
 
   defp execution_plane_dependency_declared?(_other), do: false
+
+  defp jido_contracts_dependency_declared?(%{requirement: requirement, opts: []})
+       when is_binary(requirement),
+       do: true
+
+  defp jido_contracts_dependency_declared?(%{requirement: nil, opts: opts}) do
+    String.contains?(to_string(opts[:git]), "/jido_integration") and
+      opts[:subdir] == "core/contracts"
+  end
+
+  defp jido_contracts_dependency_declared?(dependency) when is_list(dependency) do
+    jido_contracts_dependency_declared?(Map.new(dependency))
+  end
+
+  defp jido_contracts_dependency_declared?(_other), do: false
 end

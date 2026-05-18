@@ -15,7 +15,7 @@ Status: Wave 2 seam freeze.
 - `core/citadel_kernel`
 - `core/authority_contract`
 - `core/observability_contract`
-- `core/jido_integration_contracts`
+- canonical `jido_integration_contracts`
 
 ## Wave 2 Posture
 

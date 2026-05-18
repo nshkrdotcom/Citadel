@@ -161,7 +161,6 @@ operation, or placement downgrades before lower submission.
 citadel/
   core/
     contract_core/
-    jido_integration_contracts/
     authority_contract/
     execution_governance_contract/
     observability_contract/
@@ -259,9 +258,9 @@ Publication is now finalized as a derivative workspace boundary. The repo-local
 Weld manifest lives at `packaging/weld/citadel.exs`, projects the public
 `citadel` artifact in package-projection mode, keeps `apps/*`,
 `core/conformance`, and `surfaces/citadel_domain_surface` out of the default
-artifact, carries the
-`core/jido_integration_contracts` slice in-workspace, and preserves package
-ownership instead of flattening the workspace into a monolith.
+artifact, declares canonical `jido_integration_contracts` as a Jido-owned
+external dependency, and preserves package ownership instead of flattening the
+workspace into a monolith.
 
 The welded artifact declares the `execution_plane` package dependency so the
 authority verifier boundary is explicit. During local in-flight workspace
@@ -283,8 +282,9 @@ boundary exists.
 
 ## Shared Contract Strategy
 
-Citadel now carries the higher-order `Jido.Integration.V2` lineage contract
-slice as an in-workspace package at `core/jido_integration_contracts`.
+Citadel consumes the higher-order `Jido.Integration.V2` lineage contract slice
+from the Jido Integration-owned `jido_integration_contracts` package at
+`../jido_integration/core/contracts` during local sibling development.
 
 That package provides the shared modules the public Citadel surface publishes
 today:
@@ -295,9 +295,9 @@ today:
 - `Jido.Integration.V2.ReviewProjection`
 - `Jido.Integration.V2.DerivedStateAttachment`
 
-Keeping that slice inside the workspace lets the welded `citadel` artifact stay
-self-contained and Hex-buildable while preserving the shared public module
-names.
+Keeping that package single-owner prevents duplicate OTP app identity and
+duplicate `Jido.Integration.V2.*` module definitions while preserving the
+shared public module names.
 
 ## Documentation
 

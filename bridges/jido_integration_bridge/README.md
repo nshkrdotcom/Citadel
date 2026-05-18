@@ -6,8 +6,8 @@ Status: durable submission bridge slice.
 
 - Citadel-owned `ExecutionIntentEnvelope.V2 -> Jido.Integration.V2.BrainInvocation`
   projection
-- the single mandatory shared-lineage coercion choke point for Citadel-local
-  vendored `Jido.Integration.V2` structs
+- the single mandatory shared-lineage coercion choke point for canonical
+  `Jido.Integration.V2` structs
 - the configurable downstream transport seam used by
   `Citadel.InvocationBridge`
 
@@ -17,7 +17,7 @@ Status: durable submission bridge slice.
 - `core/authority_contract`
 - `core/execution_governance_contract`
 - `bridges/invocation_bridge`
-- `core/jido_integration_contracts`
+- canonical `jido_integration_contracts`
 
 ## Posture
 

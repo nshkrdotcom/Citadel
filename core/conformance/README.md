@@ -13,7 +13,7 @@ Status: Wave 7 black-box conformance.
 ## Dependencies
 
 - public `core/*`, `bridges/*`, and `apps/*` package APIs
-- public `core/jido_integration_contracts` fixtures and types
+- canonical `jido_integration_contracts` fixtures and types from Jido Integration
 
 ## Wave 7 Posture
 

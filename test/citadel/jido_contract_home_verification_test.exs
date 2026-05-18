@@ -2,42 +2,54 @@ defmodule Citadel.JidoContractHomeVerificationTest do
   use ExUnit.Case, async: true
 
   @repo_root Path.expand("../..", __DIR__)
-  @local_slice Path.join(@repo_root, "core/jido_integration_contracts/lib/jido/integration/v2")
-  @upstream_slice Path.expand(
-                    "../jido_integration/core/contracts/lib/jido/integration/v2",
-                    @repo_root
-                  )
+  @retired_local_package Path.join(@repo_root, "core/jido_integration_contracts")
+  @canonical_package Path.expand("../jido_integration/core/contracts", @repo_root)
+  @canonical_slice Path.join(@canonical_package, "lib/jido/integration/v2")
+  @required_contract_files [
+    "authority_audit_envelope.ex",
+    "brain_invocation.ex",
+    "canonical_json.ex",
+    "contracts.ex",
+    "derived_state_attachment.ex",
+    "evidence_ref.ex",
+    "execution_governance_projection.ex",
+    "execution_governance_projection/compiler.ex",
+    "execution_governance_projection/verifier.ex",
+    "governance_ref.ex",
+    "review_projection.ex",
+    "schema.ex",
+    "subject_ref.ex",
+    "submission_acceptance.ex",
+    "submission_identity.ex",
+    "submission_rejection.ex"
+  ]
 
-  test "vendored Jido.Integration.V2 modules are an upstream-equivalent slice" do
-    assert File.dir?(@upstream_slice)
+  test "Jido Integration owns the shared contracts app identity" do
+    assert File.regular?(Path.join(@canonical_package, "mix.exs"))
 
-    local_files = contract_files(@local_slice)
-    assert local_files != []
+    assert String.contains?(
+             File.read!(Path.join(@canonical_package, "mix.exs")),
+             "app: :jido_integration_contracts"
+           )
 
-    assert [] = missing_upstream_files(local_files)
-    assert [] = divergent_files(local_files)
+    refute File.regular?(Path.join(@retired_local_package, "mix.exs"))
+
+    assert [] = tracked_paths_starting_with("core/jido_integration_contracts")
   end
 
-  defp contract_files(root) do
-    root
-    |> Path.join("**/*.ex")
-    |> Path.wildcard()
-    |> Enum.map(&Path.relative_to(&1, root))
-    |> Enum.sort()
+  test "canonical package contains every shared module Citadel imports" do
+    assert File.dir?(@canonical_slice)
+
+    for relative <- @required_contract_files do
+      assert File.regular?(Path.join(@canonical_slice, relative))
+    end
   end
 
-  defp missing_upstream_files(local_files) do
-    Enum.reject(local_files, fn relative ->
-      File.exists?(Path.join(@upstream_slice, relative))
-    end)
-  end
+  defp tracked_paths_starting_with(prefix) do
+    {output, 0} = System.cmd("git", ["ls-files"], cd: @repo_root, stderr_to_stdout: true)
 
-  defp divergent_files(local_files) do
-    Enum.reject(local_files, fn relative ->
-      local = Path.join(@local_slice, relative)
-      upstream = Path.join(@upstream_slice, relative)
-
-      File.read!(local) == File.read!(upstream)
-    end)
+    output
+    |> String.split("\n", trim: true)
+    |> Enum.filter(&String.starts_with?(&1, prefix))
   end
 end

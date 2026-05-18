@@ -3,19 +3,14 @@ defmodule Citadel.JidoContractLegacyArtifactScanTest do
 
   @repo_root Path.expand("../..", __DIR__)
   @legacy_path_fragment "jido_integration_v2_contracts"
-  @current_path_fragment "jido_integration_contracts"
   @publishable_dist_roots [
     "dist/hex/citadel",
     "dist/release_bundles/citadel"
   ]
 
-  test "tracked source paths do not publish the legacy contract package name" do
+  test "tracked source paths do not publish retired local contract package names" do
     assert tracked_paths_with(@legacy_path_fragment) == []
-
-    assert Enum.any?(
-             tracked_paths_with(@current_path_fragment),
-             &String.starts_with?(&1, "core/jido_integration_contracts/")
-           )
+    assert tracked_paths_starting_with("core/jido_integration_contracts") == []
   end
 
   test "current publishable generated roots do not carry legacy contract paths" do
@@ -54,6 +49,14 @@ defmodule Citadel.JidoContractLegacyArtifactScanTest do
     output
     |> String.split("\n", trim: true)
     |> Enum.filter(&String.contains?(&1, fragment))
+  end
+
+  defp tracked_paths_starting_with(prefix) do
+    {output, 0} = System.cmd("git", ["ls-files"], cd: @repo_root, stderr_to_stdout: true)
+
+    output
+    |> String.split("\n", trim: true)
+    |> Enum.filter(&String.starts_with?(&1, prefix))
   end
 
   defp deleted_paths_with(fragment) do
