@@ -1,5 +1,11 @@
+unless Code.ensure_loaded?(Citadel.Build.DependencyResolver) do
+  Code.require_file("../../build_support/dependency_resolver.exs", __DIR__)
+end
+
 defmodule Citadel.NativeAuthAssertion.MixProject do
   use Mix.Project
+
+  alias Citadel.Build.DependencyResolver
 
   def project do
     [
@@ -32,6 +38,7 @@ defmodule Citadel.NativeAuthAssertion.MixProject do
       {:citadel_authority_contract, path: "../authority_contract"},
       {:citadel_contract_core, path: "../contract_core"},
       {:citadel_kernel, path: "../citadel_kernel"},
+      DependencyResolver.jido_integration_provider_classification(),
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end

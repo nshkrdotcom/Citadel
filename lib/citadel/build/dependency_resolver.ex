@@ -32,6 +32,10 @@ defmodule Citadel.Build.DependencyResolver do
     external_dep(:jido_integration_contracts, opts)
   end
 
+  def jido_integration_provider_classification(opts \\ []) do
+    external_dep(:jido_integration_provider_classification, opts)
+  end
+
   def jido_integration_contracts_source do
     source_for(:jido_integration_contracts)
   end

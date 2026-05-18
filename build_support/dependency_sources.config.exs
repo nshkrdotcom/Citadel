@@ -42,6 +42,18 @@
       opts: [override: true],
       default_order: [:path, :github, :hex],
       publish_order: [:hex]
+    },
+    jido_integration_provider_classification: %{
+      path: "../jido_integration/core/provider_classification",
+      github: %{
+        repo: "agentjido/jido_integration",
+        branch: "main",
+        subdir: "core/provider_classification"
+      },
+      hex: "~> 0.1.0",
+      opts: [override: true],
+      default_order: [:path, :github, :hex],
+      publish_order: [:hex]
     }
   }
 }

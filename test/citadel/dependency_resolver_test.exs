@@ -28,6 +28,14 @@ defmodule Citadel.DependencyResolverTest do
              {:path, Path.expand("../jido_integration/core/contracts", File.cwd!())}
   end
 
+  test "defaults provider classification to the dependency-light sibling package" do
+    assert {:jido_integration_provider_classification, opts} =
+             DependencyResolver.jido_integration_provider_classification()
+
+    assert opts[:path] ==
+             Path.expand("../jido_integration/core/provider_classification", File.cwd!())
+  end
+
   test "defaults the aitrace dependency to the sibling AITrace checkout" do
     assert DependencyResolver.aitrace_source() ==
              {:path, Path.expand("../AITrace", File.cwd!())}
