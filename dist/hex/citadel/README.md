@@ -301,16 +301,15 @@ shared public module names.
 
 ## Documentation
 
-The packet that drives this repo lives at:
-
-- `/home/home/p/g/n/mezzanine/nshkrdotcom/docs/20260409/citadel_ground_up_design_docset`
-
-Local workspace docs now live in:
+Local workspace docs live in:
 
 - `README.md`
 - `docs/README.md`
 - `docs/workspace_topology.md`
 - `docs/shared_contract_dependency_strategy.md`
+- `guides/index.md`
+- `guides/generalized_stack.md`
+- `guides/qc_and_operations.md`
 - package-level `README.md` files under every `core/*`, `bridges/*`, `apps/*`,
   and `surfaces/*` package
 
@@ -349,3 +348,36 @@ Expected local contract: `127.0.0.1:7233`, UI `http://127.0.0.1:8233`, namespace
 ## Persistence Documentation
 
 See `docs/persistence.md` for tiers, defaults, adapters, unsupported selections, config examples, restart claims, durability claims, debug sidecar behavior, redaction guarantees, migration or preflight behavior, and no-bypass scope when applicable.
+
+## gn-ten Implementation Guides
+
+Citadel is the governance kernel. It compiles authority, policy, host-ingress,
+boundary, and observability contracts that lower repos consume without letting
+connectors or runtimes reinterpret governance.
+
+Read these repo-specific guides before changing governance contracts:
+
+- [Generalized Stack Boundary](https://github.com/nshkrdotcom/citadel/blob/main/guides/generalized_stack.md)
+- [QC And Operations](https://github.com/nshkrdotcom/citadel/blob/main/guides/qc_and_operations.md)
+
+Operational rules:
+
+- Public interfaces are owned by `core/authority_contract`,
+  `core/execution_governance_contract`, `core/observability_contract`,
+  `core/contract_core`, policy/governance/kernel packages, bridge packages, and
+  `surfaces/citadel_domain_surface`.
+- Citadel may depend on Jido Integration contracts and GroundPlane primitives.
+  It must not own connector SDKs, provider credential material, product UI, or
+  Mezzanine lifecycle truth.
+- Provider vocabulary is allowed in provider auth fabric, connector binding
+  facts, receipts, and traces. Generic policy must authorize operation classes,
+  binding refs, authority refs, and manifest refs rather than closed provider
+  dispatch maps.
+- Citadel does not own GitHub or Linear live commands. If a governance proof is
+  exercised by a product/lower live command, prefix that command with
+  `~/scripts/with_bash_secrets`.
+- Local development uses `mix deps.get`, `mix ci`, package-local tests, and
+  governance/conformance checks.
+- Evidence is emitted through authority contract tests, policy pack tests,
+  conformance receipts, host-ingress harnesses, StackLab governance proofs, and
+  AITrace observability refs.
