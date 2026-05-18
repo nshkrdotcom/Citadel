@@ -46,6 +46,21 @@ native auth assertions, receipts, and traces. Generic authority decisions should
 name operation classes, posture, binding refs, manifest refs, credential lease
 refs, and allowed tool classes.
 
+## Extravaganza Cutover Proof
+
+Extravaganza's governed live proof uses Citadel as the authority boundary for
+issue-tracker source admission, source publication, source-tool execution,
+coding-runtime turns, proposed-change evidence, and proposed-change cleanup.
+The proof expects route evidence to include authority refs alongside binding,
+manifest, credential-lease, lower-request, receipt, projection, evidence, and
+trace refs.
+
+Citadel does not decide by closed provider family branches in generic policy.
+Provider-specific facts can appear in provider auth fabric, connector-binding
+data, receipts, traces, and product terminology. Generic policy packs should
+continue to express allowed operation classes, posture, tool classes, sandbox
+and egress posture, approval mode, and binding/manifest constraints.
+
 ## Migration And Cleanup Ownership
 
 Citadel cleanup work removes provider-specific generic policy, bridge

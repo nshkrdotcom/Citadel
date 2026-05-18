@@ -77,6 +77,13 @@ Integration owns connector/runtime invocation. Execution Plane owns node/lane
 execution. AppKit and product repos consume the resulting read models and
 controls.
 
+The current Extravaganza cutover proof exercises Citadel as the authority owner
+for source, publication, dynamic tool, runtime, evidence, and cleanup lanes.
+Provider names remain acceptable as lower connector facts and product-visible
+examples, but Citadel generic policy must authorize operation classes, posture,
+binding refs, manifest refs, credential lease refs, and allowed tool classes
+without becoming a provider-dispatch table.
+
 ## Governance Diagrams
 
 ```mermaid
