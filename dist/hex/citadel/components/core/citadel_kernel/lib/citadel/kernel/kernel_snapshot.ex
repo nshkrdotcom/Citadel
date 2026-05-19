@@ -11,6 +11,7 @@ defmodule Citadel.Kernel.KernelSnapshot do
   alias Citadel.DecisionSnapshot
   alias Citadel.KernelEpochUpdate
   alias Citadel.ObservabilityContract.Telemetry
+  alias Citadel.Kernel.KernelSnapshot.ReadSurfaceRegistry
   alias Citadel.Kernel.SystemClock
 
   @surface_suffix :decision_snapshot
@@ -25,6 +26,7 @@ defmodule Citadel.Kernel.KernelSnapshot do
   @type state :: %{
           clock: module(),
           read_surface_key: term(),
+          read_surface_registry: GenServer.server() | nil,
           read_surface_table: :ets.tid(),
           snapshot: DecisionSnapshot.t()
         }
@@ -63,6 +65,7 @@ defmodule Citadel.Kernel.KernelSnapshot do
       storage: :ets,
       table: discovery.table,
       table_key: discovery.table_key,
+      discovery: :supervised_registry,
       discovery_key: read_surface_key(name),
       protection: :ets.info(discovery.table, :protection),
       read_concurrency?: :ets.info(discovery.table, :read_concurrency)
@@ -81,6 +84,7 @@ defmodule Citadel.Kernel.KernelSnapshot do
     clock = Keyword.get(opts, :clock, SystemClock)
     name = Keyword.get(opts, :name, __MODULE__)
     read_surface_key = Keyword.get(opts, :read_surface_key, read_surface_key(name))
+    read_surface_registry = Keyword.get(opts, :read_surface_registry, ReadSurfaceRegistry)
 
     read_surface_table =
       Keyword.get_lazy(opts, :read_surface_table, fn ->
@@ -101,12 +105,13 @@ defmodule Citadel.Kernel.KernelSnapshot do
         extensions: Keyword.get(opts, :extensions, %{})
       })
 
-    publish_read_surface(read_surface_key, read_surface_table, snapshot)
+    publish_read_surface(read_surface_registry, read_surface_key, read_surface_table, snapshot)
 
     {:ok,
      ensure_invariants!(%{
        clock: clock,
        read_surface_key: read_surface_key,
+       read_surface_registry: read_surface_registry,
        read_surface_table: read_surface_table,
        snapshot: snapshot
      })}
@@ -128,7 +133,13 @@ defmodule Citadel.Kernel.KernelSnapshot do
         {:noreply, %{state | snapshot: snapshot}}
 
       {:updated, snapshot} ->
-        publish_read_surface(state.read_surface_key, state.read_surface_table, snapshot)
+        publish_read_surface(
+          state.read_surface_registry,
+          state.read_surface_key,
+          state.read_surface_table,
+          snapshot
+        )
+
         {:noreply, ensure_invariants!(%{state | snapshot: snapshot})}
     end
   end
@@ -136,6 +147,10 @@ defmodule Citadel.Kernel.KernelSnapshot do
   @impl true
   def handle_call(:snapshot, _from, state) do
     {:reply, state.snapshot, state}
+  end
+
+  def handle_call(:read_surface_discovery, _from, state) do
+    {:reply, {:ok, %{table: state.read_surface_table, table_key: @surface_table_key}}, state}
   end
 
   defp apply_update(%DecisionSnapshot{} = snapshot, %KernelEpochUpdate{} = update, captured_at) do
@@ -181,19 +196,17 @@ defmodule Citadel.Kernel.KernelSnapshot do
 
   defp policy_version(snapshot, _update), do: snapshot.policy_version
 
-  defp publish_read_surface(read_surface_key, read_surface_table, snapshot) do
-    :persistent_term.put(read_surface_key, %{
-      table: read_surface_table,
-      table_key: @surface_table_key
-    })
+  defp publish_read_surface(read_surface_registry, read_surface_key, read_surface_table, snapshot) do
+    discovery = %{table: read_surface_table, table_key: @surface_table_key}
+    _ = ReadSurfaceRegistry.register(read_surface_registry, read_surface_key, discovery)
 
     true = :ets.insert(read_surface_table, {@surface_table_key, snapshot})
   end
 
   defp ensure_invariants!(
-         %{read_surface_key: read_surface_key, snapshot: %DecisionSnapshot{} = snapshot} = state
+         %{read_surface_table: table, snapshot: %DecisionSnapshot{} = snapshot} = state
        ) do
-    case fetch_snapshot_by_key(read_surface_key) do
+    case fetch_snapshot_from_discovery(%{table: table, table_key: @surface_table_key}) do
       {:ok, ^snapshot} ->
         state
 
@@ -207,24 +220,42 @@ defmodule Citadel.Kernel.KernelSnapshot do
     end
   end
 
-  defp fetch_snapshot(name), do: name |> read_surface_key() |> fetch_snapshot_by_key()
+  defp fetch_snapshot(name) do
+    name
+    |> read_surface_key()
+    |> fetch_snapshot_by_key()
+    |> case do
+      {:error, _reason} -> fetch_snapshot_from_owner(name)
+      result -> result
+    end
+  end
 
   defp fetch_snapshot_by_key(read_surface_key) do
-    discovery = :persistent_term.get(read_surface_key, :missing)
-
-    with {:ok, %{table: table, table_key: table_key}} <- normalize_discovery(discovery) do
-      case :ets.lookup(table, table_key) do
-        [{^table_key, %DecisionSnapshot{} = snapshot}] -> {:ok, snapshot}
-        [] -> {:error, :snapshot_missing}
-      end
+    with {:ok, %{table: table, table_key: table_key}} <-
+           ReadSurfaceRegistry.fetch(ReadSurfaceRegistry, read_surface_key) do
+      fetch_snapshot_from_discovery(%{table: table, table_key: table_key})
     end
   rescue
     ArgumentError -> {:error, :read_surface_missing}
   end
 
+  defp fetch_snapshot_from_discovery(%{table: table, table_key: table_key}) do
+    case :ets.lookup(table, table_key) do
+      [{^table_key, %DecisionSnapshot{} = snapshot}] -> {:ok, snapshot}
+      [] -> {:error, :snapshot_missing}
+    end
+  end
+
+  defp fetch_snapshot_from_owner(name) do
+    GenServer.call(name, :snapshot)
+    |> then(&{:ok, &1})
+  catch
+    :exit, _reason -> {:error, :read_surface_missing}
+  end
+
   @spec read_surface_discovery!(term()) :: read_surface_discovery()
   defp read_surface_discovery!(name) do
-    case normalize_discovery(:persistent_term.get(read_surface_key(name), :missing)) do
+    case fetch_read_surface_discovery(name) do
       {:ok, discovery} ->
         discovery
 
@@ -233,14 +264,17 @@ defmodule Citadel.Kernel.KernelSnapshot do
     end
   end
 
-  @spec normalize_discovery(term()) :: {:ok, read_surface_discovery()} | {:error, atom()}
-  defp normalize_discovery(%{table: table, table_key: table_key})
-       when is_reference(table) and table_key == @surface_table_key do
-    {:ok, %{table: table, table_key: table_key}}
-  end
+  defp fetch_read_surface_discovery(name) do
+    case ReadSurfaceRegistry.fetch(ReadSurfaceRegistry, read_surface_key(name)) do
+      {:ok, discovery} ->
+        {:ok, discovery}
 
-  defp normalize_discovery(:missing), do: {:error, :read_surface_missing}
-  defp normalize_discovery(_other), do: {:error, :invalid_read_surface_discovery}
+      {:error, _reason} ->
+        GenServer.call(name, :read_surface_discovery)
+    end
+  catch
+    :exit, _reason -> {:error, :read_surface_missing}
+  end
 
   defp staleness_class(opts) do
     class = Keyword.get(opts, :staleness_class, :fresh_required)

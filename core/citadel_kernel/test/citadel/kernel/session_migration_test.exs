@@ -12,6 +12,7 @@ defmodule Citadel.Kernel.SessionMigrationTest do
   alias Citadel.PersistedSessionBlob
   alias Citadel.Kernel.KernelSnapshot
   alias Citadel.Kernel.SessionDirectory
+  alias Citadel.Kernel.SessionDirectory.StoreOwner
   alias Citadel.StalenessRequirements
 
   property "claim_session migrates prior-version continuity blobs and preserves lineage and correlation fields" do
@@ -53,17 +54,22 @@ defmodule Citadel.Kernel.SessionMigrationTest do
 
   test "schema 0 continuity maps without explicit outbox order fail fast instead of normalizing corruption" do
     kernel_snapshot_name = unique_name(:kernel_snapshot)
+    store_owner_name = unique_name(:store_owner)
     store_key = {__MODULE__, :impossible_store, System.unique_integer([:positive])}
     session_directory_name = unique_name(:session_directory)
 
     start_supervised!({KernelSnapshot, name: kernel_snapshot_name})
+    start_supervised!({StoreOwner, name: store_owner_name})
 
     start_supervised!(
       {SessionDirectory,
-       name: session_directory_name, kernel_snapshot: kernel_snapshot_name, store_key: store_key}
+       name: session_directory_name,
+       kernel_snapshot: kernel_snapshot_name,
+       store_owner: store_owner_name,
+       store_key: store_key}
     )
 
-    before_store = :persistent_term.get(store_key, :missing)
+    before_store = StoreOwner.fetch!(store_owner_name, store_key, :missing)
 
     impossible_blob = %{
       schema_version: 0,
@@ -93,7 +99,7 @@ defmodule Citadel.Kernel.SessionMigrationTest do
              )
     end)
 
-    assert :persistent_term.get(store_key, :missing) == before_store
+    assert StoreOwner.fetch!(store_owner_name, store_key, :missing) == before_store
   end
 
   defp legacy_blob_generator do

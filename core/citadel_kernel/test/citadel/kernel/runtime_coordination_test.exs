@@ -36,9 +36,9 @@ defmodule Citadel.Kernel.RuntimeCoordinationTest do
 
     read_surface = KernelSnapshot.read_surface_info(kernel_snapshot_name)
     assert read_surface.storage == :ets
+    assert read_surface.discovery == :supervised_registry
     assert read_surface.protection == :protected
     assert read_surface.read_concurrency? == true
-    refute match?(%Citadel.DecisionSnapshot{}, :persistent_term.get(read_surface.discovery_key))
 
     start_supervised!(
       {PolicyCache,

@@ -17,6 +17,7 @@ defmodule Citadel.Kernel.SessionDirectory do
   alias Citadel.SessionOutbox
   alias Citadel.Kernel.KernelSnapshot
   alias Citadel.Kernel.SessionMigration
+  alias Citadel.Kernel.SessionDirectory.StoreOwner
   alias Citadel.Kernel.SystemClock
 
   @flush_message :flush_project_binding_epoch
@@ -41,6 +42,7 @@ defmodule Citadel.Kernel.SessionDirectory do
           flush_interval_ms: non_neg_integer(),
           activation_policy: SessionActivationPolicy.t(),
           store_key: term(),
+          store_owner: GenServer.server() | nil,
           store: map(),
           fault_injection: (SessionContinuityCommit.t() -> continuity_fault()) | nil,
           pending_project_binding_epoch: non_neg_integer() | nil,
@@ -151,8 +153,9 @@ defmodule Citadel.Kernel.SessionDirectory do
   @impl true
   def init(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
-    store_key = Keyword.get(opts, :store_key, {__MODULE__, name, :persistent_store})
-    store = :persistent_term.get(store_key, default_store())
+    store_key = Keyword.get(opts, :store_key, {__MODULE__, name, :store})
+    store_owner = Keyword.get(opts, :store_owner)
+    store = load_store(store_owner, store_key, Keyword.get(opts, :initial_store, default_store()))
 
     {:ok,
      %{
@@ -163,6 +166,7 @@ defmodule Citadel.Kernel.SessionDirectory do
        activation_policy:
          Keyword.get(opts, :activation_policy, SessionActivationPolicy.new!(%{})),
        store_key: store_key,
+       store_owner: store_owner,
        store: store,
        fault_injection: Keyword.get(opts, :fault_injection),
        pending_project_binding_epoch: nil,
@@ -1082,11 +1086,22 @@ defmodule Citadel.Kernel.SessionDirectory do
     %{state | store: put_in(state.store, path, value)}
   end
 
+  defp load_store(nil, _store_key, default), do: default
+
+  defp load_store(store_owner, store_key, default) do
+    StoreOwner.fetch!(store_owner, store_key, default)
+  end
+
   defp persist_store!(state) do
     state = ensure_invariants!(state)
-    %{store_key: store_key, store: store} = state
-    :persistent_term.put(store_key, store)
+    persist_to_store_owner!(state)
     ensure_persisted_store!(state)
+  end
+
+  defp persist_to_store_owner!(%{store_owner: nil}), do: :ok
+
+  defp persist_to_store_owner!(%{store_owner: store_owner, store_key: store_key, store: store}) do
+    StoreOwner.put!(store_owner, store_key, store)
   end
 
   defp schedule_project_binding_flush(%{flush_timer_ref: nil} = state, next_epoch) do
@@ -1570,8 +1585,12 @@ defmodule Citadel.Kernel.SessionDirectory do
     end)
   end
 
-  defp ensure_persisted_store!(%{store_key: store_key, store: store} = state) do
-    case :persistent_term.get(store_key, :missing) do
+  defp ensure_persisted_store!(%{store_owner: nil} = state), do: state
+
+  defp ensure_persisted_store!(
+         %{store_owner: store_owner, store_key: store_key, store: store} = state
+       ) do
+    case StoreOwner.fetch!(store_owner, store_key, :missing) do
       ^store ->
         state
 
