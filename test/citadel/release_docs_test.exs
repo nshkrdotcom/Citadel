@@ -21,6 +21,12 @@ defmodule Citadel.ReleaseDocsTest do
 
       assert String.contains?(doc, "projection/citadel"),
              "#{path} must describe the projection branch explicitly"
+
+      assert String.contains?(doc, "generated distribution output"),
+             "#{path} must classify retained distribution trees explicitly"
+
+      assert String.contains?(doc, "mix dist.generated.verify"),
+             "#{path} must describe the generated projection drift gate"
     end)
   end
 end

@@ -98,6 +98,10 @@ defmodule Citadel.Workspace.MixProject do
         "cmd --cd surfaces/citadel_domain_surface mix lint.strict",
         "monorepo.dialyzer"
       ],
+      "dist.generated.verify": [
+        "weld.verify",
+        "cmd git diff --exit-code -- dist/hex/citadel"
+      ],
       ci: [
         "deps.get",
         "monorepo.deps.get",
@@ -105,7 +109,7 @@ defmodule Citadel.Workspace.MixProject do
         "monorepo.compile",
         "static.analysis",
         "monorepo.test",
-        "weld.verify"
+        "dist.generated.verify"
       ],
       "docs.root": ["docs"]
     ] ++ monorepo_aliases ++ mr_aliases

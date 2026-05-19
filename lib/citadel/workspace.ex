@@ -90,6 +90,15 @@ defmodule Citadel.Workspace do
     "LICENSE"
   ]
   @publication_output_assets ["assets/citadel.svg"]
+  @generated_distribution_roots [
+    "dist/hex",
+    "dist/release_bundles",
+    "dist/archive"
+  ]
+  @generated_distribution_segment_pairs Enum.map(
+                                          @generated_distribution_roots,
+                                          &String.split(&1, "/")
+                                        )
 
   @toolchain %{
     elixir: "~> 1.19",
@@ -110,6 +119,18 @@ defmodule Citadel.Workspace do
 
   @spec static_analysis_paths() :: [String.t()]
   def static_analysis_paths, do: @static_analysis_paths
+
+  @spec generated_distribution_roots() :: [String.t()]
+  def generated_distribution_roots, do: @generated_distribution_roots
+
+  @spec generated_distribution_path?(Path.t()) :: boolean()
+  def generated_distribution_path?(path) when is_binary(path) do
+    segments = Path.split(path)
+
+    Enum.any?(@generated_distribution_segment_pairs, fn segment_pair ->
+      contains_segment_sequence?(segments, segment_pair)
+    end)
+  end
 
   @spec packet_seam_spec_paths() :: [String.t()]
   def packet_seam_spec_paths, do: @packet_seam_spec_paths
@@ -229,5 +250,13 @@ defmodule Citadel.Workspace do
         ]
       ]
     ]
+  end
+
+  defp contains_segment_sequence?(segments, sequence) do
+    sequence_length = length(sequence)
+
+    segments
+    |> Enum.chunk_every(sequence_length, 1, :discard)
+    |> Enum.any?(&(&1 == sequence))
   end
 end

@@ -31,10 +31,17 @@ tracks inside the same monorepo.
 Use the repo-local Weld manifest instead of hand-built packaging steps:
 
 ```bash
+mix dist.generated.verify
 mix release.prepare
 mix release.track
 mix release.archive
 ```
+
+`dist/hex/citadel` is retained generated distribution output, not a second
+source tree. `mix dist.generated.verify` runs `mix weld.verify` to regenerate
+that package projection and then checks `git diff --exit-code --
+dist/hex/citadel`, so CI fails if checked-in distribution files drift from the
+workspace source graph.
 
 `mix release.track` updates the orphan-backed `projection/citadel` branch so
 downstream repos can pin a real generated-source ref before any formal release

@@ -56,6 +56,35 @@ defmodule Citadel.WorkspaceTest do
     end
   end
 
+  test "ci regenerates the retained distribution projection and checks drift" do
+    aliases = MixProject.project()[:aliases]
+
+    assert aliases[:ci] |> List.last() == "dist.generated.verify"
+
+    assert aliases[:"dist.generated.verify"] == [
+             "weld.verify",
+             "cmd git diff --exit-code -- dist/hex/citadel"
+           ]
+  end
+
+  test "classifies retained distribution trees as generated output" do
+    assert Workspace.generated_distribution_roots() == [
+             "dist/hex",
+             "dist/release_bundles",
+             "dist/archive"
+           ]
+
+    assert Workspace.generated_distribution_path?("dist/hex/citadel/mix.exs")
+    assert Workspace.generated_distribution_path?("dist/release_bundles/citadel/README.md")
+    assert Workspace.generated_distribution_path?("dist/archive/old-citadel/components/core")
+    assert Workspace.generated_distribution_path?("/tmp/work/citadel/dist/hex/citadel/mix.exs")
+
+    refute Workspace.generated_distribution_path?("core/citadel_kernel/mix.exs")
+    refute Workspace.generated_distribution_path?("docs/publication.md")
+    refute Enum.any?(Workspace.package_paths(), &Workspace.generated_distribution_path?/1)
+    refute Enum.any?(Workspace.static_analysis_paths(), &Workspace.generated_distribution_path?/1)
+  end
+
   test "exposes an explicit shared-contract dependency strategy" do
     assert match?({:path, _path}, Workspace.shared_contract_dependency_source()) or
              match?({:hex, "~> 0.1.0"}, Workspace.shared_contract_dependency_source())

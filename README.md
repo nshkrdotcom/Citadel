@@ -278,10 +278,19 @@ development this may resolve to the sibling Execution Plane checkout at
 Common publication commands:
 
 ```bash
+mix dist.generated.verify
 mix release.prepare
 mix release.track
 mix release.archive
 ```
+
+`dist/hex/citadel` is retained generated distribution output, not
+hand-maintained source. `mix dist.generated.verify` runs `mix weld.verify` to
+regenerate the package projection and then fails if the tracked generated tree
+has drifted. Source inventory, scanner work, and smell remediation should use
+the workspace package paths under `core/*`, `bridges/*`, `apps/*`, and
+`surfaces/*`; distribution trees under `dist/hex`, `dist/release_bundles`, and
+`dist/archive` are release artifacts.
 
 `mix release.track` updates the orphan-backed `projection/citadel` branch so
 downstream repos can pin a real generated-source ref before any formal release
