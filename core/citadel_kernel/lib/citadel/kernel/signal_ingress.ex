@@ -25,9 +25,6 @@ defmodule Citadel.Kernel.SignalIngress do
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
 
-    opts =
-      Keyword.put_new_lazy(opts, :partition_worker_supervisor, &default_partition_supervisor!/0)
-
     GenServer.start_link(__MODULE__, opts, name: name)
   end
 
@@ -59,13 +56,9 @@ defmodule Citadel.Kernel.SignalIngress do
         supervisor
 
       nil ->
-        case Application.ensure_all_started(:citadel_kernel) do
-          {:ok, _started} ->
-            supervisor
-
-          {:error, reason} ->
-            raise "failed to start citadel kernel supervisors: #{inspect(reason)}"
-        end
+        raise ArgumentError,
+              "Citadel.Kernel.SignalIngress requires a supervised :partition_worker_supervisor " <>
+                "or a running #{inspect(supervisor)}"
     end
   end
 

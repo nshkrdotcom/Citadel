@@ -32,13 +32,6 @@ defmodule Citadel.Kernel.BoundaryLeaseTracker do
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
 
-    opts =
-      Keyword.put_new_lazy(
-        opts,
-        :bootstrap_task_supervisor,
-        &default_bootstrap_task_supervisor!/0
-      )
-
     GenServer.start_link(__MODULE__, opts, name: name)
   end
 
@@ -409,13 +402,9 @@ defmodule Citadel.Kernel.BoundaryLeaseTracker do
         supervisor
 
       nil ->
-        case Application.ensure_all_started(:citadel_kernel) do
-          {:ok, _started} ->
-            supervisor
-
-          {:error, reason} ->
-            raise "failed to start citadel kernel supervisors: #{inspect(reason)}"
-        end
+        raise ArgumentError,
+              "Citadel.Kernel.BoundaryLeaseTracker requires a supervised " <>
+                ":bootstrap_task_supervisor or a running #{inspect(supervisor)}"
     end
   end
 

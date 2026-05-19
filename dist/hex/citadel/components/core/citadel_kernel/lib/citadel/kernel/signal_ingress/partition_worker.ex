@@ -6,10 +6,6 @@ defmodule Citadel.Kernel.SignalIngress.PartitionWorker do
   alias Citadel.ObservabilityContract.Telemetry
   alias Citadel.Kernel.SessionServer
 
-  def start(opts) do
-    start_link(opts)
-  end
-
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts)
   end
