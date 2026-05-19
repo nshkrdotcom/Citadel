@@ -1,7 +1,10 @@
 defmodule Citadel.Kernel.SignalIngressCharacterizationTest do
   use ExUnit.Case, async: false
+  use ExUnitProperties
 
   alias Citadel.Kernel.SignalIngress
+  alias Citadel.Kernel.SignalIngress.EvictionEngine
+  alias Citadel.Kernel.SignalIngress.PartitionRouter
   alias Citadel.RuntimeObservation
   alias Jido.Integration.V2.SubjectRef
 
@@ -107,6 +110,46 @@ defmodule Citadel.Kernel.SignalIngressCharacterizationTest do
     assert_receive {:DOWN, ^ref, :process, ^worker, :normal}, 500
   end
 
+  property "partition routing is stable for the same tenant, authority, and subject" do
+    check all(
+            subject_id <- string(:alphanumeric, min_length: 1),
+            signal_id <- string(:alphanumeric, min_length: 1),
+            max_runs: 20
+          ) do
+      observation =
+        observation("sess-route", signal_id,
+          subject_id: subject_id,
+          signal_cursor: "cursor/#{signal_id}"
+        )
+
+      assert {:ok, first_partition} =
+               PartitionRouter.route(%{}, observation, admission_policy())
+
+      assert {:ok, second_partition} =
+               PartitionRouter.route(%{}, observation, admission_policy())
+
+      assert first_partition.ref == second_partition.ref
+      assert first_partition.dedupe_key == second_partition.dedupe_key
+      assert first_partition.tenant_scope_key == {"tenant-1", "authority-1"}
+    end
+  end
+
+  property "eviction sweep removes no more subscriptions than the configured sweep cap" do
+    check all(
+            subscription_count <- integer(1..20),
+            max_evictions <- integer(1..20),
+            max_runs: 20
+          ) do
+      max_evictions = min(max_evictions, subscription_count)
+      state = eviction_state(subscription_count, max_evictions)
+
+      {state, summary} = EvictionEngine.sweep_expired_state(state)
+
+      assert summary.subscriptions == max_evictions
+      assert map_size(state.subscriptions) == subscription_count - max_evictions
+    end
+  end
+
   defmodule RecordingConsumer do
     use GenServer
 
@@ -156,13 +199,14 @@ defmodule Citadel.Kernel.SignalIngressCharacterizationTest do
 
   defp observation(session_id, signal_id, opts) do
     subject_id = Keyword.fetch!(opts, :subject_id)
+    signal_cursor = Keyword.get(opts, :signal_cursor, "cursor/#{signal_id}")
 
     RuntimeObservation.new!(%{
       observation_id: "obs/#{signal_id}",
       request_id: "req/#{signal_id}",
       session_id: session_id,
       signal_id: signal_id,
-      signal_cursor: "cursor/#{signal_id}",
+      signal_cursor: signal_cursor,
       runtime_ref_id: "runtime/#{session_id}",
       event_kind: "host_signal",
       event_at: DateTime.utc_now(),
@@ -181,6 +225,69 @@ defmodule Citadel.Kernel.SignalIngressCharacterizationTest do
         "canonical_idempotency_key" => "idem:v1:#{signal_id}"
       }
     })
+  end
+
+  defp admission_policy do
+    %{
+      bucket_capacity: 16,
+      refill_rate_per_second: 0,
+      max_queue_depth_per_partition: 16,
+      max_in_flight_per_tenant_scope: 16,
+      retry_after_ms: 100,
+      delivery_order_scope: :partition_fifo,
+      delivery_timeout_ms: 5_000,
+      partition_overload_cooldown_ms: 1_000,
+      post_admission_overload_action: :mark_partition_overloaded,
+      replay_action: :replay_partition_after_retry
+    }
+  end
+
+  defp eviction_state(subscription_count, max_evictions) do
+    subscriptions =
+      1..subscription_count
+      |> Map.new(fn index ->
+        session_id = "sess-#{index}"
+
+        {session_id,
+         %{
+           session_id: session_id,
+           registered_at: ~U[2024-01-01 00:00:00Z],
+           last_seen_at: ~U[2024-01-01 00:00:00Z],
+           tenant_scope_key: {"tenant-1", "authority-1"}
+         }}
+      end)
+
+    %{
+      subscriptions: subscriptions,
+      consumers: %{},
+      consumer_last_seen_at: %{},
+      rebuild_queue: %{},
+      partition_workers: %{},
+      partition_worker_monitors: %{},
+      partition_queue_depths: %{},
+      partition_overload_until_ms: %{},
+      partition_last_seen_at_ms: %{},
+      token_buckets: %{},
+      restarted_at: ~U[2024-01-01 00:00:00Z],
+      clock: __MODULE__.FutureClock,
+      eviction_policy: %{
+        sweep_interval_ms: 0,
+        max_evictions_per_sweep: max_evictions,
+        subscription_ttl_ms: 1,
+        consumer_ttl_ms: 1,
+        rebuild_queue_ttl_ms: 1,
+        partition_state_ttl_ms: 1,
+        max_subscriptions_total: 100_000,
+        max_subscriptions_per_tenant: 100_000,
+        max_consumers_total: 100_000,
+        max_rebuild_queue_total: 100_000,
+        max_partitions_total: 100_000
+      }
+    }
+  end
+
+  defmodule FutureClock do
+    def utc_now, do: ~U[2024-01-01 00:00:01Z]
   end
 
   defp wait_until(fun, attempts \\ 40)
