@@ -7,9 +7,31 @@ defmodule Citadel.RuntimeValuesTest do
   alias Citadel.LocalAction
   alias Citadel.PersistedSessionBlob
   alias Citadel.PersistedSessionEnvelope
+  alias Citadel.RuntimeValues
   alias Citadel.SessionContinuityCommit
   alias Citadel.SessionOutbox
   alias Citadel.StalenessRequirements
+
+  test "runtime value manifest exports the split public contract modules" do
+    expected_modules = [
+      Citadel.StalenessRequirements,
+      Citadel.BackoffPolicy,
+      Citadel.LocalAction,
+      Citadel.ActionOutboxEntry,
+      Citadel.SessionOutbox,
+      Citadel.SessionState,
+      Citadel.PersistedSessionEnvelope,
+      Citadel.PersistedSessionBlob,
+      Citadel.SessionContinuityCommit
+    ]
+
+    assert RuntimeValues.modules() == expected_modules
+
+    Enum.each(expected_modules, fn module ->
+      assert Code.ensure_loaded?(module)
+      assert public_module_doc?(module)
+    end)
+  end
 
   property "backoff delay remains deterministic for the same entry id and attempt history" do
     check all(attempt_count <- StreamData.integer(0..10)) do
@@ -207,5 +229,15 @@ defmodule Citadel.RuntimeValuesTest do
         }),
       extensions: %{}
     })
+  end
+
+  defp public_module_doc?(module) do
+    case Code.fetch_docs(module) do
+      {:docs_v1, _, _, _, %{"en" => doc}, _, _} when is_binary(doc) ->
+        String.trim(doc) != ""
+
+      _ ->
+        false
+    end
   end
 end
