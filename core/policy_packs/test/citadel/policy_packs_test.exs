@@ -143,6 +143,32 @@ defmodule Citadel.PolicyPacksTest do
     refute String.contains?(dumped, "linear")
   end
 
+  test "defines a diagnostic lane policy pack with local bounded execution only" do
+    pack = PolicyPacks.diagnostic_lane_pack!()
+
+    assert %PolicyPack{} = pack
+    assert pack.pack_id == "diagnostic-lane"
+    assert pack.profiles.boundary_class == "diagnostic"
+    assert pack.profiles.approval_profile == "auto"
+    assert pack.profiles.egress_profile == "localhost_only"
+    assert %ExecutionPolicy{} = pack.execution_policy
+
+    assert pack.execution_policy.allowed_operations == ["diagnostic.echo", "diagnostic.probe"]
+    assert pack.execution_policy.allowed_tools == []
+    assert pack.execution_policy.effect_classes == ["diagnostic"]
+    assert pack.execution_policy.command_classes == ["diagnostic"]
+    assert pack.execution_policy.maximum_egress == "restricted"
+    assert pack.execution_policy.workspace_mutability == "read_only"
+    assert pack.execution_policy.wall_clock_budget_ms == 30_000
+
+    assert pack.execution_policy.extensions == %{
+             "credential_materialization" => "none",
+             "egress_scope" => "localhost_only",
+             "external_provider_access" => "blocked",
+             "output_limit_bytes" => 65_536
+           }
+  end
+
   test "policy packs preserve prompt and guard policy through selection dumps" do
     pack = PolicyPacks.coding_ops_standard_pack!()
 

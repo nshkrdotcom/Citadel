@@ -1729,6 +1729,9 @@ defmodule Citadel.PolicyPacks do
     "review_decision"
   ]
 
+  @diagnostic_lane_operations ["diagnostic.echo", "diagnostic.probe"]
+  @diagnostic_lane_effect_classes ["diagnostic"]
+
   @type selection_input :: %{
           required(:tenant_id) => String.t(),
           required(:scope_kind) => String.t(),
@@ -1898,6 +1901,78 @@ defmodule Citadel.PolicyPacks do
         extensions: %{}
       },
       extensions: %{"policy_family" => "generic_substrate", "policy_version" => policy_version}
+    })
+  end
+
+  @spec diagnostic_lane_pack!(keyword()) :: PolicyPack.t()
+  def diagnostic_lane_pack!(opts \\ []) when is_list(opts) do
+    policy_version = Keyword.get(opts, :policy_version, "diagnostic-lane-2026-05-20")
+    policy_epoch = Keyword.get(opts, :policy_epoch, 1)
+
+    PolicyPack.new!(%{
+      pack_id: Keyword.get(opts, :pack_id, "diagnostic-lane"),
+      policy_version: policy_version,
+      policy_epoch: policy_epoch,
+      priority: Keyword.get(opts, :priority, 60),
+      selector:
+        Keyword.get(opts, :selector, %{
+          tenant_ids: Keyword.get(opts, :tenant_ids, []),
+          scope_kinds: Keyword.get(opts, :scope_kinds, ["diagnostic"]),
+          environments: Keyword.get(opts, :environments, []),
+          default?: Keyword.get(opts, :default?, false),
+          extensions: %{}
+        }),
+      profiles: %{
+        trust_profile: "diagnostic_trusted",
+        approval_profile: "auto",
+        egress_profile: "localhost_only",
+        workspace_profile: "read_only",
+        resource_profile: "diagnostic_lane",
+        boundary_class: "diagnostic",
+        extensions: %{}
+      },
+      execution_policy: diagnostic_lane_execution_policy!(),
+      prompt_version_policy: nil,
+      guardrail_chain_policy: nil,
+      budget_policy: nil,
+      cedar_policy_bundle: nil,
+      rejection_policy: %{
+        denial_audit_reason_codes: [
+          "effect_type_not_allowed",
+          "external_provider_access_blocked",
+          "egress_scope_not_localhost",
+          "workspace_mutation_not_allowed"
+        ],
+        derived_state_reason_codes: ["diagnostic_lane_unavailable"],
+        runtime_change_reason_codes: ["diagnostic_timeout", "diagnostic_output_limit_exceeded"],
+        governance_change_reason_codes: ["diagnostic_policy_epoch_stale"],
+        extensions: %{}
+      },
+      extensions: %{"policy_family" => "diagnostic_lane", "policy_version" => policy_version}
+    })
+  end
+
+  @spec diagnostic_lane_execution_policy!() :: ExecutionPolicy.t()
+  def diagnostic_lane_execution_policy! do
+    ExecutionPolicy.new!(%{
+      minimum_sandbox_level: "strict",
+      maximum_egress: "restricted",
+      approval_mode: "auto",
+      acceptable_attestation: ["local-erlexec-weak"],
+      allowed_tools: [],
+      allowed_operations: @diagnostic_lane_operations,
+      effect_classes: @diagnostic_lane_effect_classes,
+      command_classes: @diagnostic_lane_effect_classes,
+      workspace_mutability: "read_only",
+      placement_intents: ["host_local"],
+      execution_families: ["process", "http"],
+      wall_clock_budget_ms: 30_000,
+      extensions: %{
+        "credential_materialization" => "none",
+        "egress_scope" => "localhost_only",
+        "external_provider_access" => "blocked",
+        "output_limit_bytes" => 65_536
+      }
     })
   end
 

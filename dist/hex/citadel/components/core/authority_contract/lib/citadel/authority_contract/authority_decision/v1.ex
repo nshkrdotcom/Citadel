@@ -104,6 +104,51 @@ defmodule Citadel.AuthorityContract.AuthorityDecision.V1 do
     end
   end
 
+  @spec governed_effect(t()) :: map()
+  def governed_effect(%__MODULE__{} = packet) do
+    packet.extensions
+    |> Map.get("citadel", %{})
+    |> case do
+      %{} = citadel -> Map.get(citadel, "governed_effect", %{})
+      _other -> %{}
+    end
+    |> case do
+      %{} = governed_effect -> governed_effect
+      _other -> %{}
+    end
+  end
+
+  @spec governed_effect_decision(t()) :: String.t() | nil
+  def governed_effect_decision(%__MODULE__{} = packet),
+    do: governed_effect_string(packet, "decision")
+
+  @spec governed_effect_denial_reason(t()) :: String.t() | nil
+  def governed_effect_denial_reason(%__MODULE__{} = packet),
+    do: governed_effect_string(packet, "denial_reason")
+
+  @spec effect_type_allowed(t()) :: [String.t()]
+  def effect_type_allowed(%__MODULE__{} = packet) do
+    packet
+    |> governed_effect()
+    |> Map.get("effect_type_allowed", [])
+    |> case do
+      values when is_list(values) -> Enum.filter(values, &is_binary/1)
+      _other -> []
+    end
+  end
+
+  @spec effect_risk_class(t()) :: String.t() | nil
+  def effect_risk_class(%__MODULE__{} = packet),
+    do: governed_effect_string(packet, "effect_risk_class")
+
+  @spec compensation_required?(t()) :: boolean()
+  def compensation_required?(%__MODULE__{} = packet),
+    do: governed_effect_boolean(packet, "compensation_required")
+
+  @spec review_required_for_effect?(t()) :: boolean()
+  def review_required_for_effect?(%__MODULE__{} = packet),
+    do: governed_effect_boolean(packet, "review_required_for_effect")
+
   @spec require_for_action_ref!(t()) :: String.t()
   def require_for_action_ref!(%__MODULE__{} = packet) do
     case for_action_ref(packet) do
@@ -308,6 +353,20 @@ defmodule Citadel.AuthorityContract.AuthorityDecision.V1 do
       nested ->
         raise ArgumentError,
               "#{field}[\"citadel\"] must be a JSON object, got: #{inspect(nested)}"
+    end
+  end
+
+  defp governed_effect_string(%__MODULE__{} = packet, key) do
+    case Map.get(governed_effect(packet), key) do
+      value when is_binary(value) and value != "" -> value
+      _other -> nil
+    end
+  end
+
+  defp governed_effect_boolean(%__MODULE__{} = packet, key) do
+    case Map.get(governed_effect(packet), key) do
+      value when is_boolean(value) -> value
+      _other -> false
     end
   end
 end
