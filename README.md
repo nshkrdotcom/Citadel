@@ -25,6 +25,11 @@ package:
 - role: typed host-facing command, query, route, and capability boundary above
   the Citadel kernel
 
+Maintainers should read
+[Code Smell Remediation](guides/code_smell_remediation.md) before changing
+signal ingress, session directory ownership, runtime contract values,
+implicit application starts, or partition worker start paths.
+
 ## Stack Position
 
 ```text

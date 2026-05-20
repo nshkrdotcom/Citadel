@@ -165,6 +165,7 @@ defmodule Citadel.Workspace.MixProject do
         "docs/workspace_topology.md",
         "docs/publication.md",
         "docs/shared_contract_dependency_strategy.md",
+        "guides/code_smell_remediation.md",
         "CHANGELOG.md",
         "LICENSE"
       ],
@@ -172,6 +173,7 @@ defmodule Citadel.Workspace.MixProject do
         Overview: ["README.md", "docs/README.md"],
         Architecture: ["docs/workspace_topology.md", "docs/publication.md"],
         Contracts: ["docs/shared_contract_dependency_strategy.md"],
+        Guides: ["guides/code_smell_remediation.md"],
         Project: ["CHANGELOG.md", "LICENSE"]
       ]
     ]
