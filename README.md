@@ -26,7 +26,7 @@ package:
   the Citadel kernel
 
 Maintainers should read
-[Code Smell Remediation](guides/code_smell_remediation.md) before changing
+[Code Smell Remediation](https://github.com/nshkrdotcom/citadel/blob/main/guides/code_smell_remediation.md) before changing
 signal ingress, session directory ownership, runtime contract values,
 implicit application starts, or partition worker start paths.
 
