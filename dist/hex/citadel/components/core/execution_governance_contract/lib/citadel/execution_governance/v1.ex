@@ -9,6 +9,7 @@ defmodule Citadel.ExecutionGovernance.V1 do
 
   alias Citadel.ContractCore.AttrMap
   alias Citadel.ContractCore.CanonicalJson
+  alias Citadel.AgentRuntimePolicyProjection
 
   @packet_name "ExecutionGovernance.v1"
   @contract_version "v1"
@@ -341,12 +342,38 @@ defmodule Citadel.ExecutionGovernance.V1 do
         normalized
 
       nested when is_map(nested) ->
+        validate_citadel_extensions!(nested, field)
         normalized
 
       nested ->
         raise ArgumentError,
               "#{field}[\"citadel\"] must be a JSON object, got: #{inspect(nested)}"
     end
+  end
+
+  defp validate_citadel_extensions!(extensions, field) do
+    case Map.get(extensions, "agent_runtime_policy_projection") do
+      nil ->
+        :ok
+
+      projection when is_map(projection) ->
+        AgentRuntimePolicyProjection.new!(projection)
+        :ok
+
+      projection ->
+        raise ArgumentError,
+              "#{field}[\"citadel\"][\"agent_runtime_policy_projection\"] must be a JSON object, got: " <>
+                inspect(projection)
+    end
+  rescue
+    error in ArgumentError ->
+      reraise ArgumentError,
+              [
+                message:
+                  "#{field}[\"citadel\"][\"agent_runtime_policy_projection\"] is invalid: " <>
+                    Exception.message(error)
+              ],
+              __STACKTRACE__
   end
 
   defp validate_non_empty_string!(value, field) when is_binary(value) do

@@ -106,6 +106,37 @@ defmodule Citadel.ExecutionGovernanceCompilerTest do
     assert packet.extensions["citadel"]["for_action_ref"] == "action://agent-loop/turn-1"
   end
 
+  test "embeds validated agent runtime policy projection into execution governance extensions" do
+    packet =
+      ExecutionGovernanceCompiler.compile!(
+        authority_packet(),
+        boundary_intent(),
+        topology_intent(),
+        execution_governance_id: "execgov-compiler-agent-runtime",
+        sandbox_level: "strict",
+        sandbox_egress: "restricted",
+        sandbox_approvals: "manual",
+        acceptable_attestation: ["manifest-descriptor"],
+        allowed_tools: [],
+        file_scope_ref: "workspace://tenant-1/project-1",
+        logical_workspace_ref: "workspace://tenant-1/project-1",
+        workspace_mutability: "read_write",
+        execution_family: "process",
+        placement_intent: "host_local",
+        target_kind: "workspace",
+        allowed_operations: ["runtime_tool_invocation"],
+        effect_classes: ["external_effect"],
+        agent_runtime_policy_projection: agent_runtime_policy_projection()
+      )
+
+    projection = packet.extensions["citadel"]["agent_runtime_policy_projection"]
+
+    assert projection["projection_ref"] == "agent-policy-projection://tenant-1/run-1"
+    assert projection["allowed_runtime_families"] == ["process", "http", "interop"]
+    assert projection["credential_posture"] == "lease_only"
+    assert projection["budget"]["tool_calls"] == 20
+  end
+
   defp authority_packet(opts \\ []) do
     AuthorityDecisionV1.new!(%{
       contract_version: "v1",
@@ -151,5 +182,25 @@ defmodule Citadel.ExecutionGovernanceCompilerTest do
       topology_epoch: 1,
       extensions: %{}
     })
+  end
+
+  defp agent_runtime_policy_projection do
+    %{
+      projection_ref: "agent-policy-projection://tenant-1/run-1",
+      authority_ref: "authority://decision-1",
+      tenant_ref: "tenant://tenant-1",
+      allowed_runtime_families: [:process, :http, :interop],
+      allowed_capability_classes: [:tool_call, :skill_invocation],
+      denied_capability_classes: [],
+      skill_allowlist_refs: ["skill://document-review"],
+      interop_allowlist_refs: ["agent-interop://external-reviewer"],
+      approval_requirements: [:skill_invocation],
+      network_posture: :restricted,
+      artifact_posture: :claim_checked,
+      credential_posture: :lease_only,
+      budget: %{wall_clock_ms: 60_000, output_bytes: 1_000_000, tool_calls: 20},
+      redaction_posture: :product_safe,
+      revision: 1
+    }
   end
 end

@@ -449,6 +449,260 @@ defmodule Citadel.PolicyPacks.ExecutionPolicy do
   end
 end
 
+defmodule Citadel.PolicyPacks.AgentRuntimePolicy do
+  @moduledoc """
+  Policy-owned lower posture for agentic runtime dispatch.
+  """
+
+  alias Citadel.ContractCore.Value
+
+  @runtime_families ["direct", "session", "process", "http", "jsonrpc", "interop"]
+  @capability_classes ["model_inference", "tool_call", "skill_invocation"]
+  @network_postures ["none", "restricted", "approved_egress"]
+  @artifact_postures ["claim_checked"]
+  @credential_postures ["lease_only"]
+  @redaction_postures ["product_safe"]
+
+  @schema [
+    allowed_runtime_families: {:list, :string},
+    allowed_capability_classes: {:list, :string},
+    denied_capability_classes: {:list, :string},
+    skill_allowlist_refs: {:list, :string},
+    interop_allowlist_refs: {:list, :string},
+    approval_requirements: {:list, :string},
+    network_posture: :string,
+    artifact_posture: :string,
+    credential_posture: :string,
+    budget: {:map, :integer},
+    redaction_posture: :string,
+    revision: :positive_integer,
+    extensions: {:map, :json}
+  ]
+  @fields Keyword.keys(@schema)
+
+  @type budget :: %{
+          required(:wall_clock_ms) => non_neg_integer(),
+          required(:output_bytes) => non_neg_integer(),
+          required(:tool_calls) => non_neg_integer()
+        }
+
+  @type t :: %__MODULE__{
+          allowed_runtime_families: [String.t()],
+          allowed_capability_classes: [String.t()],
+          denied_capability_classes: [String.t()],
+          skill_allowlist_refs: [String.t()],
+          interop_allowlist_refs: [String.t()],
+          approval_requirements: [String.t()],
+          network_posture: String.t(),
+          artifact_posture: String.t(),
+          credential_posture: String.t(),
+          budget: budget(),
+          redaction_posture: String.t(),
+          revision: pos_integer(),
+          extensions: map()
+        }
+
+  @enforce_keys @fields
+  defstruct @fields
+
+  def schema, do: @schema
+
+  def new!(%__MODULE__{} = policy) do
+    policy
+    |> dump()
+    |> new!()
+  end
+
+  def new!(attrs) do
+    attrs = Value.normalize_attrs!(attrs, "Citadel.PolicyPacks.AgentRuntimePolicy", @fields)
+
+    %__MODULE__{
+      allowed_runtime_families:
+        enum_string_list(
+          attrs,
+          :allowed_runtime_families,
+          @runtime_families,
+          ["process"],
+          "allowed_runtime_families",
+          allow_empty?: false
+        ),
+      allowed_capability_classes:
+        enum_string_list(
+          attrs,
+          :allowed_capability_classes,
+          @capability_classes,
+          ["tool_call"],
+          "allowed_capability_classes",
+          allow_empty?: false
+        ),
+      denied_capability_classes:
+        enum_string_list(
+          attrs,
+          :denied_capability_classes,
+          @capability_classes,
+          [],
+          "denied_capability_classes"
+        ),
+      skill_allowlist_refs: optional_strings(attrs, :skill_allowlist_refs, []),
+      interop_allowlist_refs: optional_strings(attrs, :interop_allowlist_refs, []),
+      approval_requirements:
+        enum_string_list(
+          attrs,
+          :approval_requirements,
+          @capability_classes,
+          [],
+          "approval_requirements"
+        ),
+      network_posture:
+        enum_string(attrs, :network_posture, @network_postures, "restricted", "network_posture"),
+      artifact_posture:
+        enum_string(
+          attrs,
+          :artifact_posture,
+          @artifact_postures,
+          "claim_checked",
+          "artifact_posture"
+        ),
+      credential_posture:
+        enum_string(
+          attrs,
+          :credential_posture,
+          @credential_postures,
+          "lease_only",
+          "credential_posture"
+        ),
+      budget: budget(attrs),
+      redaction_posture:
+        enum_string(
+          attrs,
+          :redaction_posture,
+          @redaction_postures,
+          "product_safe",
+          "redaction_posture"
+        ),
+      revision:
+        Value.optional(
+          attrs,
+          :revision,
+          "Citadel.PolicyPacks.AgentRuntimePolicy",
+          fn value ->
+            Value.positive_integer!(value, "Citadel.PolicyPacks.AgentRuntimePolicy.revision")
+          end,
+          1
+        ),
+      extensions:
+        Value.optional(
+          attrs,
+          :extensions,
+          "Citadel.PolicyPacks.AgentRuntimePolicy",
+          fn value ->
+            Value.json_object!(value, "Citadel.PolicyPacks.AgentRuntimePolicy.extensions")
+          end,
+          %{}
+        )
+    }
+  end
+
+  def dump(%__MODULE__{} = policy) do
+    %{
+      allowed_runtime_families: policy.allowed_runtime_families,
+      allowed_capability_classes: policy.allowed_capability_classes,
+      denied_capability_classes: policy.denied_capability_classes,
+      skill_allowlist_refs: policy.skill_allowlist_refs,
+      interop_allowlist_refs: policy.interop_allowlist_refs,
+      approval_requirements: policy.approval_requirements,
+      network_posture: policy.network_posture,
+      artifact_posture: policy.artifact_posture,
+      credential_posture: policy.credential_posture,
+      budget: policy.budget,
+      redaction_posture: policy.redaction_posture,
+      revision: policy.revision,
+      extensions: policy.extensions
+    }
+  end
+
+  defp enum_string(attrs, key, allowed, default, label) do
+    value =
+      Value.optional(
+        attrs,
+        key,
+        "Citadel.PolicyPacks.AgentRuntimePolicy",
+        fn value -> Value.string!(value, "Citadel.PolicyPacks.AgentRuntimePolicy.#{label}") end,
+        default
+      )
+
+    if value in allowed do
+      value
+    else
+      raise ArgumentError,
+            "Citadel.PolicyPacks.AgentRuntimePolicy.#{label} must be one of #{inspect(allowed)}, got: #{inspect(value)}"
+    end
+  end
+
+  defp enum_string_list(attrs, key, allowed, default, label, opts \\ []) do
+    values = optional_strings(attrs, key, default, opts)
+    invalid = Enum.reject(values, &(&1 in allowed))
+
+    if invalid == [] do
+      values
+    else
+      raise ArgumentError,
+            "Citadel.PolicyPacks.AgentRuntimePolicy.#{label} contains unsupported values: #{inspect(invalid)}"
+    end
+  end
+
+  defp optional_strings(attrs, key, default, opts \\ []) do
+    allow_empty? = Keyword.get(opts, :allow_empty?, true)
+
+    Value.optional(
+      attrs,
+      key,
+      "Citadel.PolicyPacks.AgentRuntimePolicy",
+      fn value ->
+        Value.unique_strings!(
+          value,
+          "Citadel.PolicyPacks.AgentRuntimePolicy.#{key}",
+          allow_empty?: allow_empty?
+        )
+      end,
+      default
+    )
+  end
+
+  defp budget(attrs) do
+    budget_attrs =
+      Value.optional(
+        attrs,
+        :budget,
+        "Citadel.PolicyPacks.AgentRuntimePolicy",
+        fn value ->
+          Value.normalize_attrs!(
+            value,
+            "Citadel.PolicyPacks.AgentRuntimePolicy.budget",
+            [:wall_clock_ms, :output_bytes, :tool_calls]
+          )
+        end,
+        %{
+          "wall_clock_ms" => 300_000,
+          "output_bytes" => 8_000_000,
+          "tool_calls" => 40
+        }
+      )
+
+    %{
+      wall_clock_ms: budget_field(budget_attrs, :wall_clock_ms),
+      output_bytes: budget_field(budget_attrs, :output_bytes),
+      tool_calls: budget_field(budget_attrs, :tool_calls)
+    }
+  end
+
+  defp budget_field(attrs, field) do
+    Value.required(attrs, field, "Citadel.PolicyPacks.AgentRuntimePolicy.budget", fn value ->
+      Value.non_neg_integer!(value, "Citadel.PolicyPacks.AgentRuntimePolicy.budget.#{field}")
+    end)
+  end
+end
+
 defmodule Citadel.PolicyPacks.RejectionPolicy do
   @moduledoc """
   Pure policy inputs for rejection retryability and publication classification.
@@ -1282,6 +1536,7 @@ defmodule Citadel.PolicyPacks.PolicyPack do
   """
 
   alias Citadel.ContractCore.Value
+  alias Citadel.PolicyPacks.AgentRuntimePolicy
   alias Citadel.PolicyPacks.BudgetPolicy
   alias Citadel.PolicyPacks.CedarPolicyBundle
   alias Citadel.PolicyPacks.ExecutionPolicy
@@ -1301,6 +1556,7 @@ defmodule Citadel.PolicyPacks.PolicyPack do
     execution_policy: {:struct, ExecutionPolicy},
     prompt_version_policy: {:struct, PromptVersionPolicy},
     guardrail_chain_policy: {:struct, GuardrailChainPolicy},
+    agent_runtime_policy: {:struct, AgentRuntimePolicy},
     budget_policy: {:struct, BudgetPolicy},
     cedar_policy_bundle: {:struct, CedarPolicyBundle},
     rejection_policy: {:struct, RejectionPolicy},
@@ -1318,6 +1574,7 @@ defmodule Citadel.PolicyPacks.PolicyPack do
           execution_policy: ExecutionPolicy.t() | nil,
           prompt_version_policy: PromptVersionPolicy.t() | nil,
           guardrail_chain_policy: GuardrailChainPolicy.t() | nil,
+          agent_runtime_policy: AgentRuntimePolicy.t() | nil,
           budget_policy: BudgetPolicy.t() | nil,
           cedar_policy_bundle: CedarPolicyBundle.t() | nil,
           rejection_policy: RejectionPolicy.t(),
@@ -1411,6 +1668,20 @@ defmodule Citadel.PolicyPacks.PolicyPack do
           end,
           nil
         ),
+      agent_runtime_policy:
+        Value.optional(
+          attrs,
+          :agent_runtime_policy,
+          "Citadel.PolicyPacks.PolicyPack",
+          fn value ->
+            Value.module!(
+              value,
+              AgentRuntimePolicy,
+              "Citadel.PolicyPacks.PolicyPack.agent_runtime_policy"
+            )
+          end,
+          nil
+        ),
       budget_policy:
         Value.optional(
           attrs,
@@ -1463,6 +1734,7 @@ defmodule Citadel.PolicyPacks.PolicyPack do
       execution_policy: dump_execution_policy(pack.execution_policy),
       prompt_version_policy: dump_prompt_version_policy(pack.prompt_version_policy),
       guardrail_chain_policy: dump_guardrail_chain_policy(pack.guardrail_chain_policy),
+      agent_runtime_policy: dump_agent_runtime_policy(pack.agent_runtime_policy),
       budget_policy: dump_budget_policy(pack.budget_policy),
       cedar_policy_bundle: dump_cedar_policy_bundle(pack.cedar_policy_bundle),
       rejection_policy: RejectionPolicy.dump(pack.rejection_policy),
@@ -1481,6 +1753,11 @@ defmodule Citadel.PolicyPacks.PolicyPack do
 
   defp dump_guardrail_chain_policy(%GuardrailChainPolicy{} = policy),
     do: GuardrailChainPolicy.dump(policy)
+
+  defp dump_agent_runtime_policy(nil), do: nil
+
+  defp dump_agent_runtime_policy(%AgentRuntimePolicy{} = policy),
+    do: AgentRuntimePolicy.dump(policy)
 
   defp dump_budget_policy(nil), do: nil
   defp dump_budget_policy(%BudgetPolicy{} = policy), do: BudgetPolicy.dump(policy)
@@ -1501,6 +1778,7 @@ defmodule Citadel.PolicyPacks.Selection do
   """
 
   alias Citadel.ContractCore.Value
+  alias Citadel.PolicyPacks.AgentRuntimePolicy
   alias Citadel.PolicyPacks.BudgetPolicy
   alias Citadel.PolicyPacks.CedarPolicyBundle
   alias Citadel.PolicyPacks.ExecutionPolicy
@@ -1518,6 +1796,7 @@ defmodule Citadel.PolicyPacks.Selection do
     execution_policy: {:struct, ExecutionPolicy},
     prompt_version_policy: {:struct, PromptVersionPolicy},
     guardrail_chain_policy: {:struct, GuardrailChainPolicy},
+    agent_runtime_policy: {:struct, AgentRuntimePolicy},
     budget_policy: {:struct, BudgetPolicy},
     cedar_policy_bundle: {:struct, CedarPolicyBundle},
     rejection_policy: {:struct, RejectionPolicy},
@@ -1534,6 +1813,7 @@ defmodule Citadel.PolicyPacks.Selection do
           execution_policy: ExecutionPolicy.t() | nil,
           prompt_version_policy: PromptVersionPolicy.t() | nil,
           guardrail_chain_policy: GuardrailChainPolicy.t() | nil,
+          agent_runtime_policy: AgentRuntimePolicy.t() | nil,
           budget_policy: BudgetPolicy.t() | nil,
           cedar_policy_bundle: CedarPolicyBundle.t() | nil,
           rejection_policy: RejectionPolicy.t(),
@@ -1611,6 +1891,20 @@ defmodule Citadel.PolicyPacks.Selection do
           end,
           nil
         ),
+      agent_runtime_policy:
+        Value.optional(
+          attrs,
+          :agent_runtime_policy,
+          "Citadel.PolicyPacks.Selection",
+          fn value ->
+            Value.module!(
+              value,
+              AgentRuntimePolicy,
+              "Citadel.PolicyPacks.Selection.agent_runtime_policy"
+            )
+          end,
+          nil
+        ),
       budget_policy:
         Value.optional(
           attrs,
@@ -1662,6 +1956,7 @@ defmodule Citadel.PolicyPacks.Selection do
       execution_policy: dump_execution_policy(selection.execution_policy),
       prompt_version_policy: dump_prompt_version_policy(selection.prompt_version_policy),
       guardrail_chain_policy: dump_guardrail_chain_policy(selection.guardrail_chain_policy),
+      agent_runtime_policy: dump_agent_runtime_policy(selection.agent_runtime_policy),
       budget_policy: dump_budget_policy(selection.budget_policy),
       cedar_policy_bundle: dump_cedar_policy_bundle(selection.cedar_policy_bundle),
       rejection_policy: RejectionPolicy.dump(selection.rejection_policy),
@@ -1680,6 +1975,11 @@ defmodule Citadel.PolicyPacks.Selection do
 
   defp dump_guardrail_chain_policy(%GuardrailChainPolicy{} = policy),
     do: GuardrailChainPolicy.dump(policy)
+
+  defp dump_agent_runtime_policy(nil), do: nil
+
+  defp dump_agent_runtime_policy(%AgentRuntimePolicy{} = policy),
+    do: AgentRuntimePolicy.dump(policy)
 
   defp dump_budget_policy(nil), do: nil
   defp dump_budget_policy(%BudgetPolicy{} = policy), do: BudgetPolicy.dump(policy)
@@ -1771,6 +2071,7 @@ defmodule Citadel.PolicyPacks do
           execution_policy: pack.execution_policy,
           prompt_version_policy: pack.prompt_version_policy,
           guardrail_chain_policy: pack.guardrail_chain_policy,
+          agent_runtime_policy: pack.agent_runtime_policy,
           budget_policy: pack.budget_policy,
           cedar_policy_bundle: pack.cedar_policy_bundle,
           rejection_policy: pack.rejection_policy,
@@ -1879,6 +2180,7 @@ defmodule Citadel.PolicyPacks do
       execution_policy: generic_substrate_execution_policy!(),
       prompt_version_policy: nil,
       guardrail_chain_policy: nil,
+      agent_runtime_policy: generic_agent_runtime_policy!(opts),
       budget_policy: nil,
       cedar_policy_bundle: nil,
       rejection_policy: %{
@@ -1992,6 +2294,41 @@ defmodule Citadel.PolicyPacks do
       execution_families: ["process", "http", "json_rpc", "service"],
       wall_clock_budget_ms: 300_000,
       extensions: %{"operation_class_policy" => @generic_substrate_operations}
+    })
+  end
+
+  @spec generic_agent_runtime_policy!(keyword()) ::
+          Citadel.PolicyPacks.AgentRuntimePolicy.t()
+  def generic_agent_runtime_policy!(opts \\ []) when is_list(opts) do
+    Citadel.PolicyPacks.AgentRuntimePolicy.new!(%{
+      allowed_runtime_families:
+        Keyword.get(opts, :agent_runtime_allowed_runtime_families, [
+          "process",
+          "http",
+          "jsonrpc",
+          "interop"
+        ]),
+      allowed_capability_classes:
+        Keyword.get(opts, :agent_runtime_allowed_capability_classes, [
+          "tool_call",
+          "skill_invocation"
+        ]),
+      denied_capability_classes: Keyword.get(opts, :agent_runtime_denied_capability_classes, []),
+      skill_allowlist_refs: Keyword.get(opts, :agent_runtime_skill_allowlist_refs, []),
+      interop_allowlist_refs: Keyword.get(opts, :agent_runtime_interop_allowlist_refs, []),
+      approval_requirements: Keyword.get(opts, :agent_runtime_approval_requirements, []),
+      network_posture: Keyword.get(opts, :agent_runtime_network_posture, "restricted"),
+      artifact_posture: Keyword.get(opts, :agent_runtime_artifact_posture, "claim_checked"),
+      credential_posture: Keyword.get(opts, :agent_runtime_credential_posture, "lease_only"),
+      budget:
+        Keyword.get(opts, :agent_runtime_budget, %{
+          wall_clock_ms: 300_000,
+          output_bytes: 8_000_000,
+          tool_calls: 40
+        }),
+      redaction_posture: Keyword.get(opts, :agent_runtime_redaction_posture, "product_safe"),
+      revision: Keyword.get(opts, :agent_runtime_revision, 1),
+      extensions: Keyword.get(opts, :agent_runtime_extensions, %{})
     })
   end
 

@@ -4,6 +4,7 @@ defmodule Citadel.ExecutionGovernanceCompiler do
   """
 
   alias Citadel.AuthorityContract.AuthorityDecision.V1, as: AuthorityDecisionV1
+  alias Citadel.AgentRuntimePolicyProjection
   alias Citadel.AuthorityContract.PersistencePosture
   alias Citadel.BoundaryIntent
   alias Citadel.ContractCore.Value
@@ -31,6 +32,7 @@ defmodule Citadel.ExecutionGovernanceCompiler do
     :memory_class,
     :wall_clock_budget_ms,
     :persistence_posture,
+    :agent_runtime_policy_projection,
     :extensions
   ]
 
@@ -257,6 +259,7 @@ defmodule Citadel.ExecutionGovernanceCompiler do
         )
         |> include_action_binding(authority_packet)
         |> include_persistence_posture(authority_packet, attrs)
+        |> include_agent_runtime_policy_projection(attrs)
     })
   end
 
@@ -306,5 +309,29 @@ defmodule Citadel.ExecutionGovernanceCompiler do
       %{} = citadel -> Map.put(citadel, "persistence_posture", posture)
       _other -> %{"persistence_posture" => posture}
     end)
+  end
+
+  defp include_agent_runtime_policy_projection(extensions, attrs) do
+    case Map.get(attrs, :agent_runtime_policy_projection) ||
+           Map.get(attrs, "agent_runtime_policy_projection") do
+      nil ->
+        extensions
+
+      projection_attrs ->
+        projection =
+          projection_attrs
+          |> AgentRuntimePolicyProjection.new!()
+          |> AgentRuntimePolicyProjection.dump()
+
+        Map.update(
+          extensions,
+          "citadel",
+          %{"agent_runtime_policy_projection" => projection},
+          fn
+            %{} = citadel -> Map.put(citadel, "agent_runtime_policy_projection", projection)
+            _other -> %{"agent_runtime_policy_projection" => projection}
+          end
+        )
+    end
   end
 end
