@@ -89,6 +89,22 @@ examples, but Citadel generic policy must authorize operation classes, posture,
 binding refs, manifest refs, credential lease refs, and allowed tool classes
 without becoming a provider-dispatch table.
 
+The Synapse governed-effect lift adds the narrow authority contract used by the
+diagnostic lane. `Citadel.AuthorityContract.GovernedEffectAuthorityRequest`
+normalizes the proposed effect, actor, tenant, resource scopes, and requested
+operation class. `Citadel.AuthorityContract.GovernedEffectAuthority` returns an
+`AuthorityDecision.V1`-shaped decision for the caller to carry downstream. The
+authority layer does not execute the diagnostic lane and does not infer
+provider behavior; it only answers whether the proposed effect may proceed
+under the supplied policy facts.
+
+The cross-stack proof is the StackLab Synapse staged-live receipt:
+
+```bash
+cd /home/home/p/g/n/stack_lab
+MIX_ENV=test mix stack_lab.synapse.staged_live.v1 --json
+```
+
 ## Governance Diagrams
 
 ```mermaid
